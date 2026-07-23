@@ -439,27 +439,56 @@ document.getElementById('btn').addEventListener('click', async () => {
     });
 });
 
+// 🚀 PROFESYONEL EXCEL (.XLSX) OLUŞTURMA MOTORU
 let excelBtn = document.getElementById('excelBtn');
 if (excelBtn) {
     excelBtn.addEventListener('click', () => {
-        let csv = "\uFEFFBaşlık;Model;Yıl;KM;Şehir;Hasar Durumu;İlk Fiyat;Güncel Fiyat;Değişim;İlan Linki\n" + sonCekilenVeriler.map(i => {
+        if (typeof XLSX === 'undefined') {
+            alert("Lütfen 'popup.html' dosyasına SheetJS kütüphanesini eklediğinizden emin olun!");
+            return;
+        }
+
+        // 1. Veri Tablosunu Oluştur
+        let excelVerisi = sonCekilenVeriler.map(i => {
             let ilkP = i.ilkFiyat || i.price;
             let degisim = i.price - ilkP;
             let url = `https://www.sahibinden.com/ilan/${i.id}/detay`;
-
-            // 🚀 VERİ TEMİZLEME (DATA CLEANSING): 
-            // Başlık ve Şehir içindeki tabloyu bozan gizli "Enter" karakterlerini boşlukla değiştiriyoruz.
-            let temizBaslik = i.title.replace(/"/g, '""').replace(/\r?\n|\r/g, " ");
+            
+            let temizBaslik = i.title.replace(/\r?\n|\r/g, " ");
             let temizLoc = i.loc.replace(/\r?\n|\r/g, " ");
 
-            // Sütunlar artık asla kaymayacak!
-            return `"${temizBaslik}";${i.model};${i.yil || 'Bilinmiyor'};${i.km || 0};${temizLoc};${i.hasar};${ilkP};${i.price};${degisim};${url}`;
-        }).join("\n");
-        
-        let a = document.createElement("a");
-        a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
-        a.download = "Arac_Piyasa_Raporu_Detayli.csv";
-        a.click();
+            return {
+                "Başlık": temizBaslik,
+                "Model": i.model,
+                "Yıl": i.yil || 'Bilinmiyor',
+                "KM": i.km || 0,
+                "Şehir": temizLoc,
+                "Hasar Durumu": i.hasar,
+                "İlk Fiyat": ilkP,
+                "Güncel Fiyat": i.price,
+                "Değişim": degisim,
+                "İlan Linki": "İlana Git" // Hücrede görünecek metin
+            };
+        });
+
+        // 2. SheetJS Çalışma Kitabı Oluştur
+        let ws = XLSX.utils.json_to_sheet(excelVerisi);
+
+        // 3. İlan Linki Sütunundaki Metinleri Gerçek Tıklanabilir HYPERLINK Yap
+        let range = XLSX.utils.decode_range(ws['!ref']);
+        for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+            let cellRef = XLSX.utils.encode_cell({ c: 9, r: R }); // 9. Sütun -> İlan Linki
+            let verininKendisi = sonCekilenVeriler[R - 1];
+            if (verininKendisi && ws[cellRef]) {
+                let url = `https://www.sahibinden.com/ilan/${verininKendisi.id}/detay`;
+                ws[cellRef].l = { Target: url, Tooltip: "İlana Gitmek İçin Tıklayın" };
+            }
+        }
+
+        // 4. Doğrudan .xlsx (Gerçek Excel) Formatında İndir
+        let wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Arac_Analiz_Raporu");
+        XLSX.writeFile(wb, "Arac_Piyasa_Raporu_Detayli.xlsx");
     });
 }
 
