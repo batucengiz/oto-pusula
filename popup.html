@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { 
+            width: 360px; padding: 15px; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #f8f9fa; margin: 0; 
+        }
+        
+        /* Şık Başlık Tasarımı */
+        .header { text-align: center; margin-bottom: 18px; }
+        .header h2 { margin: 0; font-size: 18px; color: #1e293b; text-transform: uppercase; letter-spacing: 1px; font-weight: 900; }
+        .header h2 span { color: #10b981; } /* Yeşil vurgu */
+
+        /* Ana Buton (Canlı Yeşil, Parlayan, Animasyonlu) */
+        .btn-baslat { 
+            width: 100%; padding: 14px; 
+            background: linear-gradient(135deg, #10b981, #059669); 
+            color: white; border: none; border-radius: 8px; cursor: pointer; 
+            font-size: 15px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px;
+            box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3); 
+            transition: all 0.2s ease-in-out; 
+        }
+        .btn-baslat:hover { 
+            background: linear-gradient(135deg, #059669, #047857); 
+            transform: translateY(-2px); 
+            box-shadow: 0 6px 15px rgba(16, 185, 129, 0.4); 
+        }
+        .btn-baslat:active { transform: translateY(1px); }
+
+        /* Excel Butonu (Koyu Yeşil/Turkuaz) */
+        .btn-excel { 
+            width: 100%; padding: 12px; margin-top: 10px; 
+            background: linear-gradient(135deg, #0f766e, #115e59); 
+            color: white; border: none; border-radius: 8px; cursor: pointer; 
+            font-size: 13px; font-weight: bold; display: none; 
+            box-shadow: 0 4px 6px rgba(15, 118, 110, 0.2); transition: all 0.2s; 
+        }
+        .btn-excel:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(15, 118, 110, 0.3); }
+
+        /* JSON Arşiv Butonu (İndigo/Mor) */
+        .btn-json { 
+            width: 100%; padding: 12px; margin-top: 10px; 
+            background: linear-gradient(135deg, #4f46e5, #4338ca); 
+            color: white; border: none; border-radius: 8px; cursor: pointer; 
+            font-size: 13px; font-weight: bold; 
+            box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2); transition: all 0.2s; 
+        }
+        .btn-json:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(79, 70, 229, 0.3); }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>Piyasa <span>Analiz</span> Pro</h2>
+    </div>
+    
+    <button id="btn" class="btn-baslat">🚀 ANALİZİ BAŞLAT</button>
+    <button id="excelBtn" class="btn-excel">📊 EXCEL RAPORU AL</button>
+    <button id="yedekleBtn" class="btn-json">💾 VERİLERİ ARŞİVE GÖNDER (JSON)</button>
+    
+    <div id="sonuc" style="margin-top:15px;"></div>
+    
+    <script src="popup.js"></script>
+</body>
+</html>
