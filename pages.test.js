@@ -29,3 +29,47 @@ test('doğrulama aracı sayfa betiklerini çalıştırmaz ve yalnızca okuyucuyu
   assert.equal(raw.rows[0].location, 'Osmaniye\nDüziçi');
   assert.equal(raw.rows[0].href, 'https://www.sahibinden.com/ilan/vasita-otomobil-fiat-1234567890/detay');
 });
+
+test('ilan detay sayfası: bilinmeyen yapıda etiket taraması ve sekme başlığıyla okunur, telefon yakalanır', () => {
+  const { extractFromHtml } = require('./tools/verify-page.js');
+  const listing = require('./listing.js');
+  // Kasıtlı olarak eski .classifiedInfoList yapısı YOK: etiket ve değer yan yana div'lerde.
+  const html = `<html><head><title>Volkswagen / Passat / 1.4 TSI BlueMotion / Comfortline - sahibinden.com - 1344784723</title></head><body>
+    <h1>153.000 KM SERVİS BAKIMLI OTOMATİK COMFORTLİNE LANSMAN RENK</h1>
+    <section class="detail-info">
+      <div class="price"><span>1.485.000 TL</span></div>
+      <div class="loc"><a>Nevşehir</a> / <a>Merkez</a> / <a>Mehmet Akif Ersoy Mh.</a></div>
+      <div class="row"><div>İlan No</div><div>1344784723</div></div>
+      <div class="row"><div>Marka</div><div>Volkswagen</div></div>
+      <div class="row"><div>Seri</div><div>Passat</div></div>
+      <div class="row"><div>Model</div><div>1.4 TSI BlueMotion Comfortline</div></div>
+      <div class="row"><div>Yıl</div><div>2015</div></div>
+      <div class="row"><div>Yakıt / Motor Tipi</div><div>Benzin</div></div>
+      <div class="row"><div>Vites</div><div>Otomatik</div></div>
+      <div class="row"><div>KM</div><div>153.000</div></div>
+      <div class="row"><div>Kasa Tipi</div><div>Sedan</div></div>
+      <div class="row"><div>Ağır Hasar Kayıtlı</div><div>Hayır</div></div>
+    </section>
+    <aside><div class="seller"><span>Cep</span><span>0 (500) 000 00 01</span></div></aside>
+  </body></html>`;
+  const raw = extractFromHtml(html, 'https://www.sahibinden.com/ilan/vasita-otomobil-volkswagen-153.000-km-1344784723/detay');
+  assert.equal(raw.kind, 'detail');
+  assert.ok(raw.info.length >= 8, `etiket taraması: ${JSON.stringify(raw.info)}`);
+  const record = listing.parseDetailPage(raw);
+  assert.equal(record.brand, 'Volkswagen');
+  assert.equal(record.model, 'Passat');
+  assert.equal(record.engine, '1.4 TSI');
+  assert.equal(record.trim, 'Comfortline');
+  assert.equal(record.year, 2015);
+  assert.equal(record.km, 153000);
+  assert.equal(record.price, 1485000);
+  assert.equal(record.fuel, 'Benzin');
+  assert.equal(record.transmission, 'Otomatik');
+  assert.equal(record.city, 'Nevşehir');
+  assert.equal(listing.findMobile(raw.phoneText, raw.description), '905000000001');
+
+  // Bilgi listesi hiç okunamasa bile sekme başlığı marka/seriyi kurtarır.
+  const fallback = listing.parseDetailPage({ ...raw, info: [['Yıl', '2015'], ['KM', '153.000']] });
+  assert.equal(fallback.brand, 'Volkswagen');
+  assert.equal(fallback.model, 'Passat');
+});

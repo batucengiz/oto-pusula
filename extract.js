@@ -14,23 +14,54 @@
   if (!/(^|\.)sahibinden\.com$/.test(location.hostname)) return { kind: 'unsupported' };
 
   if (location.pathname.startsWith('/ilan/')) {
-    const info = [...document.querySelectorAll('.classifiedInfoList li')]
+    // 1) Bilinen yapı: <li><strong>Marka</strong><span>Volkswagen</span></li>
+    let info = [...document.querySelectorAll('.classifiedInfoList li')]
       .map(item => [text(item.querySelector('strong')), text(item.querySelector('span'))])
-      .filter(([label]) => label);
-    const description = document.querySelector('#classifiedDescription, [id*="classifiedDescription"], .classifiedDescription');
+      .filter(([label, value]) => label && value);
+
+    // 2) Yedek: sayfa yapısı farklıysa, etiketi yazan yaprak öğe bulunur ve hemen yanındaki değer okunur.
+    //    Aynı tarama, görünür hâldeki cep numarasını da yakalar. Hiçbir öğe değiştirilmez.
+    const LABEL = /^(İlan No|İlan Tarihi|Marka|Seri|Model|Yıl|Yakıt|Yakıt Tipi|Yakıt \/ Motor Tipi|Vites|Vites Tipi|KM|Kasa Tipi|Motor Hacmi|Motor Gücü|Ağır Hasar Kayıtlı|Kimden|Renk)\s*:?$/;
+    const PHONE = /^(\+?90|0)?\s*\(?\s*5\d{2}\s*\)?\s*\d{3}\s*\d{2}\s*\d{2}$/;
+    const scanned = [];
+    const phones = [];
+    let anchor = null;
+    for (const node of document.querySelectorAll('body *')) {
+      if (node.childElementCount) continue;
+      const leaf = String(node.textContent || '').trim();
+      if (PHONE.test(leaf)) phones.push(leaf);
+      if (!LABEL.test(leaf) || scanned.some(([label]) => label === leaf.replace(/\s*:$/, ''))) continue;
+      const holder = node.nextElementSibling ? node : node.parentElement;
+      const value = text(holder?.nextElementSibling);
+      if (!value || value.length > 120) continue;
+      scanned.push([leaf.replace(/\s*:$/, ''), value]);
+      if (/^Marka/.test(leaf)) anchor = node;
+    }
+    if (info.length < 3) info = scanned;
+
+    // Fiyat ve konum, bilgi listesini içeren kutudan okunur.
+    let box = document.querySelector('.classifiedInfo');
+    for (let node = anchor, depth = 0; !box && node && depth < 8; node = node.parentElement, depth++) {
+      if (/\d{1,3}(\.\d{3})+\s*TL/.test(node.textContent || '')) box = node;
+    }
+    const boxLines = text(box).split('\n').map(line => line.trim()).filter(Boolean);
+    const description = document.querySelector('#classifiedDescription, [id*="classifiedDescription"], .classifiedDescription, [class*="description"]');
     return {
       kind: 'detail',
       url: location.href,
+      pageTitle: document.title,
       listingId: (location.pathname.match(/\d{6,13}/g) || []).at(-1) || '',
       title: text(document.querySelector('.classifiedDetailTitle h1, h1')),
-      priceText: text(document.querySelector('.classifiedInfo h3, .classified-price-wrapper')),
-      location: text(document.querySelector('.classifiedInfo h2')),
+      priceText: text(document.querySelector('.classifiedInfo h3, .classified-price-wrapper'))
+        || boxLines.find(line => /^\d{1,3}(\.\d{3})+\s*TL/.test(line)) || '',
+      location: text(document.querySelector('.classifiedInfo h2'))
+        || boxLines.find(line => / \/ /.test(line) && !/\d/.test(line)) || '',
       info: info.slice(0, 60),
       description: text(description).slice(0, 12000),
       // Yalnızca kullanıcı "Telefonu göster"e bastıktan sonra ekranda görünen metin okunur;
       // eklenti numarayı göstermek için hiçbir şeye tıklamaz.
       phoneText: [...document.querySelectorAll('[class*="phone"], [id*="phone"], [class*="Phone"], [id*="Phone"]')]
-        .map(text).filter(Boolean).join('\n').slice(0, 2000)
+        .map(text).concat(phones).filter(Boolean).join('\n').slice(0, 2000)
     };
   }
 

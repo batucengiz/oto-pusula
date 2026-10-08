@@ -84,7 +84,7 @@ test('ilan detay sayfası bilgi listesi, açıklama ve fiyatla okunur', () => {
     priceText: '1.195.000 TL\nKredi Teklifi Al',
     location: 'Ankara / Çankaya / Bahçelievler',
     info: [['İlan No', '1234567891'], ['Marka', 'Toyota'], ['Seri', 'Corolla'], ['Model', '1.5 Dream'], ['Yıl', '2021'],
-      ['Yakıt Tipi', 'Benzin'], ['Vites', 'Otomatik'], ['KM', '66.000'], ['Kasa Tipi', 'Sedan']],
+      ['Yakıt / Motor Tipi', 'Benzin'], ['Vites', 'Otomatik'], ['KM', '66.000'], ['Kasa Tipi', 'Sedan']],
     description: 'Aracımız bakımlıdır.\nSol ön çamurluk boyalı, değişen yok.'
   });
   assert.equal(record.brand, 'Toyota');

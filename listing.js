@@ -253,8 +253,17 @@
     const listingId = String(raw?.listingId || get('ILAN NO')).replace(/\D/g, '');
     if (!/^\d{6,13}$/.test(listingId)) throw new Error('İlan numarası okunamadı.');
     const title = String(raw.title ?? '').trim();
-    const vehicle = identifyVehicle({ context: get('MODEL'), title, brandHint: get('MARKA'), modelHint: get('SERI') });
-    if (!vehicle) throw new Error('Marka ve model okunamadı.');
+    // Sekme başlığı "Volkswagen / Passat / 1.4 TSI BlueMotion / ..." biçimindedir; bilgi listesi
+    // okunamazsa marka, seri ve model buradan alınır (en az üç parça varsa güvenilir sayılır).
+    const titleParts = String(raw.pageTitle ?? '').replace(/\s*[-|–]\s*sahibinden.*$/i, '').split('/').map(part => part.trim()).filter(Boolean);
+    const tabTitleUsable = titleParts.length >= 3;
+    const vehicle = identifyVehicle({
+      context: get('MODEL') || (tabTitleUsable ? titleParts.slice(2).join(' ') : ''),
+      title,
+      brandHint: get('MARKA') || (tabTitleUsable ? titleParts[0] : ''),
+      modelHint: get('SERI') || (tabTitleUsable ? titleParts[1] : '')
+    });
+    if (!vehicle) throw new Error(info.size ? 'Marka ve model okunamadı.' : 'İlan bilgileri okunamadı; sahibinden sayfa yapısı farklı olabilir.');
     const fromDescription = assessCondition(raw.description);
     const fromTitle = assessCondition(title);
     // İlan bilgi listesindeki yapısal "Ağır Hasar Kayıtlı: Evet" alanı serbest metinden önce gelir.
@@ -267,7 +276,7 @@
       ...vehicle, listingId, title,
       body: vehicle.body || titleCase(norm(get('KASA TIPI'))),
       year: digits(get('YIL')), km: digits(get('KM')), price: priceFrom(raw.priceText),
-      fuel: get('YAKIT TIPI', 'YAKIT'), transmission: get('VITES TIPI', 'VITES'),
+      fuel: get('YAKIT / MOTOR TIPI', 'YAKIT TIPI', 'YAKIT'), transmission: get('VITES TIPI', 'VITES'),
       url: raw.url, city, condition: condition.condition, conditionNote: condition.note
     });
   }
