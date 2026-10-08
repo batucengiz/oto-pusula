@@ -6,14 +6,14 @@
   const core = root.OtoCore || (typeof require === 'function' ? require('./core.js') : null);
 
   function empty() {
-    return { schema: 1, stock: [], comparables: [], sample: false };
+    return { schema: 1, stock: [], comparables: [], pages: [], sample: false };
   }
 
   function load(storage = root.localStorage) {
     try {
       const parsed = JSON.parse(storage.getItem(KEY));
       if (parsed?.schema === 1 && Array.isArray(parsed.stock) && Array.isArray(parsed.comparables)) {
-        return { schema: 1, stock: parsed.stock.slice(0, core.MAX_ROWS), comparables: parsed.comparables.slice(0, core.MAX_ROWS), sample: !!parsed.sample };
+        return { schema: 1, stock: parsed.stock.slice(0, core.MAX_ROWS), comparables: parsed.comparables.slice(0, core.MAX_ROWS), pages: core.normalizePages(parsed.pages), sample: !!parsed.sample };
       }
     } catch { /* Bozuk kayıt yerine boş durum döner. */ }
     return empty();

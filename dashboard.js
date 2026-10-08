@@ -234,6 +234,60 @@
     hide() { tooltipNode.hidden = true; }
   };
 
+  let shownIds = [];
+
+  // Arama sayfası adresindeki sayfalama bilgisinden "sayfa 2" gibi bir etiket çıkarır.
+  function pageNumber(url) {
+    try {
+      const params = new URL(url).searchParams;
+      const offset = Number(params.get('pagingOffset') || 0);
+      const size = Number(params.get('pagingSize') || 20);
+      return offset > 0 && size > 0 ? ` · sayfa ${Math.floor(offset / size) + 1}` : '';
+    } catch { return ''; }
+  }
+
+  function renderPages() {
+    const pages = state.pages || [];
+    const list = $('pages-list');
+    list.replaceChildren();
+    $('pages-panel').hidden = !pages.length;
+    $('pages-summary').textContent = `Okunan sayfalar (${pages.length})`;
+    const existing = new Set(state.comparables.map(item => item.id));
+    for (const page of pages) {
+      const row = element('div', 'page-row');
+      const count = page.listingIds.filter(id => existing.has(id)).length;
+      const info = element('span', 'page-info');
+      info.append(element('strong', '', `${page.title}${page.kind === 'search' ? pageNumber(page.url) : ''}`),
+        element('small', '', `${page.date || ''} · ${page.kind === 'detail' ? 'ilan sayfası' : 'arama sayfası'} · ${count} ilan`));
+      const actions = element('span', 'page-actions');
+      if (page.url) {
+        const open = element('button', 'button button-secondary', 'Aç ↗');
+        open.type = 'button';
+        open.addEventListener('click', () => window.open(page.url, '_blank', 'noopener'));
+        actions.append(open);
+      }
+      const remove = element('button', 'button button-danger', 'Sil');
+      remove.type = 'button';
+      remove.addEventListener('click', () => deletePage(page));
+      actions.append(remove);
+      row.append(info, actions);
+      list.append(row);
+    }
+  }
+
+  function deletionNotice(prefix, result) {
+    const parts = [`${prefix}: ${result.removed} ilan silindi.`];
+    if (result.kept) parts.push(`${result.kept} ilan takip listende olduğu için korundu.`);
+    if (result.shared) parts.push(`${result.shared} ilan başka bir okunan sayfada da olduğu için kaldı.`);
+    notice(parts.join(' '));
+  }
+
+  function deletePage(page) {
+    if (!confirm(`“${page.title}” sayfasından gelen ilanlar silinsin mi? Takip listendeki (★) ilanlar korunur.`)) return;
+    const result = core.removePage(state, page.id);
+    if (save(result.state)) deletionNotice('Sayfa silindi', result);
+  }
+
   function renderMarketChart(entries) {
     const box = $('market-chart');
     const legend = $('market-legend');
@@ -270,13 +324,18 @@
         : filter === 'drop' ? entry.change && entry.change.amount < 0
         : filter === 'expensive' ? ['yüksek fiyat', 'biraz yüksek'].includes(entry.result.status)
         : filter === 'watch' ? entry.record.watched
-        : filter === 'warn' ? hasWarning(entry) : true);
+        : filter === 'warn' ? hasWarning(entry)
+        : filter === 'stale' ? (core.daysSince(entry.record.date) ?? 0) >= 30 : true);
     const gapOf = entry => (entry.record.condition === 'riskli' ? 1e6 : entry.result.center ? entry.result.gap : 2e6);
     entries.sort((a, b) => sort === 'price' ? a.record.price - b.record.price
       : sort === 'recent' ? String(b.record.date).localeCompare(String(a.record.date))
       : sort === 'age' ? (b.age ?? -1) - (a.age ?? -1)
       : gapOf(a) - gapOf(b));
     $('market-count').textContent = `${entries.length}/${all.length} ilan gösteriliyor`;
+    shownIds = entries.map(entry => entry.record.id);
+    $('delete-shown').textContent = `Gösterilenleri sil (${entries.length})`;
+    $('delete-shown').disabled = !entries.length;
+    renderPages();
     renderMarketChart(entries);
     if (!entries.length) {
       const row = element('tr');
@@ -588,6 +647,15 @@
     showView('market');
   }
   $('go-deals').addEventListener('click', showDeals);
+  $('delete-shown').addEventListener('click', () => {
+    if (!shownIds.length) return;
+    const everything = shownIds.length === listings().length;
+    if (!confirm(everything
+      ? `Tüm piyasa ilanları (${shownIds.length}) silinsin mi? Takip listendeki (★) ilanlar ve stok araçların korunur.`
+      : `Şu an gösterilen ${shownIds.length} ilan silinsin mi? Takip listendeki (★) ilanlar korunur.`)) return;
+    const result = core.removeListings(state, shownIds);
+    if (save(result.state)) deletionNotice('Silme tamamlandı', result);
+  });
   $('deal-shortcut').addEventListener('click', showDeals);
   $('whatsapp-listing').addEventListener('click', () => {
     const link = selectedVehicle && listingTools.whatsappLink(selectedVehicle.sellerPhone, selectedVehicle);
@@ -642,7 +710,7 @@
       if (backup.schema !== 1 || !Array.isArray(backup.stock) || !Array.isArray(backup.comparables)) throw new Error('Oto Pusula yedeği değil.');
       if (backup.stock.length > core.MAX_ROWS || backup.comparables.length > core.MAX_ROWS) throw new Error('Kayıt sınırı aşıldı.');
       const normalized = {
-        schema: 1, sample: !!backup.sample,
+        schema: 1, sample: !!backup.sample, pages: core.normalizePages(backup.pages),
         stock: backup.stock.map((item, i) => core.normalizeRecord({ ...item, id: String(item.id).replace(/^stock-/, '') }, 'stock', i + 2)),
         comparables: backup.comparables.map((item, i) => core.normalizeRecord({ ...item, id: String(item.id).replace(/^comparable-/, '') }, 'comparable', i + 2))
       };

@@ -188,8 +188,9 @@
   }
 
   function priceFrom(text) {
-    const match = String(text ?? '').match(/\d{1,3}(?:[.,]\d{3})+|\d{4,}/);
-    return match ? core.number(match[0]) : NaN;
+    // İlk en az 4 haneli sayı alınır; ayraçlar düzensiz olsa da ("1000.000") tamamı okunur.
+    const token = (String(text ?? '').match(/\d[\d.,]*\d|\d/g) || []).find(part => part.replace(/\D/g, '').length >= 4);
+    return token ? core.number(token) : NaN;
   }
 
   function digits(text) {
@@ -325,9 +326,18 @@
     if (!records.length) throw new Error(`Okunabilir ilan bulunamadı.${skipped.length ? ` ${skipped.length} satır atlandı (${skipped[0].reason}).` : ''}`);
 
     // Örnek veri kurgusaldır; gerçek ilanlarla karışmaması için ilk gerçek okumada temizlenir.
-    const base = state.sample ? { schema: 1, stock: [], comparables: [], sample: false } : state;
+    const base = state.sample ? { schema: 1, stock: [], comparables: [], pages: [], sample: false } : state;
     const { records: comparables, stats } = core.mergeObservations(base.comparables, records, today);
-    const next = { ...base, comparables, sample: false };
+    // Her analiz "okunan sayfa" olarak kaydedilir; panelde sayfa bazında silinebilir.
+    const rawTitle = raw.kind === 'search' ? raw.pageTitle : records[0].title;
+    const page = {
+      id: `p-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+      date: today, kind: raw.kind,
+      title: String(rawTitle || '').replace(/\s*[-|–]?\s*sahibinden\.com.*$/i, '').trim().slice(0, 160) || 'sahibinden sayfası',
+      url: core.safeSahibindenUrl(raw.url),
+      listingIds: records.map(item => item.id)
+    };
+    const next = { ...base, comparables, pages: core.recordPage(core.normalizePages(base.pages), page), sample: false };
     const byId = new Map(comparables.map(item => [item.id, item]));
     const now = new Date(`${today}T12:00:00Z`);
     const evaluated = records.map(item => {

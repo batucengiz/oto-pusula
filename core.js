@@ -154,7 +154,8 @@
     if (!brand || !model) throw new Error('marka ve model gerekli');
     if (!Number.isInteger(year) || year < 1980 || year > new Date().getFullYear() + 1) throw new Error('geçersiz yıl');
     if (!Number.isInteger(km) || km < 0 || km > 1000000) throw new Error('geçersiz kilometre');
-    if (!Number.isFinite(price) || price < 1000 || price > 100000000) throw new Error('geçersiz fiyat');
+    // 10.000 TL altı araç fiyatı değildir (kapora, kiralama veya hatalı yazım).
+    if (!Number.isFinite(price) || price < 10000 || price > 100000000) throw new Error('geçersiz fiyat');
     if (cost !== null && (!Number.isFinite(cost) || cost < 0 || cost > 100000000)) throw new Error('geçersiz maliyet');
     if (plain(input.date) && !date(input.date)) throw new Error('geçersiz tarih');
     const sourceId = plain(input.id);
@@ -458,6 +459,57 @@
     return { amount: record.price - first, ratio: (record.price - first) / first, first };
   }
 
+  // --- Okunan sayfalar ve silme ---
+  const MAX_PAGES = 200;
+
+  function safeSahibindenUrl(value) {
+    try {
+      const url = new URL(plain(value));
+      if (url.protocol === 'https:' && /(^|\.)sahibinden\.com$/.test(url.hostname)) return url.href;
+    } catch { /* geçersiz adres saklanmaz */ }
+    return '';
+  }
+
+  function normalizePages(pages) {
+    if (!Array.isArray(pages)) return [];
+    return pages.slice(0, MAX_PAGES).filter(page => page && typeof page.id === 'string').map(page => ({
+      id: plain(page.id).slice(0, 40),
+      date: date(page.date),
+      kind: page.kind === 'detail' ? 'detail' : 'search',
+      title: plain(page.title).slice(0, 160),
+      url: safeSahibindenUrl(page.url),
+      listingIds: Array.isArray(page.listingIds) ? page.listingIds.filter(id => typeof id === 'string').slice(0, 300) : []
+    }));
+  }
+
+  // Aynı adres tekrar okunursa yeni kayıt açılmaz; ilanlar birleşir ve sayfa en üste çıkar.
+  function recordPage(pages, entry) {
+    const existing = entry.url ? pages.find(page => page.url === entry.url) : null;
+    const merged = existing
+      ? { ...existing, date: entry.date, title: entry.title || existing.title, listingIds: [...new Set([...existing.listingIds, ...entry.listingIds])] }
+      : entry;
+    return [merged, ...pages.filter(page => page !== existing)].slice(0, MAX_PAGES);
+  }
+
+  // Takip listesindeki (★) ilanlar toplu silmede korunur; tek tek "Listeden çıkar" ile silinebilir.
+  function removeListings(state, ids) {
+    const target = new Set(ids);
+    const comparables = state.comparables.filter(item => !target.has(item.id) || item.watched);
+    const kept = state.comparables.filter(item => target.has(item.id) && item.watched).length;
+    return { state: { ...state, comparables }, removed: state.comparables.length - comparables.length, kept };
+  }
+
+  // Sayfayı siler; başka bir okunan sayfada da görünen ilanlar o sayfaya ait olduğu için kalır.
+  function removePage(state, pageId) {
+    const pages = state.pages || [];
+    const page = pages.find(item => item.id === pageId);
+    if (!page) return { state, removed: 0, kept: 0, shared: 0 };
+    const elsewhere = new Set(pages.filter(item => item.id !== pageId).flatMap(item => item.listingIds));
+    const own = page.listingIds.filter(id => !elsewhere.has(id));
+    const result = removeListings(state, own);
+    return { ...result, shared: page.listingIds.length - own.length, state: { ...result.state, pages: pages.filter(item => item.id !== pageId) } };
+  }
+
   const tl = value => `₺${Math.round(value).toLocaleString('tr-TR')}`;
   const round5k = value => Math.round(value / 5000) * 5000;
 
@@ -495,7 +547,7 @@
     return { flags, offer };
   }
 
-  const api = { MAX_ROWS, advise, DEFAULTS, key, brandKey, number, date, safeListingUrl, parseCsv, importCsv, normalizeRecord, merge, mergeObservations, priceChange, median, daysSince, estimate, summary };
+  const api = { MAX_ROWS, advise, normalizePages, recordPage, removeListings, removePage, safeSahibindenUrl, DEFAULTS, key, brandKey, number, date, safeListingUrl, parseCsv, importCsv, normalizeRecord, merge, mergeObservations, priceChange, median, daysSince, estimate, summary };
   root.OtoCore = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);

@@ -205,3 +205,32 @@ test('satıcı numarası yalnızca açık kayıtla saklanır, tekrar okumada kor
   assert.equal(cleared.comparables[0].sellerPhone, undefined);
   assert.equal(cleared.comparables[0].watched, true);
 });
+
+test('okunan sayfalar kaydedilir; sayfa silinince yalnızca o sayfaya ait, takipte olmayan ilanlar gider', () => {
+  const page1 = { kind: 'search', pageTitle: 'Fiat Egea Fiyatları & Modelleri sahibinden.com\'da', url: 'https://www.sahibinden.com/fiat-egea', headers: HEADERS,
+    rows: [row('1234567810', '1.4 Fire Easy', 'EGEA', 2021, '90.000', '850.000 TL'), row('1234567820', '1.4 Fire Easy', 'EGEA', 2021, '95.000', '840.000 TL'), row('1234567830', '1.4 Fire Easy', 'EGEA', 2020, '99.000', '800.000 TL')] };
+  const page2 = { ...page1, url: 'https://www.sahibinden.com/fiat-egea?pagingOffset=20', rows: [row('1234567830', '1.4 Fire Easy', 'EGEA', 2020, '99.000', '800.000 TL'), row('1234567840', '1.4 Fire Easy', 'EGEA', 2022, '60.000', '900.000 TL')] };
+  let state = listing.ingest(page1, { schema: 1, stock: [], comparables: [], sample: false }, '2026-10-08').state;
+  state = listing.ingest(page2, state, '2026-10-08').state;
+  assert.equal(state.pages.length, 2);
+  assert.equal(state.pages[1].title, 'Fiat Egea Fiyatları & Modelleri');
+  // Aynı adres tekrar okununca yeni sayfa açılmaz.
+  state = listing.ingest(page1, state, '2026-10-09').state;
+  assert.equal(state.pages.length, 2);
+  assert.equal(state.pages[0].url, 'https://www.sahibinden.com/fiat-egea');
+  state.comparables = state.comparables.map(item => item.listingId === '1234567820' ? { ...item, watched: true } : item);
+  const result = core.removePage(state, state.pages[0].id);
+  assert.equal(result.removed, 1, 'yalnızca 1234567810 silinmeli');
+  assert.equal(result.kept, 1, 'takipteki 1234567820 korunmalı');
+  assert.equal(result.shared, 1, '1234567830 sayfa 2\'de de var');
+  assert.deepEqual(result.state.comparables.map(item => item.listingId).sort(), ['1234567820', '1234567830', '1234567840']);
+  assert.equal(result.state.pages.length, 1);
+});
+
+test('fiyat okuma: düzensiz ayraçlar doğru okunur, araç olamayacak kadar düşük fiyat reddedilir', () => {
+  assert.equal(listing.priceFrom('1000.000 TL'), 1000000);
+  assert.equal(listing.priceFrom('1.250.000 TL\nKredi Teklifi Al'), 1250000);
+  assert.equal(listing.priceFrom('₺ 735.000'), 735000);
+  assert.ok(Number.isNaN(listing.priceFrom('Fiyat yok')));
+  assert.throws(() => core.normalizeRecord({ brand: 'Fiat', model: 'Egea', year: 2020, km: 1000, price: 5000 }, 'comparable'), /geçersiz fiyat/);
+});

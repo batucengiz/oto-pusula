@@ -114,6 +114,15 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
   get('market-filter').value = 'drop';
   get('market-filter').listeners.change();
   assert.equal(get('market-body').children.length, 2);
+  // Gösterilenleri sil: önce bir ilanı takibe al, sonra fiyatı düşen 2 ilanı sil → takipteki korunur.
+  const watchedState = JSON.parse(storage.get('otoPusula_v1'));
+  watchedState.comparables[0].watched = true;
+  storage.set('otoPusula_v1', JSON.stringify(watchedState));
+  windowListeners.storage({ key: 'otoPusula_v1' });
+  get('market-filter').value = 'drop';
+  get('market-filter').listeners.change();
+  get('delete-shown').click();
+  assert.equal(JSON.parse(storage.get('otoPusula_v1')).comparables.length, 5, 'takipteki ilan korunmalı, diğeri silinmeli');
   get('deal-shortcut').click();
   assert.equal(get('market-filter').value, 'deal');
   assert.equal(get('market-sort').value, 'price');
