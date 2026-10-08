@@ -358,10 +358,21 @@
       row.setAttribute('role', 'button');
       row.setAttribute('aria-label', `${labelFor(record)} ilan detayını aç`);
       const nameCell = element('span');
-      nameCell.append(
-        element('span', 'vehicle-name', `${record.watched ? '★ ' : ''}${record.sellerPhone ? '☎ ' : ''}${[labelFor(record), record.engine].filter(Boolean).join(' · ')}`),
-        element('span', 'vehicle-meta', [record.year, `${record.km.toLocaleString('tr-TR')} km`, record.city].filter(Boolean).join(' · '))
-      );
+      const nameText = `${record.watched ? '★ ' : ''}${record.sellerPhone ? '☎ ' : ''}${[labelFor(record), record.engine].filter(Boolean).join(' · ')}`;
+      // İlan adı sahibinden'deki ilanı yeni sekmede açar; satırın geri kalanı analiz penceresini açar.
+      const listingUrl = core.safeListingUrl(record.url);
+      let name;
+      if (listingUrl) {
+        name = element('a', 'vehicle-name listing-link', `${nameText} ↗`);
+        name.href = listingUrl;
+        name.target = '_blank';
+        name.rel = 'noopener noreferrer';
+        name.title = 'sahibinden.com’da aç';
+        name.addEventListener('click', event => event.stopPropagation());
+      } else {
+        name = element('span', 'vehicle-name', nameText);
+      }
+      nameCell.append(name, element('span', 'vehicle-meta', [record.year, `${record.km.toLocaleString('tr-TR')} km`, record.city].filter(Boolean).join(' · ')));
       if (advice.flags.length) nameCell.append(flagBadges(advice.flags));
       // Numarası kullanıcı tarafından kaydedilmiş ilanlarda satırdan doğrudan WhatsApp açılır.
       const waLink = record.sellerPhone && listingTools.whatsappLink(record.sellerPhone, record);

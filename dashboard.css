@@ -161,3 +161,5 @@ tbody tr.clickable { cursor: pointer; }
 .button:disabled { opacity: .45; cursor: not-allowed; }
 .whatsapp-row { display: inline-block; margin-top: 6px; padding: 5px 10px; font-size: 11px; background: #25d366; color: #0b3d1f; }
 .whatsapp-row:hover { background: #2ee774; }
+.vehicle-name.listing-link { display: block; color: #1a5fb4; }
+.vehicle-name.listing-link:hover { color: #0f3f7a; text-decoration: underline; }
