@@ -1,0 +1,121 @@
+/* ===== Oto Pusula canlı tema — dashboard.css'in üzerine yüklenir; yapı aynı, renk/derinlik/hareket katmanı ===== */
+:root {
+  --ink: #0f172a; --muted: #64748b; --line: #e6eaf2;
+  --brand-1: #10b981; --brand-2: #06b6d4; --brand-3: #6366f1; --accent: #f59e0b;
+  --grad: linear-gradient(135deg, var(--brand-1), var(--brand-2));
+  --shadow: 0 10px 30px -12px rgba(15, 23, 42, .18), 0 2px 6px rgba(15, 23, 42, .05);
+  color: var(--ink);
+  background:
+    radial-gradient(900px 500px at 100% -10%, rgba(99, 102, 241, .10), transparent 60%),
+    radial-gradient(800px 500px at 0% 0%, rgba(16, 185, 129, .10), transparent 60%),
+    #f5f7fc;
+}
+body { background: transparent; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid rgba(6, 182, 212, .55); }
+
+/* Kenar çubuğu */
+.sidebar { background: linear-gradient(180deg, #0b1220 0%, #111c38 55%, #0b3a3d 100%); color: #cbd5e1; box-shadow: 6px 0 30px -18px rgba(2, 6, 23, .6); }
+.brand-mark { background: var(--grad); color: white; box-shadow: 0 8px 20px -6px rgba(6, 182, 212, .6); }
+.brand small { color: #7dd3fc; }
+.nav-button { color: #cbd5e1; display: flex; align-items: center; gap: 10px; transition: background .15s, color .15s, transform .15s; }
+.nav-button::before { font-size: 16px; width: 22px; text-align: center; }
+.nav-button[data-view="overview"]::before { content: "\1F3E0"; }
+.nav-button[data-view="market"]::before { content: "\1F525"; }
+.nav-button[data-view="stock"]::before { content: "\1F697"; }
+.nav-button[data-view="comparables"]::before { content: "\1F4CA"; }
+.nav-button[data-view="method"]::before { content: "\1F9ED"; }
+.nav-button:hover { background: rgba(255, 255, 255, .08); color: white; transform: translateX(2px); }
+.nav-button.active { background: var(--grad); color: white; box-shadow: 0 8px 22px -8px rgba(16, 185, 129, .7); }
+.sidebar-foot { border-top-color: rgba(255, 255, 255, .1); color: #94a3b8; }
+.online-dot { background: #34d399; box-shadow: 0 0 0 4px rgba(52, 211, 153, .18); }
+
+/* Başlıklar ve düğmeler */
+.eyebrow { color: var(--brand-3); }
+h1 { background: linear-gradient(90deg, #0f172a, #1e3a8a); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.topbar p, .section-heading p { color: var(--muted); }
+.button { border-radius: 11px; transition: transform .12s, box-shadow .12s, background .12s; }
+.button:active { transform: translateY(1px); }
+.button-primary { background: var(--grad); color: white; box-shadow: 0 8px 18px -8px rgba(6, 182, 212, .75); }
+.button-primary:hover { background: linear-gradient(135deg, #0ea371, #0891b2); box-shadow: 0 10px 22px -8px rgba(6, 182, 212, .9); }
+.button-secondary { color: #1e293b; border-color: var(--line); box-shadow: 0 1px 2px rgba(15, 23, 42, .05); }
+.button-secondary:hover { border-color: #a5b4fc; color: var(--brand-3); }
+.button-danger { color: #dc2626; border-color: #fecaca; }
+.notice { border: 0; border-left: 4px solid var(--brand-1); background: #ecfdf5; color: #065f46; box-shadow: var(--shadow); }
+.notice.error { border-left-color: #ef4444; background: #fef2f2; color: #991b1b; }
+
+/* Kahraman alanı */
+.hero {
+  background:
+    radial-gradient(420px 220px at 85% 10%, rgba(255, 255, 255, .25), transparent 60%),
+    radial-gradient(380px 260px at 10% 120%, rgba(99, 102, 241, .55), transparent 60%),
+    linear-gradient(120deg, #059669 0%, #0891b2 55%, #4f46e5 100%);
+  box-shadow: 0 24px 50px -24px rgba(8, 145, 178, .65);
+  position: relative; overflow: hidden;
+}
+.hero::after { content: "\1F698"; position: absolute; right: 230px; bottom: -18px; font-size: 120px; opacity: .14; transform: rotate(-8deg); pointer-events: none; }
+.hero-kicker { color: #fde68a; }
+.hero p { color: #e0f2fe; }
+.hero-stat { background: rgba(255, 255, 255, .16); border-color: rgba(255, 255, 255, .35); backdrop-filter: blur(6px); }
+.hero-stat span, .hero-stat small { color: #e0f2fe; }
+
+/* Kartlar ve paneller */
+.stat-card, .panel { border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); }
+.stat-card { position: relative; overflow: hidden; transition: transform .15s, box-shadow .15s; }
+.stat-card:hover { transform: translateY(-3px); box-shadow: 0 18px 36px -16px rgba(15, 23, 42, .25); }
+.stat-card::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 4px; background: var(--grad); }
+.stat-card::after { position: absolute; right: 16px; top: 16px; font-size: 22px; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; }
+.stat-card:nth-child(1)::after { content: "\1F697"; background: #ecfdf5; }
+.stat-card:nth-child(2)::after { content: "\1F4B0"; background: #eff6ff; }
+.stat-card:nth-child(3)::after { content: "\1F4C8"; background: #f5f3ff; }
+.stat-card:nth-child(4)::after { content: "\23F3"; background: #fffbeb; }
+.stat-card:nth-child(2)::before { background: linear-gradient(90deg, #3b82f6, #06b6d4); }
+.stat-card:nth-child(3)::before { background: linear-gradient(90deg, #8b5cf6, #6366f1); }
+.stat-card:nth-child(4)::before { background: linear-gradient(90deg, #f59e0b, #f97316); }
+.stat-card span { color: var(--muted); }
+.stat-card strong { color: var(--ink); }
+.insight, .quality-item { border-color: var(--line); border-radius: 12px; background: linear-gradient(180deg, #ffffff, #fafbff); transition: border-color .15s, transform .15s; }
+.insight:hover, .quality-item:hover { border-color: #a5b4fc; transform: translateX(2px); }
+.insight strong, .quality-item strong { color: var(--brand-3); }
+.market-panel .insight:nth-child(2) strong { color: #059669; }
+.market-panel .insight:nth-child(4) strong { color: #dc2626; }
+.action-item { border-color: var(--line); border-radius: 12px; background: white; }
+.action-item:hover { border-color: #6ee7b7; background: #f0fdf4; }
+
+/* Tablo ve form */
+.table-wrap { border-radius: 18px; border: 1px solid var(--line); box-shadow: var(--shadow); background: white; }
+thead th { background: linear-gradient(180deg, #f8fafc, #eef2ff); color: #475569; }
+tbody tr.clickable:hover { background: #f0fdfa; }
+.search-label input, .search-label select { border-color: var(--line); border-radius: 11px; }
+.search-label input:focus, .search-label select:focus { border-color: var(--brand-2); }
+
+/* Etiketler */
+.badge { font-weight: 800; letter-spacing: .01em; }
+.badge.good { color: #047857; background: #d1fae5; box-shadow: inset 0 0 0 1px #a7f3d0; }
+.badge.warn { color: #b45309; background: #fef3c7; box-shadow: inset 0 0 0 1px #fde68a; }
+.badge.bad { color: #b91c1c; background: #fee2e2; box-shadow: inset 0 0 0 1px #fecaca; }
+.badge.neutral { color: #334155; background: #eef2f7; box-shadow: inset 0 0 0 1px #e2e8f0; }
+.trend.down { color: #059669; }
+.vehicle-name.listing-link { color: #2563eb; }
+.whatsapp-row { box-shadow: 0 6px 14px -8px rgba(37, 211, 102, .9); }
+.dialog { border-radius: 20px; box-shadow: 0 30px 60px -20px rgba(15, 23, 42, .45); }
+.dialog::backdrop { background: rgba(15, 23, 42, .45); backdrop-filter: blur(3px); }
+
+@media print { .hero::after, .stat-card::after { display: none; } }
+@media (prefers-reduced-motion: reduce) { .stat-card, .nav-button, .button, .insight, .quality-item { transition: none; } .stat-card:hover { transform: none; } }
+
+/* Piyasa özeti: liste yerine renkli sayı kutucukları */
+.market-panel .insight-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.market-panel .insight { flex-direction: column-reverse; align-items: flex-start; justify-content: flex-end; gap: 4px; padding: 16px 18px; border-radius: 16px; }
+.market-panel .insight strong { font-size: 30px; line-height: 1; letter-spacing: -.03em; }
+.market-panel .insight span { color: var(--muted); font-weight: 650; }
+.market-panel .insight:nth-child(1) { background: linear-gradient(135deg, #eef2ff, #ffffff); }
+.market-panel .insight:nth-child(2) { background: linear-gradient(135deg, #ecfdf5, #ffffff); }
+.market-panel .insight:nth-child(3) { background: linear-gradient(135deg, #ecfeff, #ffffff); }
+.market-panel .insight:nth-child(3) strong { color: #0891b2; }
+.market-panel .insight:nth-child(4) { background: linear-gradient(135deg, #fef2f2, #ffffff); }
+.market-panel .insight:nth-child(5) { background: linear-gradient(135deg, #fffbeb, #ffffff); }
+.market-panel .insight:nth-child(5) strong { color: #d97706; }
+.market-panel .insight:nth-child(6) { background: linear-gradient(135deg, #f8fafc, #ffffff); }
+.market-panel .insight:nth-child(6) strong { color: #334155; }
+.market-panel .panel-head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; }
+@media (max-width: 900px) { .market-panel .insight-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
