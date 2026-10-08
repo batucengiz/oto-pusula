@@ -24,3 +24,6 @@ small { display: block; margin-top: 12px; color: #86a39a; font-size: 11px; }
 .whatsapp { margin-top: 10px; background: #25d366; color: #0b3d1f; }
 .whatsapp:hover { background: #2ee774; }
 .save-phone { margin-top: 6px; }
+.danger { margin-top: 8px; background: transparent; color: #ffb4a8; border: 1px solid #6b3a33; font-weight: 650; }
+.danger:hover:not(:disabled) { background: #3a2422; }
+.danger.confirm { background: #c0392b; color: white; border-color: #c0392b; }

@@ -14,6 +14,7 @@
 - **Fırsat arabalar:** Tek tuşla piyasanın altındaki (uygun ve düşük fiyatlı, ağır hasarsız) ilanlar ucuzdan pahalıya listelenir. Popup ve panelden erişilir.
 - **Veri yönetimi:** Her analiz edilen sayfa “Okunan sayfalar” listesine girer; istenen sayfanın ilanları tek tuşla silinir (başka sayfada da görünen ilanlar kalır). Arama/filtreyle daraltılan ilanlar “Gösterilenleri sil” ile, 30+ gündür görülmeyen eski ilanlar ayrı filtreyle temizlenir. Takip listesindeki ilanlar toplu silmede korunur.
 - **Görüştüklerim:** Numarasını kaydettiğiniz ilanlar panelde alt alta, her satırda WhatsApp düğmesiyle listelenir. Numaralar toplu çekilmez; her biri kullanıcının kendi açtığı ilandan, onayıyla gelir.
+- **Popup’tan sayfa silme:** Silmek istediğiniz sahibinden sayfasını açıp popup’ta “Bu sayfadaki ilanları sil” dersiniz; ilk basış kaç ilanın silineceğini gösterir, ikincisi siler. Ne zaman toplanmış olursa olsun o sayfadaki ilanlar silinir, takip listesindekiler korunur.
 - **Takip listesi:** İlgilendiğiniz ilanları yıldızlayıp ayrıca filtreleyebilirsiniz; ilan tekrar okunduğunda işaret korunur.
 - **Piyasa haritası ve fiyat grafiği:** Her ilan, fiyatı ile tahmini piyasa değerini karşılaştıran bir grafikte nokta olarak görünür (adil fiyat çizgisi ve ±%10 bandıyla). İlan detayında fiyatın zaman içindeki değişimi çizilir. Grafikler bağımlılıksız SVG'dir.
 - **Fiyat geçmişi:** Aynı ilanı sonraki günlerde tekrar gördüğünüzde fiyat değişimi kaydedilir. "Fiyatı düşenler" ve "en uzun süredir yayında" filtreleri pazarlıkta işe yarar.
@@ -75,7 +76,7 @@ Yine de sitenin iç sistemleri bilinemez; tam garanti verilemez. Önerilen kulla
 ## Geliştirme
 
 ```bash
-npm test        # 44 test: fiyat motoru ve öğrenen model, ilan ayrıştırma, hasar beyanı, uyarılar, panel, popup/WhatsApp akışı, güvenlik ve ban kuralları
+npm test        # 45 test: fiyat motoru ve öğrenen model, ilan ayrıştırma, hasar beyanı, uyarılar, panel, popup/WhatsApp akışı, güvenlik ve ban kuralları
 npm run verify-page -- "fixtures/sayfa.html"   # kaydedilmiş gerçek sayfayı okuyucudan geçirir
 npm run dev     # paneli http://127.0.0.1:4173 adresinde önizler (popup için eklenti olarak yükleyin)
 ```

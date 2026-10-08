@@ -115,7 +115,43 @@
     }
   }
 
+  // İki adımlı silme: ilk basışta açık sayfayı okuyup kaç ilan silineceğini gösterir, ikincide siler.
+  let pendingForget = null;
+  async function forgetPage() {
+    if (!activeTab) return;
+    const button = $('forget-page');
+    button.disabled = true;
+    try {
+      if (!pendingForget) {
+        const [injection] = await chrome.scripting.executeScript({ target: { tabId: activeTab.id }, files: ['extract.js'] });
+        const raw = injection?.result;
+        const preview = listing.forgetPage(raw, store.load());
+        if (!preview.found) {
+          showResult([element('p', '', 'Bu sayfadaki ilanlardan kayıtlı olan yok; silinecek bir şey bulunamadı.')]);
+          return;
+        }
+        pendingForget = raw;
+        button.textContent = `Silmeyi onayla: ${preview.removed} ilan silinecek${preview.kept ? ` (${preview.kept} takipteki korunur)` : ''}`;
+        button.classList.add('confirm');
+        return;
+      }
+      const result = listing.forgetPage(pendingForget, store.load());
+      store.save(result.state);
+      pendingForget = null;
+      button.textContent = 'Bu sayfadaki ilanları sil';
+      button.classList.remove('confirm');
+      showResult([element('p', 'stats', `${result.removed} ilan silindi.`),
+        ...(result.kept ? [element('p', 'muted', `${result.kept} ilan takip listende (★) olduğu için korundu.`)] : [])]);
+    } catch (error) {
+      pendingForget = null;
+      showResult([element('p', '', error.message || 'Sayfa okunamadı.')], true);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
   $('analyze').addEventListener('click', analyze);
+  $('forget-page').addEventListener('click', forgetPage);
   $('open-deals').addEventListener('click', () => {
     chrome.tabs.create({ url: chrome.runtime.getURL('dashboard.html#firsat') });
     window.close();
@@ -128,6 +164,7 @@
   chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
     activeTab = tab && isSahibinden(tab.url) ? tab : null;
     $('analyze').disabled = !activeTab;
+    $('forget-page').disabled = !activeTab;
     $('page-hint').textContent = activeTab
       ? (new URL(tab.url).pathname.startsWith('/ilan/') ? 'İlan sayfası: fiyat ve satıcı açıklaması okunacak.' : 'Arama sonucu: listedeki ilanlar okunacak.')
       : 'sahibinden.com’da bir arama sonucu veya ilan sayfası açın.';

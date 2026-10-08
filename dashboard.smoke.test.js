@@ -12,7 +12,7 @@ class FakeNode {
     this.value = '';
     this.textContent = '';
     this.hidden = false;
-    this.classList = { toggle() {} };
+    this.classList = { toggle() {}, add() {}, remove() {} };
   }
   append(...children) { this.children.push(...children); }
   replaceChildren(...children) { this.children = [...children]; }
@@ -182,4 +182,37 @@ test('popup: ilan detayında WhatsApp düğmesi hazır mesajı açar, numara dep
   const saved = JSON.parse(storage.get('otoPusula_v1')).comparables.find(item => item.listingId === '1234567893');
   assert.equal(saved.sellerPhone, '905000000001');
   assert.equal(saved.watched, true);
+});
+
+test('popup: "Bu sayfadaki ilanları sil" iki adımda siler, takiptekini korur, eski veride de çalışır', async () => {
+  const core = require('./core.js');
+  const nodes = new Map();
+  const get = id => { if (!nodes.has(id)) nodes.set(id, new FakeNode(id)); return nodes.get(id); };
+  const ids = ['1234567810', '1234567820', '1234567830'];
+  const page = { kind: 'search', url: 'https://www.sahibinden.com/fiat-egea', pageTitle: 'Fiat Egea', headers: [], rows: ids.map(id => ({ id })) };
+  // Sayfa kaydı olmayan (4.8 öncesi) veri: yalnızca ilanlar var.
+  const comparables = [...ids, '1234567899'].map((id, i) => core.normalizeRecord({ id: `sh-${id}`, source: 'sahibinden', listingId: id,
+    brand: 'Fiat', model: 'Egea', year: 2021, km: 80000, price: 800000 + i * 1000, ...(i === 1 ? { watched: true } : {}) }, 'comparable'));
+  const storage = new Map([['otoPusula_v1', JSON.stringify({ schema: 1, stock: [], comparables, sample: false })]]);
+  const context = vm.createContext({
+    Node: FakeNode, console, URL,
+    document: { getElementById: get, createElement: () => new FakeNode() },
+    localStorage: { getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v), removeItem: k => storage.delete(k) },
+    window: { close() {} },
+    chrome: {
+      tabs: { query: async () => [{ id: 1, url: page.url }], create() {} },
+      scripting: { executeScript: async () => [{ result: page }] },
+      runtime: { getURL: path => path }
+    }
+  });
+  for (const file of ['core.js', 'listing.js', 'store.js', 'popup.js']) vm.runInContext(fs.readFileSync(require.resolve(`./${file}`), 'utf8'), context);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(get('forget-page').disabled, false);
+  await get('forget-page').listeners.click();
+  assert.match(get('forget-page').textContent, /Silmeyi onayla: 2 ilan silinecek \(1 takipteki korunur\)/);
+  assert.equal(JSON.parse(storage.get('otoPusula_v1')).comparables.length, 4, 'ilk basışta hiçbir şey silinmemeli');
+  await get('forget-page').listeners.click();
+  const left = JSON.parse(storage.get('otoPusula_v1')).comparables.map(item => item.listingId).sort();
+  assert.deepEqual(left, ['1234567820', '1234567899'], 'takipteki ve başka sayfadaki ilan kalmalı');
+  assert.equal(get('forget-page').textContent, 'Bu sayfadaki ilanları sil');
 });

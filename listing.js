@@ -329,6 +329,24 @@
     };
   }
 
+  // Açık sayfadaki ilanların kayıt kimlikleri (ne zaman toplanmış olursa olsun silinebilmesi için).
+  function pageRecordIds(raw) {
+    const ids = raw?.kind === 'search' ? (raw.rows || []).map(row => String(row?.id ?? ''))
+      : raw?.kind === 'detail' ? [String(raw.listingId ?? '')] : [];
+    return [...new Set(ids.filter(id => /^\d{6,13}$/.test(id)).map(id => `comparable-sh-${id}`))];
+  }
+
+  // Popup'tan "bu sayfadaki ilanları sil": takip listesindekiler korunur, sayfa kaydı da kaldırılır.
+  function forgetPage(raw, state) {
+    const ids = pageRecordIds(raw);
+    const stored = new Set(state.comparables.map(item => item.id));
+    const present = ids.filter(id => stored.has(id));
+    const result = core.removeListings(state, present);
+    const url = core.safeSahibindenUrl(raw?.url);
+    const pages = core.normalizePages(state.pages).filter(page => !url || page.url !== url);
+    return { ...result, state: { ...result.state, pages }, found: present.length };
+  }
+
   // Popup akışı: ham sayfa → kayıtlar → mevcut veriyle birleştirme → bu sayfadaki öne çıkanlar.
   function ingest(raw, state, today = new Date().toISOString().slice(0, 10)) {
     let records;
@@ -366,7 +384,7 @@
     return { state: next, stats, skipped, evaluated, highlights, drops, clearedSample: !!state.sample };
   }
 
-  const api = { MAX_PAGE_ROWS, norm, identifyVehicle, assessCondition, priceFrom, parseSearchPage, parseDetailPage, ingest, findMobile, whatsappLink, formatPhone, savePhone, clearPhones };
+  const api = { MAX_PAGE_ROWS, norm, identifyVehicle, assessCondition, priceFrom, parseSearchPage, parseDetailPage, ingest, findMobile, whatsappLink, formatPhone, savePhone, clearPhones, pageRecordIds, forgetPage };
   root.OtoListing = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);
