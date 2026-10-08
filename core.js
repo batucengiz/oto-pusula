@@ -231,6 +231,15 @@
     return !a || !b || key(a) === key(b);
   }
 
+  // Motor: elle girilen "1.4" ile ilandan okunan "1.4 Fire" aynı motordur; biri diğerinin başıysa uyumlu.
+  // "1.4" ile "1.6 Multijet" gibi farklı motorlar uyumsuz kalır.
+  function engineCompatible(a, b) {
+    if (!a || !b) return true;
+    const ka = key(a);
+    const kb = key(b);
+    return ka === kb || ka.startsWith(kb) || kb.startsWith(ka);
+  }
+
   const MIN_MATCH = 4;
   const MATCH_FIELDS = ['fuel', 'transmission', 'engine', 'trim', 'body'];
   // Yeterli benzer kayıt yoksa önce paket, sonra kasa tipi gevşetilir. Motor, yakıt ve vites
@@ -342,7 +351,7 @@
     let matched = [];
     let relaxed = [];
     for (const skip of RELAX_STEPS) {
-      const candidates = base.filter(item => MATCH_FIELDS.every(field => skip.includes(field) || compatible(vehicle[field], item[field])));
+      const candidates = base.filter(item => MATCH_FIELDS.every(field => skip.includes(field) || (field === 'engine' ? engineCompatible : compatible)(vehicle[field], item[field])));
       // Eşitlikte daha katı seviye korunur; gevşetme yalnızca gerçekten kayıt eklediğinde sayılır.
       if (candidates.length > matched.length) { matched = candidates; relaxed = skip; }
       if (matched.length >= MIN_MATCH) break;

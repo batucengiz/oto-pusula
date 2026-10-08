@@ -200,3 +200,15 @@ test('hızlı gezinme uyarısı: 2 dakikada 8 sayfa', () => {
   assert.equal(core.browsePace(log, t0 + 80 * 1000).fast, true);
   assert.equal(core.browsePace(log.slice(0, 5), t0 + 80 * 1000).fast, false);
 });
+
+test('elle girilen "1.4" motor, ilandan okunan "1.4 Fire" ile eşleşir; "1.6 Multijet" ile eşleşmez', () => {
+  const today = new Date('2026-10-08');
+  const mine = core.normalizeRecord({ id: 'S-T', brand: 'FİAT', model: 'TİPO', engine: '1.4', trim: 'S', year: 1997, km: 180000, price: 240000, cost: 180000 }, 'stock');
+  const listing = (i, engine, price) => core.normalizeRecord({ id: `sh-12345678${i}0`, source: 'sahibinden', listingId: `12345678${i}0`,
+    brand: 'Fiat', model: 'Tipo', engine, year: 1996 + (i % 3), km: 170000 + i * 5000, price, date: '2026-10-05' }, 'comparable');
+  const pool = [listing(1, '1.4 Fire', 230000), listing(2, '1.4 Fire', 250000), listing(3, '1.4 Fire', 245000), listing(4, '1.4 Fire', 235000), listing(5, '1.6 Multijet', 400000)];
+  const result = core.estimate(mine, pool, core.DEFAULTS, today);
+  assert.equal(result.count, 4, 'yalnızca 1.4 motorlu Tipolar kullanılmalı');
+  assert.ok(result.comparables.every(({ item }) => item.engine === '1.4 Fire'));
+  assert.ok(['aralıkta', 'uygun', 'biraz yüksek', 'düşük fiyat', 'yüksek fiyat'].includes(result.status));
+});
