@@ -121,8 +121,16 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
   windowListeners.storage({ key: 'otoPusula_v1' });
   get('market-filter').value = 'drop';
   get('market-filter').listeners.change();
+  // İkinci soruya (takiptekileri de sil?) İptal: takipteki korunur.
+  context.confirm = message => !/takip listende/.test(message);
   get('delete-shown').click();
   assert.equal(JSON.parse(storage.get('otoPusula_v1')).comparables.length, 5, 'takipteki ilan korunmalı, diğeri silinmeli');
+  // Aynı ilanı yeniden göster ve ikinci soruya Tamam de: takipteki de silinir.
+  context.confirm = () => true;
+  get('market-filter').value = 'watch';
+  get('market-filter').listeners.change();
+  get('delete-shown').click();
+  assert.equal(JSON.parse(storage.get('otoPusula_v1')).comparables.length, 4, 'kullanıcı isteyince takipteki de silinmeli');
   get('go-phones').click();
   assert.equal(get('market-filter').value, 'phone');
   get('deal-shortcut').click();
@@ -215,6 +223,10 @@ test('popup: "Bu sayfadaki ilanları sil" iki adımda siler, takiptekini korur, 
   const left = JSON.parse(storage.get('otoPusula_v1')).comparables.map(item => item.listingId).sort();
   assert.deepEqual(left, ['1234567820', '1234567899'], 'takipteki ve başka sayfadaki ilan kalmalı');
   assert.equal(get('forget-page').textContent, 'Bu sayfadaki ilanları sil');
+  const deleteWatched = get('result').children.find(child => /Takiptekileri de sil \(1\)/.test(child.textContent));
+  assert.ok(deleteWatched, 'takipteki ilanları da silme düğmesi görünmeli');
+  deleteWatched.click();
+  assert.deepEqual(JSON.parse(storage.get('otoPusula_v1')).comparables.map(item => item.listingId), ['1234567899'], 'yalnızca başka sayfadaki ilan kalmalı');
 });
 
 test('popup: 1 dakika dolmadan yeni satıcıya WhatsApp açılmaz, bekleme süresi gösterilir', async () => {

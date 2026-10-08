@@ -353,11 +353,11 @@
   }
 
   // Popup'tan "bu sayfadaki ilanları sil": takip listesindekiler korunur, sayfa kaydı da kaldırılır.
-  function forgetPage(raw, state) {
+  function forgetPage(raw, state, options = {}) {
     const ids = pageRecordIds(raw);
     const stored = new Set(state.comparables.map(item => item.id));
     const present = ids.filter(id => stored.has(id));
-    const result = core.removeListings(state, present);
+    const result = core.removeListings(state, present, options);
     const url = core.safeSahibindenUrl(raw?.url);
     const pages = core.normalizePages(state.pages).filter(page => !url || page.url !== url);
     return { ...result, state: { ...result.state, pages }, found: present.length };

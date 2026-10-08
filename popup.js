@@ -126,6 +126,7 @@
 
   // İki adımlı silme: ilk basışta açık sayfayı okuyup kaç ilan silineceğini gösterir, ikincide siler.
   let pendingForget = null;
+  let lastForgotten = null;
   async function forgetPage() {
     if (!activeTab) return;
     const button = $('forget-page');
@@ -144,13 +145,26 @@
         button.classList.add('confirm');
         return;
       }
+      lastForgotten = pendingForget;
       const result = listing.forgetPage(pendingForget, store.load());
       store.save(result.state);
       pendingForget = null;
       button.textContent = 'Bu sayfadaki ilanları sil';
       button.classList.remove('confirm');
-      showResult([element('p', 'stats', `${result.removed} ilan silindi.`),
-        ...(result.kept ? [element('p', 'muted', `${result.kept} ilan takip listende (★) olduğu için korundu.`)] : [])]);
+      const nodes = [element('p', 'stats', `${result.removed} ilan silindi.`)];
+      if (result.kept) {
+        // Takipteki (★, WhatsApp numarası kayıtlı) ilanlar yalnızca kullanıcı açıkça isterse silinir.
+        const raw = lastForgotten;
+        const all = element('button', 'danger', `Takiptekileri de sil (${result.kept})`);
+        all.type = 'button';
+        all.addEventListener('click', () => {
+          const extra = listing.forgetPage(raw, store.load(), { includeWatched: true });
+          store.save(extra.state);
+          showResult([element('p', 'stats', `${extra.removed} takipteki ilan da silindi.`)]);
+        });
+        nodes.push(element('p', 'muted', `${result.kept} ilan takip listende (★, numarası kayıtlı olanlar dahil) olduğu için korundu.`), all);
+      }
+      showResult(nodes);
     } catch (error) {
       pendingForget = null;
       showResult([element('p', '', error.message || 'Sayfa okunamadı.')], true);

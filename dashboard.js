@@ -291,14 +291,21 @@
 
   function deletionNotice(prefix, result) {
     const parts = [`${prefix}: ${result.removed} ilan silindi.`];
-    if (result.kept) parts.push(`${result.kept} ilan takip listende olduğu için korundu.`);
+    if (result.kept) parts.push(`${result.kept} ilan takip listende (★) olduğu için korundu; onları da silmek için tekrar “Gösterilenleri sil” deyip ikinci soruya Tamam deyin.`);
     if (result.shared) parts.push(`${result.shared} ilan başka bir okunan sayfada da olduğu için kaldı.`);
     notice(parts.join(' '));
   }
 
+  // Silinecekler arasında takipteki (★, WhatsApp numarası kayıtlı olanlar dahil) ilan varsa ayrıca sorulur.
+  function askIncludeWatched(ids) {
+    const watched = core.watchedAmong(state, ids);
+    if (!watched) return false;
+    return confirm(`Bunların ${watched} tanesi takip listende (★, WhatsApp numarası kaydettiklerin dahil).\n\nTamam: onları da sil\nİptal: onları koru, diğerlerini sil`);
+  }
+
   function deletePage(page) {
-    if (!confirm(`“${page.title}” sayfasından gelen ilanlar silinsin mi? Takip listendeki (★) ilanlar korunur.`)) return;
-    const result = core.removePage(state, page.id);
+    if (!confirm(`“${page.title}” sayfasından gelen ilanlar silinsin mi?`)) return;
+    const result = core.removePage(state, page.id, { includeWatched: askIncludeWatched(page.listingIds) });
     if (save(result.state)) deletionNotice('Sayfa silindi', result);
   }
 
@@ -682,9 +689,9 @@
     if (!shownIds.length) return;
     const everything = shownIds.length === listings().length;
     if (!confirm(everything
-      ? `Tüm piyasa ilanları (${shownIds.length}) silinsin mi? Takip listendeki (★) ilanlar ve stok araçların korunur.`
-      : `Şu an gösterilen ${shownIds.length} ilan silinsin mi? Takip listendeki (★) ilanlar korunur.`)) return;
-    const result = core.removeListings(state, shownIds);
+      ? `Tüm piyasa ilanları (${shownIds.length}) silinsin mi? Stok araçların etkilenmez.`
+      : `Şu an gösterilen ${shownIds.length} ilan silinsin mi?`)) return;
+    const result = core.removeListings(state, shownIds, { includeWatched: askIncludeWatched(shownIds) });
     if (save(result.state)) deletionNotice('Silme tamamlandı', result);
   });
   $('deal-shortcut').addEventListener('click', showDeals);

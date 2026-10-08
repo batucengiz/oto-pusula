@@ -553,21 +553,27 @@
   }
 
   // Takip listesindeki (★) ilanlar toplu silmede korunur; tek tek "Listeden çıkar" ile silinebilir.
-  function removeListings(state, ids) {
+  // Kullanıcı açıkça isterse (includeWatched) takipteki ilanlar da silinir.
+  function removeListings(state, ids, { includeWatched = false } = {}) {
     const target = new Set(ids);
-    const comparables = state.comparables.filter(item => !target.has(item.id) || item.watched);
-    const kept = state.comparables.filter(item => target.has(item.id) && item.watched).length;
+    const comparables = state.comparables.filter(item => !target.has(item.id) || (item.watched && !includeWatched));
+    const kept = includeWatched ? 0 : state.comparables.filter(item => target.has(item.id) && item.watched).length;
     return { state: { ...state, comparables }, removed: state.comparables.length - comparables.length, kept };
   }
 
+  function watchedAmong(state, ids) {
+    const target = new Set(ids);
+    return state.comparables.filter(item => target.has(item.id) && item.watched).length;
+  }
+
   // Sayfayı siler; başka bir okunan sayfada da görünen ilanlar o sayfaya ait olduğu için kalır.
-  function removePage(state, pageId) {
+  function removePage(state, pageId, options = {}) {
     const pages = state.pages || [];
     const page = pages.find(item => item.id === pageId);
     if (!page) return { state, removed: 0, kept: 0, shared: 0 };
     const elsewhere = new Set(pages.filter(item => item.id !== pageId).flatMap(item => item.listingIds));
     const own = page.listingIds.filter(id => !elsewhere.has(id));
-    const result = removeListings(state, own);
+    const result = removeListings(state, own, options);
     return { ...result, shared: page.listingIds.length - own.length, state: { ...result.state, pages: pages.filter(item => item.id !== pageId) } };
   }
 
@@ -608,7 +614,7 @@
     return { flags, offer };
   }
 
-  const api = { MAX_ROWS, LIMITS, contactGate, recordEvent, phoneSaveGate, browsePace, normalizeLog, advise, normalizePages, recordPage, removeListings, removePage, safeSahibindenUrl, DEFAULTS, key, brandKey, number, date, safeListingUrl, parseCsv, importCsv, normalizeRecord, merge, mergeObservations, priceChange, median, daysSince, estimate, summary };
+  const api = { MAX_ROWS, watchedAmong, LIMITS, contactGate, recordEvent, phoneSaveGate, browsePace, normalizeLog, advise, normalizePages, recordPage, removeListings, removePage, safeSahibindenUrl, DEFAULTS, key, brandKey, number, date, safeListingUrl, parseCsv, importCsv, normalizeRecord, merge, mergeObservations, priceChange, median, daysSince, estimate, summary };
   root.OtoCore = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);
