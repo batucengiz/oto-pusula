@@ -204,9 +204,11 @@
       box.append(element('div', 'empty-card', 'Eklenti simgesine tıklayıp bir sahibinden arama sayfasında “Bu sayfayı analiz et” deyin. İlanlar burada birikir.'));
       return;
     }
+    const dealCount = entries.filter(isDeal).length;
+    for (const id of ['go-deals', 'deal-shortcut']) $(id).textContent = `Fırsat arabalar (${dealCount})`;
     for (const [title, value] of [
       ['İzlenen ilan', entries.length],
-      ['Fırsat adayı (uygun ve altı)', entries.filter(isDeal).length],
+      ['Fırsat adayı (uygun ve altı)', dealCount],
       ['Fiyatı düşen', entries.filter(entry => entry.change && entry.change.amount < 0).length],
       ['Dikkat gerektiren (risk uyarısı)', entries.filter(hasWarning).length],
       ['Takip listende', entries.filter(entry => entry.record.watched).length],
@@ -577,6 +579,16 @@
     if (url) window.open(url, '_blank', 'noopener');
   });
   $('go-market').addEventListener('click', () => showView('market'));
+  // Tek tuşla: piyasanın altındaki (ağır hasarsız) ilanlar, ucuzdan pahalıya.
+  function showDeals() {
+    $('market-filter').value = 'deal';
+    $('market-sort').value = 'price';
+    $('market-search').value = '';
+    renderMarket();
+    showView('market');
+  }
+  $('go-deals').addEventListener('click', showDeals);
+  $('deal-shortcut').addEventListener('click', showDeals);
   $('whatsapp-listing').addEventListener('click', () => {
     const link = selectedVehicle && listingTools.whatsappLink(selectedVehicle.sellerPhone, selectedVehicle);
     if (link) window.open(link, '_blank', 'noopener');
@@ -646,4 +658,5 @@
   });
 
   render();
+  if (globalThis.location?.hash === '#firsat') showDeals();
 })();

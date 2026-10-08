@@ -116,6 +116,10 @@
   }
 
   $('analyze').addEventListener('click', analyze);
+  $('open-deals').addEventListener('click', () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL('dashboard.html#firsat') });
+    window.close();
+  });
   $('open-dashboard').addEventListener('click', () => {
     chrome.tabs.create({ url: chrome.runtime.getURL('dashboard.html') });
     window.close();

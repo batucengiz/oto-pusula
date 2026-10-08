@@ -114,6 +114,10 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
   get('market-filter').value = 'drop';
   get('market-filter').listeners.change();
   assert.equal(get('market-body').children.length, 2);
+  get('deal-shortcut').click();
+  assert.equal(get('market-filter').value, 'deal');
+  assert.equal(get('market-sort').value, 'price');
+  assert.match(get('deal-shortcut').textContent, /^Fırsat arabalar \(\d+\)$/);
   assert.ok(get('action-list').children.length > 0);
   nav[2].click();
   assert.equal(get('stock-view').hidden, false);
