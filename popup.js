@@ -26,8 +26,9 @@
     try { return /(^|\.)sahibinden\.com$/.test(new URL(url).hostname); } catch { return false; }
   }
 
-  function openListing(url) {
-    if (core.safeListingUrl(url)) chrome.tabs.create({ url });
+  function openListing(record) {
+    const url = core.listingUrl(record);
+    if (url) chrome.tabs.create({ url });
   }
 
   function describe(outcome, raw) {
@@ -65,7 +66,7 @@
       );
       const warnings = core.advise(record, result).flags.filter(flag => flag.level === 'bad' || flag.level === 'warn');
       if (warnings.length) button.append(element('em', 'warning', `⚠ ${warnings.map(flag => flag.label).join(', ')}`));
-      button.addEventListener('click', () => openListing(record.url));
+      button.addEventListener('click', () => openListing(record));
       nodes.push(button);
     }
     return nodes;

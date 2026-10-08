@@ -55,15 +55,27 @@ test('piyasa tablosu: fırsatlar üstte, bağlantı yalnızca güvenli sahibinde
   const comparables = [make(1, 900000, 'https://www.sahibinden.com/ilan/a-1234567810/detay'), make(2, 700000, 'javascript:alert(1)'),
     make(3, 905000), make(4, 910000), make(5, 895000)];
   const table = listing.marketTable({ comparables }, new Date('2026-10-08'));
+  const col = title => table.columns.findIndex(column => column.title === title);
   assert.equal(table.rows.length, 5);
-  assert.equal(table.rows[0][0], 'düşük fiyat', 'en ucuz fırsat ilk satırda');
-  assert.equal(table.rows[0][8], 700000);
-  const linkColumn = table.columns.findIndex(column => column.title === 'İlan');
-  assert.equal(table.rows[0][linkColumn], '', 'güvensiz adres bağlantıya dönüşmemeli');
-  assert.ok(table.rows.some(row => row[linkColumn]?.link === 'https://www.sahibinden.com/ilan/a-1234567810/detay'));
+  assert.equal(col('İlana git'), 0, 'bağlantı ilk sütunda');
+  assert.equal(table.rows[0][col('Durum')], 'düşük fiyat', 'en ucuz fırsat ilk satırda');
+  assert.equal(table.rows[0][col('Fiyat (TL)')], 700000);
+  // Güvensiz adres (javascript:) asla kullanılmaz; ilan numarasından güvenli adres üretilir.
+  assert.equal(table.rows[0][0].link, 'https://www.sahibinden.com/ilan/1234567820/detay');
+  assert.ok(table.rows.every(row => /^https:\/\/www\.sahibinden\.com\/ilan\//.test(row[0].link)), 'her satırda bağlantı olmalı');
+  assert.ok(table.rows.some(row => row[0].link === 'https://www.sahibinden.com/ilan/a-1234567810/detay'));
+  assert.ok(table.rows.every(row => row[col('Başlık')]?.link), 'başlık da tıklanabilir olmalı');
   assert.ok(xlsx.build(table).length > 1000);
 });
 
 test('sütun adları: A, Z, AA, AZ', () => {
   assert.deepEqual([0, 25, 26, 51].map(xlsx.columnName), ['A', 'Z', 'AA', 'AZ']);
+});
+
+test('çok uzun ilan adresi Excel sınırına (255) takılmasın diye kısa adrese çevrilir', () => {
+  const longUrl = `https://www.sahibinden.com/ilan/vasita-otomobil-${'cok-uzun-baslik-'.repeat(20)}1234567810/detay`;
+  const record = core.normalizeRecord({ id: 'sh-1234567810', source: 'sahibinden', listingId: '1234567810', url: longUrl,
+    brand: 'Fiat', model: 'Egea', year: 2021, km: 80000, price: 800000, date: '2026-10-08' }, 'comparable');
+  const table = listing.marketTable({ comparables: [record] }, new Date('2026-10-08'));
+  assert.equal(table.rows[0][0].link, 'https://www.sahibinden.com/ilan/1234567810/detay');
 });

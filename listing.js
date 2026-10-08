@@ -369,30 +369,31 @@
   // Excel'e aktarılacak piyasa tablosu (panel ve popup aynı dosyayı üretir). En ucuz fırsatlar üstte.
   function marketTable(state, today = new Date()) {
     const columns = [
-      { title: 'Durum', width: 14 }, { title: 'Marka', width: 13 }, { title: 'Model', width: 12 }, { title: 'Motor', width: 15 },
+      { title: 'İlana git', width: 11 }, { title: 'Durum', width: 14 }, { title: 'Marka', width: 13 }, { title: 'Model', width: 12 }, { title: 'Motor', width: 15 },
       { title: 'Paket', width: 13 }, { title: 'Yıl', width: 7 }, { title: 'KM', width: 10, type: 'money' }, { title: 'Şehir', width: 13 },
       { title: 'Fiyat (TL)', width: 13, type: 'money' }, { title: 'Piyasa değeri (TL)', width: 17, type: 'money' },
       { title: 'Piyasaya göre %', width: 15 }, { title: 'Tahmini alt (TL)', width: 15, type: 'money' }, { title: 'Tahmini üst (TL)', width: 15, type: 'money' },
       { title: 'Pazarlık hedefi (TL)', width: 18, type: 'money' }, { title: 'İlk fiyat (TL)', width: 13, type: 'money' },
       { title: 'Uyarılar', width: 26 }, { title: 'Hasar bilgisi', width: 18 }, { title: 'Hasar ifadesi', width: 30 },
       { title: 'Güven', width: 8 }, { title: 'Yöntem', width: 14 }, { title: 'Satıcı tel', width: 15 }, { title: 'Takipte', width: 8 },
-      { title: 'İlk görülme', width: 12 }, { title: 'Son görülme', width: 12 }, { title: 'İlan no', width: 12 }, { title: 'Başlık', width: 40 },
-      { title: 'İlan', width: 11 }
+      { title: 'İlk görülme', width: 12 }, { title: 'Son görülme', width: 12 }, { title: 'İlan no', width: 12 }, { title: 'Başlık', width: 40 }
     ];
     const entries = state.comparables.filter(item => item.source === 'sahibinden').map(record => {
       const result = core.estimate(record, state.comparables, core.DEFAULTS, today);
       return { record, result, advice: core.advise(record, result, today), change: core.priceChange(record) };
     }).sort((a, b) => (STATUS_ORDER[a.result.status] ?? 9) - (STATUS_ORDER[b.result.status] ?? 9) || a.record.price - b.record.price);
     const rows = entries.map(({ record, result, advice, change }) => {
-      const url = core.safeListingUrl(record.url);
+      // Excel HYPERLINK formülü 255 karakterle sınırlı; uzun başlıklı adreslerde kısa adres kullanılır.
+      const fullUrl = core.listingUrl(record);
+      const url = fullUrl.length > 240 && record.listingId ? `https://www.sahibinden.com/ilan/${record.listingId}/detay` : fullUrl;
       return [
-        result.status || 'veri yok', record.brand, record.model, record.engine, record.trim, record.year, record.km, record.city,
+        url ? { link: url, text: 'İlana git' } : '', result.status || 'veri yok', record.brand, record.model, record.engine, record.trim, record.year, record.km, record.city,
         record.price, result.center ?? '', result.center ? Math.round(result.gap * 100) : '', result.low ?? '', result.high ?? '',
         advice.offer ? advice.offer.target : '', change ? change.first : record.price,
         advice.flags.map(flag => flag.label).join(', '), CONDITION_TEXT[record.condition] || '', record.conditionNote,
         result.confidence, result.method === 'model' ? 'fiyat modeli' : result.method === 'benzer' ? 'benzer ilanlar' : '',
-        formatPhone(record.sellerPhone), record.watched ? 'evet' : '', record.firstSeen, record.date, record.listingId, record.title,
-        url ? { link: url, text: 'İlana git' } : ''
+        formatPhone(record.sellerPhone), record.watched ? 'evet' : '', record.firstSeen, record.date, record.listingId,
+        url ? { link: url, text: record.title || [record.brand, record.model].join(' ') } : record.title
       ];
     });
     return { sheetName: 'Piyasa ilanları', columns, rows, phones: entries.filter(entry => entry.record.sellerPhone).length };

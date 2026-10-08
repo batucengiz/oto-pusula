@@ -375,7 +375,7 @@
       const nameCell = element('span');
       const nameText = `${record.watched ? '★ ' : ''}${record.sellerPhone ? '☎ ' : ''}${[labelFor(record), record.engine].filter(Boolean).join(' · ')}`;
       // İlan adı sahibinden'deki ilanı yeni sekmede açar; satırın geri kalanı analiz penceresini açar.
-      const listingUrl = core.safeListingUrl(record.url);
+      const listingUrl = core.listingUrl(record);
       let name;
       if (listingUrl) {
         name = element('a', 'vehicle-name listing-link', `${nameText} ↗`);
@@ -502,7 +502,7 @@
     $('detail-title').textContent = [labelFor(vehicle), vehicle.engine].filter(Boolean).join(' · ');
     $('edit-stock').hidden = isListing;
     $('remove-stock').textContent = isListing ? 'Listeden çıkar' : 'Stoktan çıkar';
-    $('open-listing').hidden = !(isListing && vehicle.url);
+    $('open-listing').hidden = !(isListing && core.listingUrl(vehicle));
     $('watch-listing').hidden = !isListing;
     $('whatsapp-listing').hidden = !(isListing && vehicle.sellerPhone);
     $('forget-phone').hidden = !(isListing && vehicle.sellerPhone);
@@ -664,7 +664,7 @@
     }
   });
   $('open-listing').addEventListener('click', () => {
-    const url = selectedVehicle && core.safeListingUrl(selectedVehicle.url);
+    const url = selectedVehicle && core.listingUrl(selectedVehicle);
     if (url) window.open(url, '_blank', 'noopener');
   });
   $('go-market').addEventListener('click', () => showView('market'));

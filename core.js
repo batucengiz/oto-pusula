@@ -117,6 +117,14 @@
     return '';
   }
 
+  // İlanın sahibinden adresi: kayıtlı bağlantı yoksa ilan numarasından üretilir (site kısa adresi asıl ilana yönlendirir).
+  function listingUrl(record) {
+    const saved = safeListingUrl(record?.url);
+    if (saved) return saved;
+    const id = plain(record?.listingId);
+    return /^\d{6,13}$/.test(id) ? `https://www.sahibinden.com/ilan/${id}/detay` : '';
+  }
+
   function priceHistory(value) {
     if (!Array.isArray(value)) return [];
     return value.slice(-50)
@@ -614,7 +622,7 @@
     return { flags, offer };
   }
 
-  const api = { MAX_ROWS, watchedAmong, LIMITS, contactGate, recordEvent, phoneSaveGate, browsePace, normalizeLog, advise, normalizePages, recordPage, removeListings, removePage, safeSahibindenUrl, DEFAULTS, key, brandKey, number, date, safeListingUrl, parseCsv, importCsv, normalizeRecord, merge, mergeObservations, priceChange, median, daysSince, estimate, summary };
+  const api = { MAX_ROWS, listingUrl, watchedAmong, LIMITS, contactGate, recordEvent, phoneSaveGate, browsePace, normalizeLog, advise, normalizePages, recordPage, removeListings, removePage, safeSahibindenUrl, DEFAULTS, key, brandKey, number, date, safeListingUrl, parseCsv, importCsv, normalizeRecord, merge, mergeObservations, priceChange, median, daysSince, estimate, summary };
   root.OtoCore = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);

@@ -1,6 +1,6 @@
 {
   "name": "oto-pusula",
-  "version": "5.0.1",
+  "version": "5.1.0",
   "private": true,
   "description": "sahibinden.com ilanları ve galeri stoğu için yerel fiyat analizi (Chrome eklentisi)",
   "scripts": {
