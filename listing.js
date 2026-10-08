@@ -143,6 +143,11 @@
         if (model) break;
       }
     }
+    // Katalogda olmayan marka (ör. Togg): ilan detayındaki Marka/Seri alanları doğrudan kullanılır.
+    if (!brand && norm(brandHint)) {
+      brand = norm(brandHint);
+      model = norm(modelHint) || sources[0].split(' ')[0];
+    }
     if (brand && !model && sources[0]) model = sources[0].split(' ')[0];
     if (!brand || !model) return null;
 

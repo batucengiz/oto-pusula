@@ -234,3 +234,25 @@ test('fiyat okuma: düzensiz ayraçlar doğru okunur, araç olamayacak kadar dü
   assert.ok(Number.isNaN(listing.priceFrom('Fiyat yok')));
   assert.throws(() => core.normalizeRecord({ brand: 'Fiat', model: 'Egea', year: 2020, km: 1000, price: 5000 }, 'comparable'), /geçersiz fiyat/);
 });
+
+test('katalogda olmayan marka ilan detayındaki Marka/Seri alanlarından okunur', () => {
+  const record = listing.parseDetailPage({
+    url: 'https://www.sahibinden.com/ilan/vasita-otomobil-togg-1234567894/detay', listingId: '1234567894',
+    title: 'Togg T10X V2 Uzun Menzil', priceText: '1.850.000 TL', location: 'Bursa / Nilüfer',
+    info: [['Marka', 'Togg'], ['Seri', 'T10X'], ['Model', 'V2 Uzun Menzil'], ['Yıl', '2024'], ['KM', '12.000']], description: ''
+  });
+  assert.equal(record.brand, 'Togg');
+  assert.equal(record.model, 'T10X');
+  assert.equal(record.city, 'Bursa');
+});
+
+test('5.000 sınırı aşılınca en eski görülen ve tarihsiz kayıtlar düşer, yeni ilan kalır', () => {
+  const make = (i, date) => ({ ...core.normalizeRecord({ id: `x-${i}`, brand: 'Fiat', model: 'Egea', year: 2020, km: 1000, price: 500000, date }, 'comparable') });
+  const existing = Array.from({ length: core.MAX_ROWS }, (_, i) => make(i, i % 2 ? '2026-01-01' : ''));
+  const incoming = [core.normalizeRecord({ id: 'sh-1234567899', source: 'sahibinden', listingId: '1234567899', brand: 'Fiat', model: 'Egea', year: 2021, km: 5000, price: 600000 }, 'comparable')];
+  const { records, stats } = core.mergeObservations(existing, incoming, '2026-10-08');
+  assert.equal(records.length, core.MAX_ROWS);
+  assert.equal(stats.dropped, 1);
+  assert.ok(records.some(item => item.listingId === '1234567899'), 'yeni ilan korunmalı');
+  assert.ok(records.every(item => item.date !== null) || records.filter(item => !item.date).length < core.MAX_ROWS / 2, 'önce tarihsizler düşmeli');
+});

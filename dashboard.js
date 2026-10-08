@@ -82,12 +82,17 @@
     return state.comparables.filter(item => item.source === 'sahibinden');
   }
 
-  // Piyasa ilanlarını bir kez değerlendirip görünümler arasında paylaşır.
+  // Piyasa ilanlarını bir kez değerlendirip görünümler arasında paylaşır. Kayıt dizisi her kayıtta
+  // yenilendiği için aynı dizi = aynı sonuç; binlerce ilanda panelin donmasını önler.
+  let evaluationCache = { comparables: null, entries: [] };
   function evaluateListings() {
-    return listings().map(record => {
+    if (evaluationCache.comparables === state.comparables) return evaluationCache.entries;
+    const entries = listings().map(record => {
       const result = core.estimate(record, state.comparables);
       return { record, result, advice: core.advise(record, result), change: core.priceChange(record), age: core.daysSince(record.firstSeen) };
     });
+    evaluationCache = { comparables: state.comparables, entries };
+    return entries;
   }
 
   function isDeal(entry) {
@@ -318,7 +323,7 @@
     const filter = $('market-filter').value;
     const sort = $('market-sort').value;
     const all = evaluateListings();
-    const entries = all
+    const entries = [...all]
       .filter(({ record }) => core.key([labelFor(record), record.engine, record.city, record.title].join(' ')).includes(query))
       .filter(entry => filter === 'deal' ? isDeal(entry)
         : filter === 'drop' ? entry.change && entry.change.amount < 0
@@ -376,6 +381,7 @@
 
   // Excel'in formül olarak yorumlayabileceği hücreleri düz metne çevirir.
   function csvCell(value) {
+    if (typeof value === 'number') return Number.isFinite(value) ? String(value) : '';
     let text = String(value ?? '').replace(/\r?\n|\r/g, ' ').trim();
     if (/^[=+\-@]/.test(text)) text = `'${text}`;
     return /[;"]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
@@ -594,7 +600,8 @@
     try {
       const input = Object.fromEntries(new FormData(event.currentTarget));
       input.id = editingId ? editingId.replace(/^stock-/, '') : `manuel-${Date.now()}`;
-      const item = core.normalizeRecord(input, 'stock', state.stock.length + 2);
+      const previous = editingId ? state.stock.find(vehicle => vehicle.id === editingId) : null;
+      const item = core.normalizeRecord(previous ? { body: previous.body, ...input } : input, 'stock', state.stock.length + 2);
       if (!editingId && state.stock.length >= core.MAX_ROWS) throw new Error(`Stok sınırı ${core.MAX_ROWS} araç.`);
       const updated = editingId ? state.stock.map(vehicle => vehicle.id === editingId ? item : vehicle) : [...state.stock, item];
       if (save({ ...state, stock: updated, sample: false })) {
@@ -612,7 +619,7 @@
     $('add-title').textContent = 'Stok aracını düzenle';
     const form = $('add-form');
     form.reset();
-    for (const name of ['brand', 'model', 'trim', 'year', 'km', 'price', 'cost', 'fuel', 'transmission', 'date', 'note']) {
+    for (const name of ['brand', 'model', 'trim', 'engine', 'year', 'km', 'price', 'cost', 'fuel', 'transmission', 'date', 'note']) {
       form.elements.namedItem(name).value = selectedVehicle[name] ?? '';
     }
     $('detail-dialog').close();
@@ -702,7 +709,8 @@
   $('comparable-template').addEventListener('click', () => download('fiyat-sablonu.csv', 'id;marka;model;paket;motor;yıl;km;fiyat;yakıt;vites;gözlem_tarihi\n', 'text/csv;charset=utf-8'));
   $('restore-backup').addEventListener('click', () => $('backup-file').click());
   $('backup-file').addEventListener('change', async event => {
-    const file = event.currentTarget.files[0];
+    const input = event.currentTarget;
+    const file = input.files[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) { notice('JSON yedeği 5 MB sınırını aşıyor.', true); return; }
     try {
@@ -717,7 +725,7 @@
       if ((state.stock.length || state.comparables.length) && !confirm('Yedek mevcut verilerin yerine geçecek. Devam edilsin mi?')) return;
       if (save(normalized)) notice('Yedek geri yüklendi.');
     } catch (error) { notice(`Yedek yüklenemedi: ${error.message}`, true); }
-    finally { event.currentTarget.value = ''; }
+    finally { input.value = ''; }
   });
   $('clear-data').addEventListener('click', () => {
     if (!confirm('Bu cihazdaki stok ve karşılaştırma kayıtları silinecek. Önce JSON yedek indirdiniz mi?')) return;

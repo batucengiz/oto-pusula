@@ -445,7 +445,8 @@
     }
     let records = [...map.values()];
     if (records.length > MAX_ROWS) {
-      records = records.sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, MAX_ROWS);
+      // En son görülenler kalır; tarihsiz kayıtlar en eski sayılır.
+      records = records.sort((a, b) => String(b.date || '').localeCompare(String(a.date || ''))).slice(0, MAX_ROWS);
       stats.dropped = map.size - MAX_ROWS;
     }
     return { records, stats };
