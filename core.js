@@ -460,6 +460,66 @@
     return { amount: record.price - first, ratio: (record.price - first) / first, first };
   }
 
+  // --- Spam koruması ---
+  // Kısa sürede çok sayıda tanımadığı numaraya yazan WhatsApp hesapları kapatılabilir; sahibinden de
+  // hızlı gezinmeyi bot davranışı sayabilir. Sınırlar ürünün içindedir ve kullanıcı tarafından aşılamaz.
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const LIMITS = Object.freeze({
+    contactGapMs: 60 * 1000, contactWindowMs: 10 * 60 * 1000, contactsPerWindow: 5, contactsPerDay: 20,
+    phoneSavesPerDay: 30, fastBrowseWindowMs: 2 * 60 * 1000, fastBrowsePages: 8
+  });
+
+  function normalizeLog(log, limit = 200) {
+    if (!Array.isArray(log)) return [];
+    return log.filter(entry => entry && typeof entry.id === 'string' && Number.isFinite(entry.at)).slice(-limit)
+      .map(entry => ({ id: entry.id.slice(0, 60), at: entry.at }));
+  }
+
+  function minutes(ms) {
+    const value = Math.max(1, Math.ceil(ms / 60000));
+    return value >= 60 ? `${Math.ceil(value / 60)} saat` : `${value} dakika`;
+  }
+
+  // Yeni bir satıcıya yazmadan önce sorulur. Daha önce yazılan satıcıya tekrar yazmak serbesttir.
+  function contactGate(log, id, now = Date.now(), limits = LIMITS) {
+    const recent = normalizeLog(log).filter(entry => now - entry.at < DAY_MS);
+    if (recent.some(entry => entry.id === id)) return { allowed: true, repeat: true };
+    if (recent.length >= limits.contactsPerDay) {
+      const wait = Math.min(...recent.map(entry => entry.at)) + DAY_MS - now;
+      return { allowed: false, waitMs: wait, reason: `Son 24 saatte ${recent.length} farklı satıcıya yazdınız. Hesabınızın spam sayılmaması için ${minutes(wait)} sonra tekrar deneyin.` };
+    }
+    const inWindow = recent.filter(entry => now - entry.at < limits.contactWindowMs);
+    if (inWindow.length >= limits.contactsPerWindow) {
+      const wait = Math.min(...inWindow.map(entry => entry.at)) + limits.contactWindowMs - now;
+      return { allowed: false, waitMs: wait, reason: `Son 10 dakikada ${inWindow.length} farklı satıcıya yazdınız. ${minutes(wait)} sonra tekrar deneyin.` };
+    }
+    const last = recent.length ? Math.max(...recent.map(entry => entry.at)) : 0;
+    if (last && now - last < limits.contactGapMs) {
+      const wait = last + limits.contactGapMs - now;
+      return { allowed: false, waitMs: wait, reason: `Satıcılara art arda yazmak spam sayılabilir. ${Math.ceil(wait / 1000)} saniye sonra tekrar deneyin.` };
+    }
+    return { allowed: true, repeat: false };
+  }
+
+  function recordEvent(log, id, now = Date.now()) {
+    return [...normalizeLog(log).filter(entry => now - entry.at < DAY_MS && entry.id !== id), { id, at: now }];
+  }
+
+  function phoneSaveGate(log, now = Date.now(), limits = LIMITS) {
+    const recent = normalizeLog(log).filter(entry => now - entry.at < DAY_MS);
+    if (recent.length < limits.phoneSavesPerDay) return { allowed: true };
+    const wait = Math.min(...recent.map(entry => entry.at)) + DAY_MS - now;
+    return { allowed: false, waitMs: wait, reason: `Günlük ${limits.phoneSavesPerDay} numara kaydetme sınırına ulaşıldı. Toplu numara toplamayı önlemek için ${minutes(wait)} sonra tekrar deneyin.` };
+  }
+
+  // Engellemez, yalnızca uyarır: analiz isteği atmaz ama kullanıcının hızlı gezinmesi sahibinden'in dikkatini çekebilir.
+  function browsePace(log, now = Date.now(), limits = LIMITS) {
+    const recent = normalizeLog(log).filter(entry => now - entry.at < limits.fastBrowseWindowMs);
+    return recent.length >= limits.fastBrowsePages
+      ? { fast: true, message: `Son 2 dakikada ${recent.length} sayfa analiz ettiniz. sahibinden hızlı gezinmeyi bot davranışı sayabilir; birkaç dakika ara verin.` }
+      : { fast: false };
+  }
+
   // --- Okunan sayfalar ve silme ---
   const MAX_PAGES = 200;
 
@@ -548,7 +608,7 @@
     return { flags, offer };
   }
 
-  const api = { MAX_ROWS, advise, normalizePages, recordPage, removeListings, removePage, safeSahibindenUrl, DEFAULTS, key, brandKey, number, date, safeListingUrl, parseCsv, importCsv, normalizeRecord, merge, mergeObservations, priceChange, median, daysSince, estimate, summary };
+  const api = { MAX_ROWS, LIMITS, contactGate, recordEvent, phoneSaveGate, browsePace, normalizeLog, advise, normalizePages, recordPage, removeListings, removePage, safeSahibindenUrl, DEFAULTS, key, brandKey, number, date, safeListingUrl, parseCsv, importCsv, normalizeRecord, merge, mergeObservations, priceChange, median, daysSince, estimate, summary };
   root.OtoCore = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);

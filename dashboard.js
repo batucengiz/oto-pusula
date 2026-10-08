@@ -281,6 +281,14 @@
     }
   }
 
+  // Spam koruması: yeni satıcılara art arda yazmayı sınırlar (popup ile aynı sayaç).
+  function openWhatsApp(record) {
+    const result = listingTools.contactWhatsApp(state, record, record.sellerPhone);
+    if (!result.allowed) { notice(`⏳ ${result.reason}`, true); return; }
+    try { store.save(result.state); state = result.state; } catch { /* sayaç yazılamazsa da mesaj açılır */ }
+    window.open(result.link, '_blank', 'noopener');
+  }
+
   function deletionNotice(prefix, result) {
     const parts = [`${prefix}: ${result.removed} ilan silindi.`];
     if (result.kept) parts.push(`${result.kept} ilan takip listende olduğu için korundu.`);
@@ -381,7 +389,7 @@
         wa.type = 'button';
         wa.addEventListener('click', event => {
           event.stopPropagation();
-          window.open(waLink, '_blank', 'noopener');
+          openWhatsApp(record);
         });
         nameCell.append(wa);
       }
@@ -696,10 +704,7 @@
     if (save(result.state)) deletionNotice('Silme tamamlandı', result);
   });
   $('deal-shortcut').addEventListener('click', showDeals);
-  $('whatsapp-listing').addEventListener('click', () => {
-    const link = selectedVehicle && listingTools.whatsappLink(selectedVehicle.sellerPhone, selectedVehicle);
-    if (link) window.open(link, '_blank', 'noopener');
-  });
+  $('whatsapp-listing').addEventListener('click', () => { if (selectedVehicle) openWhatsApp(selectedVehicle); });
   $('forget-phone').addEventListener('click', () => {
     if (!selectedVehicle?.sellerPhone) return;
     const id = selectedVehicle.id;
@@ -751,6 +756,7 @@
       if (backup.stock.length > core.MAX_ROWS || backup.comparables.length > core.MAX_ROWS) throw new Error('Kayıt sınırı aşıldı.');
       const normalized = {
         schema: 1, sample: !!backup.sample, pages: core.normalizePages(backup.pages),
+        contacts: state.contacts, phoneSaves: state.phoneSaves, analyses: state.analyses,
         stock: backup.stock.map((item, i) => core.normalizeRecord({ ...item, id: String(item.id).replace(/^stock-/, '') }, 'stock', i + 2)),
         comparables: backup.comparables.map((item, i) => core.normalizeRecord({ ...item, id: String(item.id).replace(/^comparable-/, '') }, 'comparable', i + 2))
       };
@@ -761,7 +767,13 @@
   });
   $('clear-data').addEventListener('click', () => {
     if (!confirm('Bu cihazdaki stok ve karşılaştırma kayıtları silinecek. Önce JSON yedek indirdiniz mi?')) return;
-    try { localStorage.removeItem(store.KEY); state = store.empty(); render(); notice('Yerel veriler temizlendi.'); }
+    try {
+      const kept = { contacts: state.contacts, phoneSaves: state.phoneSaves, analyses: state.analyses };
+      state = { ...store.empty(), ...kept };
+      store.save(state);
+      render();
+      notice('Yerel veriler temizlendi.');
+    }
     catch { notice('Yerel veriler temizlenemedi.', true); }
   });
 

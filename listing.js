@@ -306,8 +306,12 @@
   }
 
   // Kullanıcının açıkça onayladığı tek bir ilana numarayı yazar ve ilanı takip listesine alır.
-  function savePhone(state, recordId, phone) {
+  function savePhone(state, recordId, phone, now = Date.now()) {
     if (!/^905\d{9}$/.test(phone)) throw new Error('Geçerli bir cep numarası bulunamadı.');
+    const already = state.comparables.some(item => item.id === recordId && item.sellerPhone === phone);
+    // Günlük kayıt sınırı: eklentinin toplu numara toplama aracına dönüşmesini önler.
+    const gate = already ? { allowed: true } : core.phoneSaveGate(state.phoneSaves, now);
+    if (!gate.allowed) throw new Error(gate.reason);
     let found = false;
     const comparables = state.comparables.map(item => {
       if (item.id !== recordId) return item;
@@ -315,7 +319,19 @@
       return { ...item, sellerPhone: phone, watched: true };
     });
     if (!found) throw new Error('İlan kaydı bulunamadı; sayfayı tekrar analiz edin.');
-    return { ...state, comparables };
+    return { ...state, comparables, phoneSaves: already ? core.normalizeLog(state.phoneSaves) : core.recordEvent(state.phoneSaves, recordId, now) };
+  }
+
+  // WhatsApp'ı açmadan önce spam korumasını uygular; izin verilirse yazışma kaydını günceller.
+  // Numara kayda geçmez; yalnızca hangi ilanın satıcısına ne zaman yazıldığı tutulur.
+  function contactWhatsApp(state, record, phone, now = Date.now()) {
+    const link = whatsappLink(phone, record);
+    if (!link) return { allowed: false, reason: 'Geçerli bir cep numarası yok.', state };
+    const gate = core.contactGate(state.contacts, record.id, now);
+    if (!gate.allowed) return { ...gate, state };
+    // Aynı satıcıyla tekrar yazışmak sayaçta yeni kayıt açmaz ve zamanı ileri almaz.
+    if (gate.repeat) return { allowed: true, link, repeat: true, state };
+    return { allowed: true, link, repeat: false, state: { ...state, contacts: core.recordEvent(state.contacts, record.id, now) } };
   }
 
   function clearPhones(state, recordId = null) {
@@ -369,7 +385,12 @@
       url: core.safeSahibindenUrl(raw.url),
       listingIds: records.map(item => item.id)
     };
-    const next = { ...base, comparables, pages: core.recordPage(core.normalizePages(base.pages), page), sample: false };
+    const analyses = core.recordEvent(state.analyses, page.id);
+    const next = {
+      ...base, comparables, pages: core.recordPage(core.normalizePages(base.pages), page), sample: false,
+      // Spam sayaçları örnek veri temizliğinde bile sıfırlanmaz.
+      contacts: core.normalizeLog(state.contacts), phoneSaves: core.normalizeLog(state.phoneSaves), analyses
+    };
     const byId = new Map(comparables.map(item => [item.id, item]));
     const now = new Date(`${today}T12:00:00Z`);
     const evaluated = records.map(item => {
@@ -381,10 +402,10 @@
       .sort((a, b) => a.result.gap - b.result.gap)
       .slice(0, 3);
     const drops = evaluated.filter(({ change }) => change && change.amount < 0).length;
-    return { state: next, stats, skipped, evaluated, highlights, drops, clearedSample: !!state.sample };
+    return { state: next, stats, skipped, evaluated, highlights, drops, clearedSample: !!state.sample, pace: core.browsePace(analyses) };
   }
 
-  const api = { MAX_PAGE_ROWS, norm, identifyVehicle, assessCondition, priceFrom, parseSearchPage, parseDetailPage, ingest, findMobile, whatsappLink, formatPhone, savePhone, clearPhones, pageRecordIds, forgetPage };
+  const api = { MAX_PAGE_ROWS, norm, identifyVehicle, assessCondition, priceFrom, parseSearchPage, parseDetailPage, ingest, findMobile, whatsappLink, formatPhone, savePhone, clearPhones, pageRecordIds, forgetPage, contactWhatsApp };
   root.OtoListing = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);

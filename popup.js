@@ -36,6 +36,7 @@
     nodes.push(element('p', 'stats', `${outcome.evaluated.length} ilan okundu · ${stats.added} yeni · ${stats.priceChanged} fiyat değişimi${skipped.length ? ` · ${skipped.length} atlandı` : ''}`));
     if (outcome.clearedSample) nodes.push(element('p', 'muted', 'Örnek veriler temizlendi; artık yalnızca gerçek ilanlar kullanılıyor.'));
     if (outcome.drops) nodes.push(element('p', 'muted', `Bu sayfada daha önce gördüğünüz ${outcome.drops} ilanın fiyatı düşmüş.`));
+    if (outcome.pace?.fast) nodes.push(element('p', 'warning-line', `⚠ ${outcome.pace.message}`));
 
     if (outcome.evaluated.length === 1) {
       const { record, result } = outcome.evaluated[0];
@@ -79,8 +80,16 @@
     }
     const button = element('button', 'whatsapp', 'WhatsApp’tan yaz');
     button.type = 'button';
+    const note = element('p', 'muted', '');
     button.addEventListener('click', () => {
-      if (link.startsWith('https://wa.me/')) chrome.tabs.create({ url: link });
+      const result = listing.contactWhatsApp(store.load(), record, phone);
+      if (!result.allowed) {
+        note.textContent = `⏳ ${result.reason}`;
+        note.className = 'warning-line';
+        return;
+      }
+      store.save(result.state);
+      if (result.link.startsWith('https://wa.me/')) chrome.tabs.create({ url: result.link });
     });
     // Numara yalnızca bu düğmeye basılırsa, yalnızca bu ilana ve bu cihaza kaydedilir.
     const saved = store.load().comparables.some(item => item.id === record.id && item.sellerPhone === phone);
@@ -96,7 +105,7 @@
         save.textContent = error.message;
       }
     });
-    return [button, save, element('p', 'muted', 'WhatsApp’ta hazır mesaj açılır; gönder tuşuna siz basarsınız. Numara siz kaydet demedikçe saklanmaz; panelden tek tuşla silebilirsiniz.')];
+    return [button, save, note, element('p', 'muted', 'WhatsApp’ta hazır mesaj açılır; gönder tuşuna siz basarsınız. Hesabınızı korumak için yeni satıcılara dakikada en fazla 1, günde en fazla 20 mesaj açılır. Numara siz kaydet demedikçe saklanmaz.')];
   }
 
   async function analyze() {

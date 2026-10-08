@@ -172,3 +172,31 @@ test('uyarılar: yoğun kullanım, şüpheli ucuz ilan, fiyat düşüşü ve paz
 
   assert.equal(core.advise(dropped, { center: 800000, gap: 0.06, confidence: 'düşük' }, today).offer, null);
 });
+
+test('spam koruması: 1 dk aralık, 10 dk\'da 5, günde 20 yeni satıcı; aynı satıcıya tekrar yazmak serbest', () => {
+  const t0 = Date.UTC(2026, 9, 8, 9, 0, 0);
+  let log = [];
+  const contact = (id, at) => { const gate = core.contactGate(log, id, at); if (gate.allowed && !gate.repeat) log = core.recordEvent(log, id, at); return gate; };
+  assert.equal(contact('a', t0).allowed, true);
+  const tooSoon = contact('b', t0 + 30 * 1000);
+  assert.equal(tooSoon.allowed, false);
+  assert.match(tooSoon.reason, /30 saniye sonra/);
+  assert.equal(contact('a', t0 + 30 * 1000).allowed, true, 'aynı satıcıyla yazışmak sınırlanmaz');
+  for (const [i, id] of ['b', 'c', 'd', 'e'].entries()) assert.equal(contact(id, t0 + (i + 1) * 61 * 1000).allowed, true);
+  const window = contact('f', t0 + 6 * 61 * 1000);
+  assert.equal(window.allowed, false, '10 dakikada 6. yeni satıcı engellenmeli');
+  assert.match(window.reason, /Son 10 dakikada 5/);
+  // Gün içinde 20 farklı satıcıyı doldur (her biri 11 dk arayla), 21. engellenir.
+  log = Array.from({ length: 20 }, (_, i) => ({ id: `x${i}`, at: t0 + i * 11 * 60 * 1000 }));
+  const daily = core.contactGate(log, 'yeni', t0 + 20 * 11 * 60 * 1000);
+  assert.equal(daily.allowed, false);
+  assert.match(daily.reason, /24 saatte 20/);
+  assert.equal(core.contactGate(log, 'yeni', t0 + 25 * 60 * 60 * 1000).allowed, true, '24 saat sonra açılır');
+});
+
+test('hızlı gezinme uyarısı: 2 dakikada 8 sayfa', () => {
+  const t0 = Date.UTC(2026, 9, 8, 9, 0, 0);
+  const log = Array.from({ length: 8 }, (_, i) => ({ id: `p${i}`, at: t0 + i * 10 * 1000 }));
+  assert.equal(core.browsePace(log, t0 + 80 * 1000).fast, true);
+  assert.equal(core.browsePace(log.slice(0, 5), t0 + 80 * 1000).fast, false);
+});

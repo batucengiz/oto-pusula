@@ -216,3 +216,37 @@ test('popup: "Bu sayfadaki ilanları sil" iki adımda siler, takiptekini korur, 
   assert.deepEqual(left, ['1234567820', '1234567899'], 'takipteki ve başka sayfadaki ilan kalmalı');
   assert.equal(get('forget-page').textContent, 'Bu sayfadaki ilanları sil');
 });
+
+test('popup: 1 dakika dolmadan yeni satıcıya WhatsApp açılmaz, bekleme süresi gösterilir', async () => {
+  const nodes = new Map();
+  const get = id => { if (!nodes.has(id)) nodes.set(id, new FakeNode(id)); return nodes.get(id); };
+  const opened = [];
+  const detail = {
+    kind: 'detail', url: 'https://www.sahibinden.com/ilan/vasita-otomobil-fiat-1234567895/detay', listingId: '1234567895',
+    title: 'Fiat Egea 1.4 Fire Urban', priceText: '850.000 TL', location: 'İstanbul / Kadıköy',
+    info: [['Marka', 'Fiat'], ['Seri', 'Egea'], ['Model', '1.4 Fire Urban'], ['Yıl', '2021'], ['KM', '90.000']],
+    description: '', phoneText: '0 (500) 000 00 05'
+  };
+  // 10 saniye önce başka bir satıcıya yazılmış.
+  const storage = new Map([['otoPusula_v1', JSON.stringify({ schema: 1, stock: [], comparables: [], sample: false,
+    contacts: [{ id: 'comparable-sh-1111111111', at: Date.now() - 10000 }] })]]);
+  const context = vm.createContext({
+    Node: FakeNode, console, URL,
+    document: { getElementById: get, createElement: () => new FakeNode() },
+    localStorage: { getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v), removeItem: k => storage.delete(k) },
+    window: { close() {} },
+    chrome: {
+      tabs: { query: async () => [{ id: 1, url: detail.url }], create: ({ url }) => opened.push(url) },
+      scripting: { executeScript: async () => [{ result: detail }] },
+      runtime: { getURL: path => path }
+    }
+  });
+  for (const file of ['core.js', 'listing.js', 'store.js', 'popup.js']) vm.runInContext(fs.readFileSync(require.resolve(`./${file}`), 'utf8'), context);
+  await new Promise(resolve => setImmediate(resolve));
+  await get('analyze').listeners.click();
+  const children = get('result').children;
+  children.find(child => child.className === 'whatsapp').click();
+  assert.equal(opened.length, 0, 'spam koruması WhatsApp\'ı açmamalı');
+  assert.ok(children.some(child => /saniye sonra tekrar deneyin/.test(child.textContent)), 'bekleme süresi gösterilmeli');
+  assert.equal(JSON.parse(storage.get('otoPusula_v1')).contacts.length, 1, 'engellenen deneme sayaca yazılmamalı');
+});

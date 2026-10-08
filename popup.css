@@ -27,3 +27,4 @@ small { display: block; margin-top: 12px; color: #86a39a; font-size: 11px; }
 .danger { margin-top: 8px; background: transparent; color: #ffb4a8; border: 1px solid #6b3a33; font-weight: 650; }
 .danger:hover:not(:disabled) { background: #3a2422; }
 .danger.confirm { background: #c0392b; color: white; border-color: #c0392b; }
+.warning-line { margin: 6px 0 0; color: #ffcf8a; font-size: 12px; }

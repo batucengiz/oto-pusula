@@ -256,3 +256,21 @@ test('5.000 sınırı aşılınca en eski görülen ve tarihsiz kayıtlar düşe
   assert.ok(records.some(item => item.listingId === '1234567899'), 'yeni ilan korunmalı');
   assert.ok(records.every(item => item.date !== null) || records.filter(item => !item.date).length < core.MAX_ROWS / 2, 'önce tarihsizler düşmeli');
 });
+
+test('numara kaydetme günde 30 ile sınırlı; aynı numarayı yeniden kaydetmek sayılmaz; WhatsApp sayacı tutulur', () => {
+  const t0 = Date.UTC(2026, 9, 8, 9, 0, 0);
+  const records = Array.from({ length: 31 }, (_, i) => core.normalizeRecord({ id: `sh-12345678${String(i).padStart(2, '0')}`, source: 'sahibinden',
+    listingId: `12345678${String(i).padStart(2, '0')}`, brand: 'Fiat', model: 'Egea', year: 2020, km: 1000, price: 500000 }, 'comparable'));
+  let state = { schema: 1, stock: [], comparables: records, pages: [], contacts: [], phoneSaves: [], analyses: [] };
+  for (let i = 0; i < 30; i++) state = listing.savePhone(state, records[i].id, `9050000000${String(i).padStart(2, '0')}`, t0 + i * 1000);
+  assert.throws(() => listing.savePhone(state, records[30].id, '905000000099', t0 + 40 * 1000), /Günlük 30 numara/);
+  assert.doesNotThrow(() => listing.savePhone(state, records[0].id, '905000000000', t0 + 40 * 1000), 'aynı numara tekrar kaydedilebilmeli');
+
+  const first = listing.contactWhatsApp(state, state.comparables[0], '905000000000', t0);
+  assert.equal(first.allowed, true);
+  assert.match(first.link, /^https:\/\/wa\.me\/905000000000/);
+  const second = listing.contactWhatsApp(first.state, state.comparables[1], '905000000001', t0 + 5000);
+  assert.equal(second.allowed, false);
+  assert.equal(second.link, undefined, 'engellenince bağlantı verilmemeli');
+  assert.doesNotMatch(JSON.stringify(first.state.contacts), /905/, 'yazışma kaydında numara tutulmaz');
+});

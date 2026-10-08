@@ -64,6 +64,21 @@ sahibinden 2024'te, ilan sayfasına kendi panelini ekleyen bir fiyat geçmişi e
 
 Yine de sitenin iç sistemleri bilinemez; tam garanti verilemez. Önerilen kullanım: normal hızda gezinmek ve mümkünse hesaba giriş yapmadan kullanmak.
 
+## Spam ve kötüye kullanım koruması
+
+Eklenti yoğun kullanılsa bile (ör. bir galeride) kullanıcının WhatsApp veya sahibinden hesabını riske atmaması için sınırlar ürünün içindedir:
+
+| Koruma | Sınır |
+|---|---|
+| Yeni satıcıya WhatsApp | İki yeni satıcı arasında en az 1 dakika; 10 dakikada en fazla 5, 24 saatte en fazla 20 |
+| Aynı satıcıyla tekrar yazışma | Serbest, sayaca eklenmez |
+| Satıcı numarası kaydetme | 24 saatte en fazla 30 (toplu numara toplamayı önler) |
+| Hızlı gezinme | 2 dakikada 8+ sayfa analizinde "yavaşlayın" uyarısı |
+
+Sayaçlar "Yerel verileri temizle" ve yedek geri yükleme ile sıfırlanmaz. Yazışma kaydında telefon numarası tutulmaz; yalnızca hangi ilanın satıcısına ne zaman yazıldığı tutulur.
+
+Ticari kullanımda (galeri) satıcı numaralarının saklanması kişisel veri işlemedir; KVKK yükümlülükleri kullanıcıya aittir. Eklenti toplu mesaj göndermez, mesajı her seferinde kullanıcı gönderir.
+
 ## Güvenlik ve sınırlar
 
 - İzinler yalnızca `activeTab` ve `scripting`. Eklenti sadece kullanıcı düğmeye bastığında, o anki sekmeye bir kez erişir. Arka plan betiği, içerik betiği veya kalıcı site izni yoktur.
@@ -76,7 +91,7 @@ Yine de sitenin iç sistemleri bilinemez; tam garanti verilemez. Önerilen kulla
 ## Geliştirme
 
 ```bash
-npm test        # 45 test: fiyat motoru ve öğrenen model, ilan ayrıştırma, hasar beyanı, uyarılar, panel, popup/WhatsApp akışı, güvenlik ve ban kuralları
+npm test        # 49 test: fiyat motoru ve öğrenen model, ilan ayrıştırma, hasar beyanı, uyarılar, panel, popup/WhatsApp akışı, güvenlik ve ban kuralları
 npm run verify-page -- "fixtures/sayfa.html"   # kaydedilmiş gerçek sayfayı okuyucudan geçirir
 npm run dev     # paneli http://127.0.0.1:4173 adresinde önizler (popup için eklenti olarak yükleyin)
 ```
