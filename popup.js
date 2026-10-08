@@ -161,6 +161,19 @@
 
   $('analyze').addEventListener('click', analyze);
   $('forget-page').addEventListener('click', forgetPage);
+  // Eski sürümdeki gibi tek tıkla Excel: tüm toplanan ilanlar, fırsatlar üstte.
+  $('export-excel').addEventListener('click', () => {
+    const table = listing.marketTable(store.load());
+    if (!table.rows.length) { showResult([element('p', '', 'Excel’e aktarılacak ilan yok. Önce bir sahibinden sayfasını analiz edin.')], true); return; }
+    const url = URL.createObjectURL(new Blob([globalThis.OtoXlsx.build(table)], { type: globalThis.OtoXlsx.MIME }));
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `oto-pusula-ilanlar-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    anchor.click();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    showResult([element('p', 'stats', `${table.rows.length} ilan Excel’e aktarıldı.`),
+      ...(table.phones ? [element('p', 'muted', `Dosyada ${table.phones} satıcı numarası var; paylaşmayın.`)] : [])]);
+  });
   $('open-deals').addEventListener('click', () => {
     chrome.tabs.create({ url: chrome.runtime.getURL('dashboard.html#firsat') });
     window.close();

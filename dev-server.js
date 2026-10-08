@@ -10,7 +10,8 @@ const files = new Map([
   ['/core.js', ['core.js', 'text/javascript; charset=utf-8']],
   ['/store.js', ['store.js', 'text/javascript; charset=utf-8']],
   ['/listing.js', ['listing.js', 'text/javascript; charset=utf-8']],
-  ['/charts.js', ['charts.js', 'text/javascript; charset=utf-8']]
+  ['/charts.js', ['charts.js', 'text/javascript; charset=utf-8']],
+  ['/xlsx.js', ['xlsx.js', 'text/javascript; charset=utf-8']]
 ]);
 
 const server = http.createServer(async (request, response) => {

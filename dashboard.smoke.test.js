@@ -49,7 +49,7 @@ test('sayfalar uzak betik yüklemez ve dinamik kod çalıştırmaz', () => {
     assert.doesNotMatch(html, /<script[^>]+src=["']https?:/i, file);
     assert.doesNotMatch(html, /<script(\s[^>]*)?>(?!<\/script>)/i, `${file} satır içi betik içermemeli`);
   }
-  for (const file of ['core.js', 'listing.js', 'charts.js', 'store.js', 'popup.js', 'dashboard.js', 'extract.js']) {
+  for (const file of ['core.js', 'listing.js', 'charts.js', 'xlsx.js', 'store.js', 'popup.js', 'dashboard.js', 'extract.js']) {
     const source = fs.readFileSync(require.resolve(`./${file}`), 'utf8');
     assert.doesNotMatch(source, /\beval\(|new Function\(|\.innerHTML\s*=|fetch\(|XMLHttpRequest/, file);
   }
@@ -86,7 +86,7 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
     setTimeout,
     console
   });
-  for (const file of ['core.js', 'listing.js', 'charts.js', 'store.js', 'dashboard.js']) {
+  for (const file of ['core.js', 'listing.js', 'charts.js', 'xlsx.js', 'store.js', 'dashboard.js']) {
     vm.runInContext(fs.readFileSync(require.resolve(`./${file}`), 'utf8'), context);
   }
   assert.equal(get('stat-units').textContent, '0');

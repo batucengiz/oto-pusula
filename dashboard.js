@@ -411,28 +411,12 @@
     }
   }
 
-  // Excel'in formül olarak yorumlayabileceği hücreleri düz metne çevirir.
-  function csvCell(value) {
-    if (typeof value === 'number') return Number.isFinite(value) ? String(value) : '';
-    let text = String(value ?? '').replace(/\r?\n|\r/g, ' ').trim();
-    if (/^[=+\-@]/.test(text)) text = `'${text}`;
-    return /[;"]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-  }
-
+  // Tek tıkla gerçek .xlsx: kalın başlıklar, sayı biçimli fiyatlar, filtre, tıklanabilir "İlana git".
   function exportMarket() {
-    const entries = evaluateListings();
-    if (!entries.length) { notice('Dışa aktarılacak ilan yok.', true); return; }
-    const header = ['ilan_no', 'marka', 'model', 'motor', 'paket', 'yıl', 'km', 'şehir', 'fiyat', 'ilk_fiyat', 'tahmini_alt', 'tahmini_merkez', 'tahmini_üst', 'fark_yüzde', 'güven', 'yöntem', 'durum', 'uyarılar', 'pazarlık_hedefi', 'takipte', 'satıcı_telefonu', 'beyan', 'beyan_ifadesi', 'ilk_görülme', 'son_görülme', 'başlık', 'bağlantı'];
-    const lines = entries.map(({ record, result, change, advice }) => [
-      record.listingId, record.brand, record.model, record.engine, record.trim, record.year, record.km, record.city,
-      record.price, change ? change.first : record.price, result.low ?? '', result.center ?? '', result.high ?? '',
-      result.center ? Math.round(result.gap * 100) : '', result.confidence, methodLabels[result.method] || '', result.status ?? '',
-      advice.flags.map(flag => flag.label).join(', '), advice.offer ? advice.offer.target : '', record.watched ? 'evet' : '', listingTools.formatPhone(record.sellerPhone),
-      conditionLabels[record.condition] || '', record.conditionNote, record.firstSeen, record.date, record.title, record.url
-    ].map(csvCell).join(';'));
-    download(`oto-pusula-piyasa-${new Date().toISOString().slice(0, 10)}.csv`, `﻿${[header.join(';'), ...lines].join('\r\n')}\r\n`, 'text/csv;charset=utf-8');
-    const phones = entries.filter(entry => entry.record.sellerPhone).length;
-    notice(`${entries.length} ilan CSV olarak indirildi. Excel ile açabilirsiniz.${phones ? ` Dosyada ${phones} satıcı numarası var: kişisel veridir, paylaşmayın ve işiniz bitince silin.` : ''}`);
+    const table = listingTools.marketTable(state);
+    if (!table.rows.length) { notice('Excel’e aktarılacak ilan yok. Önce eklentiyle bir sahibinden sayfası analiz edin.', true); return; }
+    download(`oto-pusula-ilanlar-${new Date().toISOString().slice(0, 10)}.xlsx`, globalThis.OtoXlsx.build(table), globalThis.OtoXlsx.MIME);
+    notice(`${table.rows.length} ilan Excel dosyası olarak indirildi.${table.phones ? ` Dosyada ${table.phones} satıcı numarası var: kişisel veridir, paylaşmayın ve işiniz bitince silin.` : ''}`);
   }
 
   function renderStock() {
@@ -732,6 +716,9 @@
   $('market-filter').addEventListener('change', renderMarket);
   $('market-sort').addEventListener('change', renderMarket);
   $('export-market').addEventListener('click', exportMarket);
+  $('export-top').addEventListener('click', exportMarket);
+  $('import-close').addEventListener('click', () => $('import-dialog').close());
+  $('import-cancel').addEventListener('click', () => $('import-dialog').close());
   // Popup yeni ilan kaydettiğinde açık panel kendini günceller.
   window.addEventListener('storage', event => {
     if (event.key !== store.KEY) return;

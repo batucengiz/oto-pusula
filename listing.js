@@ -363,6 +363,41 @@
     return { ...result, state: { ...result.state, pages }, found: present.length };
   }
 
+  const STATUS_ORDER = { 'düşük fiyat': 0, uygun: 1, aralıkta: 2, 'biraz yüksek': 3, 'yüksek fiyat': 4, 'az veri': 5, 'hasar riski': 6 };
+  const CONDITION_TEXT = { riskli: 'Ağır hasar beyanı', kusurlu: 'Boya/değişen/tramer', 'temiz-iddia': 'Hatasız iddiası' };
+
+  // Excel'e aktarılacak piyasa tablosu (panel ve popup aynı dosyayı üretir). En ucuz fırsatlar üstte.
+  function marketTable(state, today = new Date()) {
+    const columns = [
+      { title: 'Durum', width: 14 }, { title: 'Marka', width: 13 }, { title: 'Model', width: 12 }, { title: 'Motor', width: 15 },
+      { title: 'Paket', width: 13 }, { title: 'Yıl', width: 7 }, { title: 'KM', width: 10, type: 'money' }, { title: 'Şehir', width: 13 },
+      { title: 'Fiyat (TL)', width: 13, type: 'money' }, { title: 'Piyasa değeri (TL)', width: 17, type: 'money' },
+      { title: 'Piyasaya göre %', width: 15 }, { title: 'Tahmini alt (TL)', width: 15, type: 'money' }, { title: 'Tahmini üst (TL)', width: 15, type: 'money' },
+      { title: 'Pazarlık hedefi (TL)', width: 18, type: 'money' }, { title: 'İlk fiyat (TL)', width: 13, type: 'money' },
+      { title: 'Uyarılar', width: 26 }, { title: 'Hasar bilgisi', width: 18 }, { title: 'Hasar ifadesi', width: 30 },
+      { title: 'Güven', width: 8 }, { title: 'Yöntem', width: 14 }, { title: 'Satıcı tel', width: 15 }, { title: 'Takipte', width: 8 },
+      { title: 'İlk görülme', width: 12 }, { title: 'Son görülme', width: 12 }, { title: 'İlan no', width: 12 }, { title: 'Başlık', width: 40 },
+      { title: 'İlan', width: 11 }
+    ];
+    const entries = state.comparables.filter(item => item.source === 'sahibinden').map(record => {
+      const result = core.estimate(record, state.comparables, core.DEFAULTS, today);
+      return { record, result, advice: core.advise(record, result, today), change: core.priceChange(record) };
+    }).sort((a, b) => (STATUS_ORDER[a.result.status] ?? 9) - (STATUS_ORDER[b.result.status] ?? 9) || a.record.price - b.record.price);
+    const rows = entries.map(({ record, result, advice, change }) => {
+      const url = core.safeListingUrl(record.url);
+      return [
+        result.status || 'veri yok', record.brand, record.model, record.engine, record.trim, record.year, record.km, record.city,
+        record.price, result.center ?? '', result.center ? Math.round(result.gap * 100) : '', result.low ?? '', result.high ?? '',
+        advice.offer ? advice.offer.target : '', change ? change.first : record.price,
+        advice.flags.map(flag => flag.label).join(', '), CONDITION_TEXT[record.condition] || '', record.conditionNote,
+        result.confidence, result.method === 'model' ? 'fiyat modeli' : result.method === 'benzer' ? 'benzer ilanlar' : '',
+        formatPhone(record.sellerPhone), record.watched ? 'evet' : '', record.firstSeen, record.date, record.listingId, record.title,
+        url ? { link: url, text: 'İlana git' } : ''
+      ];
+    });
+    return { sheetName: 'Piyasa ilanları', columns, rows, phones: entries.filter(entry => entry.record.sellerPhone).length };
+  }
+
   // Popup akışı: ham sayfa → kayıtlar → mevcut veriyle birleştirme → bu sayfadaki öne çıkanlar.
   function ingest(raw, state, today = new Date().toISOString().slice(0, 10)) {
     let records;
@@ -405,7 +440,7 @@
     return { state: next, stats, skipped, evaluated, highlights, drops, clearedSample: !!state.sample, pace: core.browsePace(analyses) };
   }
 
-  const api = { MAX_PAGE_ROWS, norm, identifyVehicle, assessCondition, priceFrom, parseSearchPage, parseDetailPage, ingest, findMobile, whatsappLink, formatPhone, savePhone, clearPhones, pageRecordIds, forgetPage, contactWhatsApp };
+  const api = { MAX_PAGE_ROWS, norm, identifyVehicle, assessCondition, priceFrom, parseSearchPage, parseDetailPage, ingest, findMobile, whatsappLink, formatPhone, savePhone, clearPhones, pageRecordIds, forgetPage, contactWhatsApp, marketTable };
   root.OtoListing = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);
