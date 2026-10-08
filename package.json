@@ -1,0 +1,10 @@
+{
+  "name": "oto-pusula",
+  "version": "3.0.0",
+  "private": true,
+  "description": "Yerel galeri stok ve fiyat karar paneli",
+  "scripts": {
+    "dev": "node dev-server.js",
+    "test": "node --test core.test.js dashboard.smoke.test.js"
+  }
+}

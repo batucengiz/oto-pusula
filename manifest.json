@@ -1,9 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "Sahibinden Analiz",
-  "version": "1.0",
-  "permissions": ["activeTab", "scripting"],
+  "name": "Oto Pusula - Galeri Analiz Paneli",
+  "version": "3.0.0",
+  "description": "Galeri stoğunu ve izinli karşılaştırma verilerini yerel olarak analiz eder.",
+  "permissions": [],
   "action": {
     "default_popup": "popup.html"
-  }
+  },
+  "options_page": "dashboard.html"
 }

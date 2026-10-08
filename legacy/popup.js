@@ -1,6 +1,92 @@
 let sonCekilenVeriler = [];
 
-// ARAYÜZ VE KART STİLLERİ
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function excelMetni(value) {
+    let metin = String(value ?? '').replace(/\r?\n|\r/g, ' ').trim();
+    // Excel'in formül olarak yorumlayabildiği hücreleri düz metne dönüştür.
+    return /^[=+\-@]/.test(metin) ? `'${metin}` : metin;
+}
+
+function guvenliIlanUrl(ilan) {
+    try {
+        const url = new URL(ilan.url);
+        if (url.protocol === 'https:' && url.hostname === 'www.sahibinden.com' && url.pathname.startsWith('/ilan/')) return url.href;
+    } catch {
+        // Eski kayıtlarda ilan bağlantısı bulunmayabilir.
+    }
+    return /^\d+$/.test(String(ilan.id)) ? `https://www.sahibinden.com/ilan/${ilan.id}/detay` : null;
+}
+
+function hafizayiOku() {
+    try {
+        let veri = JSON.parse(localStorage.getItem('sahibindenHafiza_v20'));
+        return Array.isArray(veri) ? veri : [];
+    } catch {
+        return [];
+    }
+}
+
+function hafizayiKaydet(hafiza) {
+    const metin = JSON.stringify(hafiza);
+    if (checkStorageLimit(metin)) return false;
+    try {
+        localStorage.setItem('sahibindenHafiza_v20', metin);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function aracYorumuOlustur(ilan, piyasaFiyati, adilDeger, ornekSayisi) {
+    const parcalar = [];
+    const fark = adilDeger > 0 ? ((ilan.price - adilDeger) / adilDeger) * 100 : 0;
+
+    if (fark <= -5) parcalar.push(`adil değerin yaklaşık %${Math.abs(Math.round(fark))} altında`);
+    else if (fark >= 5) parcalar.push(`adil değerin yaklaşık %${Math.round(fark)} üzerinde`);
+    else parcalar.push('hesaplanan adil değere yakın');
+
+    if (ilan.km > 0) parcalar.push(`${ilan.km.toLocaleString('tr-TR')} km bilgisi mevcut`);
+    if (ilan.hasarPuani <= -3) parcalar.push('ilan başlığında kritik risk ifadesi var');
+    else if (ilan.aciklamaDurumu === 'riskli') parcalar.push('satıcı açıklamasında kritik risk ifadesi var');
+    else if (ilan.aciklamaDurumu === 'kusurlu') parcalar.push('satıcı açıklamasında boya / değişen / tramer ifadesi var');
+    else if (ilan.aciklamaDurumu === 'belirsiz') parcalar.push('satıcı açıklamasında belirgin hasar ifadesi bulunamadı; temiz olduğu doğrulanmadı');
+    else if (ilan.hasar && ilan.hasar !== 'Standart / Teyitsiz') parcalar.push('hasar bilgisi yalnızca ilan beyanına dayanıyor');
+    else parcalar.push('ekspertiz bilgisi yok');
+
+    const guven = ornekSayisi >= 8 ? 'Orta' : 'Düşük';
+
+    return {
+        metin: `Kayıt ortalaması ${piyasaFiyati.toLocaleString('tr-TR')} ₺ (${ornekSayisi} ilan). Araç ${parcalar.join('; ')}.`,
+        guven
+    };
+}
+
+function aciklamayiYorumla(aciklama) {
+    const metin = String(aciklama || '').slice(0, 12000)
+        .toLocaleUpperCase('tr-TR')
+        .replace(/İ/g, 'I').replace(/Ş/g, 'S').replace(/Ğ/g, 'G')
+        .replace(/Ç/g, 'C').replace(/Ö/g, 'O').replace(/Ü/g, 'U');
+    const cumleler = metin.split(/[\n.!?;,]+/).map(s => s.trim()).filter(Boolean);
+    const riskli = /\b(AGIR HASAR(LI| KAYDI\s+(VAR|MEVCUT))|PERT KAYITLI|(SASE|SASI|PODYE) (ISLEM(LI| GORMUS)|HASARLI)|AIRBAG (ACILMIS|PATLAMIS)|HAVA YASTIGI ACILMIS)\b/;
+    const kusurlu = /\b(BOYALI|LOKAL BOYA|DEGISEN PARCA|PARCA DEGISEN|DEGISEN VAR|TRAMER KAYDI\s*[:\-]?\s*\d)/;
+    const yokluk = /\b(YOK|YOKTUR|DEGIL|BULUNMUYOR|MEVCUT DEGIL)\b/;
+    const riskCumlesi = cumleler.find(s => riskli.test(s) && !yokluk.test(s));
+    const kusurCumlesi = cumleler.find(s => kusurlu.test(s) && !yokluk.test(s));
+    const bulgu = (riskCumlesi || kusurCumlesi || '').slice(0, 180);
+    return {
+        durum: riskCumlesi ? 'riskli' : (kusurCumlesi ? 'kusurlu' : 'belirsiz'),
+        bulgu
+    };
+}
+
 const style = document.createElement('style');
 style.innerHTML = `
     .ilan-karti { transition: all 0.2s ease-in-out; border: 1px solid #ced4da; border-radius: 8px; margin-bottom: 12px; background: #ffffff; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow: hidden; }
@@ -12,6 +98,16 @@ style.innerHTML = `
 `;
 document.head.appendChild(style);
 
+chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
+    try {
+        if (new URL(tab.url).pathname.startsWith('/ilan/')) {
+            document.getElementById('btn').textContent = '🔎 AÇIK İLAN AÇIKLAMASINI ANALİZ ET';
+        }
+    } catch {
+        // Tarayıcı içi sayfalar için varsayılan başlık korunur.
+    }
+}).catch(() => {});
+
 function checkStorageLimit(stringHafiza) {
     if (!stringHafiza) return false;
     let storageSize = new Blob([stringHafiza]).size;
@@ -20,11 +116,33 @@ function checkStorageLimit(stringHafiza) {
 
 document.getElementById('btn').addEventListener('click', async () => {
     let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    let hostname = '';
+    try {
+        hostname = new URL(tab.url).hostname.toLowerCase();
+    } catch {
+        // Geçersiz veya tarayıcı içi sayfalarda betik asla çalıştırılmaz.
+    }
+
+    if (hostname !== 'www.sahibinden.com') {
+        alert('Analiz yalnızca www.sahibinden.com üzerinde çalışır.');
+        return;
+    }
     
     chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: () => {
             try {
+                if (location.pathname.startsWith('/ilan/')) {
+                    const aciklamaAlani = document.querySelector('#classifiedDescription, #classifiedDetailDescription, [id*="classifiedDescription"], .classifiedDescription, [class*="classifiedDescription"], [class*="classifiedDetailDescription"]');
+                    const aciklama = aciklamaAlani?.innerText?.trim() || '';
+                    const ilanNumaralari = location.pathname.match(/\d{8,13}/g) || [];
+                    return {
+                        tur: 'detay',
+                        id: ilanNumaralari.at(-1) || '',
+                        url: location.href,
+                        aciklama: aciklama.slice(0, 12000)
+                    };
+                }
                 let ilanlar = [];
                 let rows = document.querySelectorAll('tr.searchResultsItem');
                 
@@ -94,12 +212,21 @@ document.getElementById('btn').addEventListener('click', async () => {
                     let priceStr = row.querySelector('.searchResultsPriceValue')?.innerText.trim() || "0";
                     let id = row.getAttribute('data-id');
                     let loc = row.querySelector('.searchResultsLocationValue')?.innerText.trim() || "Bilinmiyor";
+                    let url = '';
+                    try {
+                        const baglanti = row.querySelector('a.classifiedTitle[href], .searchResultsTitleValue a[href]');
+                        const aday = new URL(baglanti?.getAttribute('href') || '', location.href);
+                        if (aday.hostname === 'www.sahibinden.com' && aday.pathname.startsWith('/ilan/') && aday.pathname.includes(String(id))) {
+                            url = aday.href;
+                        }
+                    } catch {
+                        // Geçersiz bağlantı kaydedilmez.
+                    }
                     
-                    if (!id || !title || priceStr === "0") continue;
+                    if (!/^\d+$/.test(String(id)) || !title || priceStr === "0") continue;
 
                     let price = parseInt(priceStr.replace(/[^0-9]/g, '')) || 0;
                     let upperTitle = title.toLocaleUpperCase('tr-TR').replace(/İ/g, 'I').replace(/Ş/g, 'S').replace(/Ğ/g, 'G').replace(/Ç/g, 'C').replace(/Ö/g, 'O').replace(/Ü/g, 'U').replace(/ı/g, 'I');
-                    
                     let tds = Array.from(row.querySelectorAll('td'));
                     let titleIndex = tds.indexOf(titleTd);
                     
@@ -182,9 +309,9 @@ document.getElementById('btn').addEventListener('click', async () => {
                     let finalModel = "DİĞER";
                     if (bulunanModel) {
                         if (bulunanMarka === "BMW" || bulunanMarka === "MERCEDES") {
-                            finalModel = `${bulunanMarka} ${bulunanModel}`;
+                            finalModel = `${bulunanMarka}${bulunanModel}`;
                         } else {
-                            finalModel = `${bulunanModel} ${bulunanMotor}`.trim();
+                            finalModel = `${bulunanModel}${bulunanMotor}`.trim();
                         }
                     } else {
                         if (rowContext.length > 0) {
@@ -194,16 +321,41 @@ document.getElementById('btn').addEventListener('click', async () => {
                         }
                     }
 
-                    let hasar = "Belirsiz"; let hasarPuani = 0; let renk = "#64748b"; 
-                    if (upperTitle.includes("HATASIZ") || upperTitle.includes("ORIJINAL") || upperTitle.includes("BOYASIZ")) { 
-                        hasar = "Tertemiz"; hasarPuani = 2; renk = "#10b981"; 
-                    } else if (upperTitle.includes("LOKAL") || upperTitle.includes("TRAMER") || upperTitle.includes("BOYALI") || upperTitle.includes("DEGISEN")) { 
-                        hasar = "Kusurlu"; hasarPuani = -1; renk = "#f59e0b"; 
-                    } else if (upperTitle.includes("PERT") || upperTitle.includes("AGIR HASAR") || upperTitle.includes("SASE") || upperTitle.includes("AIRBAG") || upperTitle.includes("KULE")) { 
-                        hasar = "Riskli"; hasarPuani = -3; renk = "#ef4444"; 
+                    let hasar = "Standart / Teyitsiz";
+                    let hasarPuani = 0;
+                    let renk = "#64748b";
+
+                    let kelimeler = upperTitle.split(/[\s,.-]+/);
+
+                    if (upperTitle.includes("PERT") || upperTitle.includes("AGIR HASAR") || upperTitle.includes("SASE") || upperTitle.includes("AIRBAG") || upperTitle.includes("KULE")) {
+                        hasar = "⚠️ Riskli / Ağır Hasar";
+                        hasarPuani = -3;
+                        renk = "#ef4444";
+                    }
+                    else if (kelimeler.includes("LOKAL") || kelimeler.includes("TRAMER") || kelimeler.includes("BOYALI") || kelimeler.includes("DEGISEN")) {
+                        hasar = "Kusurlu (Beyan)";
+                        hasarPuani = -1;
+                        renk = "#f59e0b";
+                    }
+                    else if (upperTitle.includes("HATASIZ") || upperTitle.includes("ORIJINAL") || upperTitle.includes("BOYASIZ") || upperTitle.includes("TERTEMIZ") || upperTitle.includes("TRAMERSIZ")) {
+                        hasar = "İddia: Hatasız (Teyitsiz)";
+                        hasarPuani = 0;
+                        renk = "#0284c7";
                     }
 
-                    ilanlar.push({ title, price, yil, km, model: finalModel, hasar, hasarPuani, renk, loc, id });
+                    let donanimPuani = 0;
+                    let donanimlar = [];
+
+                    if (upperTitle.includes("CAM TAVAN") || upperTitle.includes("SUNROOF") || upperTitle.includes("PANORAMIK")) {
+                        donanimPuani += 0.04;
+                        donanimlar.push("Cam Tavan/Sunroof");
+                    }
+                    if (upperTitle.includes("S-LINE") || upperTitle.includes("S LINE") || upperTitle.includes("PREMIUM") || upperTitle.includes("AMG") || upperTitle.includes("M SPORT") || upperTitle.includes("M-SPORT") || upperTitle.includes("R-LINE") || upperTitle.includes("R LINE") || upperTitle.includes("EXCELLENCE") || upperTitle.includes("TITANIUM") || upperTitle.includes("ICON") || upperTitle.includes("ELEGANCE") || upperTitle.includes("ELITE") || upperTitle.includes("FR") || upperTitle.includes("HIGHLINE") || upperTitle.includes("IMPRESSION")) {
+                        donanimPuani += 0.05;
+                        donanimlar.push("Üst Donanım Paketi");
+                    }
+
+                    ilanlar.push({ title, price, yil, km, model: finalModel, hasar, hasarPuani, donanimlar, donanimPuani, renk, loc, id, url });
                 }
                 return ilanlar;
             } catch (e) {
@@ -211,6 +363,10 @@ document.getElementById('btn').addEventListener('click', async () => {
             }
         }
     }, (res) => {
+        if (chrome.runtime.lastError) {
+            alert('Analiz başlatılamadı: ' + chrome.runtime.lastError.message);
+            return;
+        }
         if (!res || !res[0] || !res[0].result) return;
         
         if (typeof res[0].result === 'string' && res[0].result.includes("HATA")) {
@@ -219,16 +375,49 @@ document.getElementById('btn').addEventListener('click', async () => {
         }
 
         let yeniIlanlar = res[0].result;
-        let hafiza = JSON.parse(localStorage.getItem('sahibindenHafiza_v20')) || [];
+        if (yeniIlanlar?.tur === 'detay') {
+            if (!yeniIlanlar.aciklama) {
+                document.getElementById('sonuc').textContent = 'Bu ilanda okunabilir açıklama bulunamadı. Ekspertiz raporu otomatik olarak doğrulanamaz.';
+                return;
+            }
+            const analiz = aciklamayiYorumla(yeniIlanlar.aciklama);
+            const hafiza = hafizayiOku();
+            const ilan = hafiza.find(kayit => String(kayit.id) === yeniIlanlar.id || kayit.url === yeniIlanlar.url);
+            if (!ilan) {
+                const sonuc = document.getElementById('sonuc');
+                sonuc.textContent = `Satıcı açıklaması: ${analiz.bulgu || 'Belirgin hasar ifadesi bulunamadı.'} Bu ilan kayıt listesinde yok; sonuç listesini analiz ettikten sonra kartıyla eşleştirilebilir. Bu bir ekspertiz raporu değildir.`;
+                return;
+            }
+            ilan.aciklamaDurumu = analiz.durum;
+            ilan.aciklamaBulgu = analiz.bulgu;
+            ilan.aciklamaTarihi = new Date().toISOString().split('T')[0];
+            if (yeniIlanlar.url.startsWith('https://www.sahibinden.com/ilan/')) ilan.url = yeniIlanlar.url;
+            const kaydedildi = hafizayiKaydet(hafiza);
+            sonCekilenVeriler = hafiza;
+            renderAnalysis(hafiza, !kaydedildi);
+            document.getElementById('durum').textContent = analiz.durum === 'riskli'
+                ? `⚠️ ${ilan.id}: Açıklamada kritik risk ifadesi bulundu; fırsat kararı güncellendi.`
+                : `✓ ${ilan.id}: Satıcı açıklaması okundu ve kart güncellendi. Rapor doğrulaması yapılmadı.`;
+            if (!kaydedildi) alert('Açıklama analizi kaydedilemedi. JSON arşivi alın.');
+            return;
+        }
+        if (!Array.isArray(yeniIlanlar)) {
+            alert('İlan verisi okunamadı. Lütfen sonuç listesinin yüklendiğini kontrol edin.');
+            return;
+        }
+        let hafiza = hafizayiOku();
         let bugun = new Date().toISOString().split('T')[0];
         
         yeniIlanlar.forEach(yeni => {
-            let mevcutIlan = hafiza.find(h => h.id === yeni.id);
+            let mevcutIlan = hafiza.find(h => String(h.id) === String(yeni.id));
             if (!mevcutIlan) {
                 yeni.ilkFiyat = yeni.price; 
                 yeni.fiyatGecmisi = [{ tarih: bugun, fiyat: yeni.price }];
                 hafiza.push(yeni);
             } else {
+                if (!Array.isArray(mevcutIlan.fiyatGecmisi) || mevcutIlan.fiyatGecmisi.length === 0) {
+                    mevcutIlan.fiyatGecmisi = [{ tarih: bugun, fiyat: mevcutIlan.price }];
+                }
                 let sonKayit = mevcutIlan.fiyatGecmisi[mevcutIlan.fiyatGecmisi.length - 1];
                 if (sonKayit.fiyat !== yeni.price) {
                     if (sonKayit.tarih !== bugun) {
@@ -236,21 +425,32 @@ document.getElementById('btn').addEventListener('click', async () => {
                     } else {
                         sonKayit.fiyat = yeni.price;
                     }
-                    mevcutIlan.price = yeni.price; 
                 }
+                Object.assign(mevcutIlan, {
+                    title: yeni.title, price: yeni.price, km: yeni.km, yil: yeni.yil,
+                    model: yeni.model, hasar: yeni.hasar, hasarPuani: yeni.hasarPuani,
+                    donanimPuani: yeni.donanimPuani, donanimlar: yeni.donanimlar,
+                    renk: yeni.renk, loc: yeni.loc, url: yeni.url || mevcutIlan.url
+                });
             }
         });
         
-        let stringHafiza = JSON.stringify(hafiza);
-        localStorage.setItem('sahibindenHafiza_v20', stringHafiza);
+        let isStorageFull = !hafizayiKaydet(hafiza);
+        if (isStorageFull) {
+            alert('Yeni veriler kaydedilemedi. JSON arşivi alıp eski kayıtları temizlemeden pencereyi kapatmayın.');
+        }
         sonCekilenVeriler = hafiza;
+        document.getElementById('durum').textContent = '';
+        renderAnalysis(hafiza, isStorageFull);
+    });
+});
 
+function renderAnalysis(hafiza, isStorageFull = false) {
         if(hafiza.length === 0) {
             document.getElementById('sonuc').innerHTML = "<div style='padding:15px; text-align:center;'><b>İlan bulunamadı!</b></div>";
             return;
         }
 
-        let isStorageFull = checkStorageLimit(stringHafiza);
         let div = document.getElementById('sonuc');
         
         let modelOrtalamalari = {};
@@ -270,7 +470,7 @@ document.getElementById('btn').addEventListener('click', async () => {
         if (isStorageFull) {
             html += `
             <div style="background:#fef3c7; color:#92400e; padding:10px; border-radius:8px; font-size:12px; text-align:center; font-weight:bold; margin-bottom:15px; border: 1px solid #f59e0b;">
-                ⚠️ UYARI: Hafıza dolmak üzere! (%80+)<br>Lütfen "Arşive Gönder" butonuyla verilerinizi yedekleyip listeyi temizleyin.
+                ⚠️ Yeni veriler kaydedilemedi.<br>Lütfen JSON arşivi alıp eski kayıtları temizleyin.
             </div>`;
         }
 
@@ -286,13 +486,13 @@ document.getElementById('btn').addEventListener('click', async () => {
         </div>
         
         <div class="üst-pano">
-            <div style="font-weight:bold; color:#cbd5e1; border-bottom:2px solid #475569; margin-bottom:10px; padding-bottom:5px; font-size:12px; letter-spacing:0.5px;">📈 PİYASA MODEL ORTALAMALARI</div>`;
+            <div style="font-weight:bold; color:#cbd5e1; border-bottom:2px solid #475569; margin-bottom:10px; padding-bottom:5px; font-size:12px; letter-spacing:0.5px;">📈 KAYITLARIN MODEL ORTALAMASI</div>`;
         
         for (let m in modelOrtalamalari) {
             let ort = Math.round(modelOrtalamalari[m].toplam / modelOrtalamalari[m].adet);
             let kmOrt = Math.round(modelOrtalamalari[m].kmToplam / modelOrtalamalari[m].adet);
             html += `<div class="pano-satir">
-                <span>${m} <span style="color:#94a3b8; font-size:11px;">(${modelOrtalamalari[m].adet})</span></span>
+                <span>${escapeHtml(m)} <span style="color:#94a3b8; font-size:11px;">(${modelOrtalamalari[m].adet})</span></span>
                 <span style="color:#34d399; font-weight:bold;">${ort.toLocaleString('tr-TR')} ₺ <span style="font-size:10px; color:#94a3b8;">(${kmOrt > 0 ? (kmOrt/1000).toFixed(0)+'k KM' : ''})</span></span>
             </div>`;
         }
@@ -303,11 +503,11 @@ document.getElementById('btn').addEventListener('click', async () => {
         
         hafiza.forEach(i => {
             let mData = modelOrtalamalari[i.model];
+            if (!mData) return;
             let genelOrtFiyat = Math.round(mData.toplam / mData.adet);
             let genelOrtKm = Math.round(mData.kmToplam / mData.adet);
             let genelOrtYil = Math.round(mData.yilToplam / mData.adet);
             
-            // 🚀 GÜÇLENDİRİLMİŞ DEĞERLEME MOTORU (KM & YAŞ MATEMATİĞİ)
             let iYil = i.yil !== "Bilinmiyor" ? i.yil : genelOrtYil;
             let yasFarki = iYil - genelOrtYil;
             let yasEtkisi = yasFarki * 0.04; 
@@ -319,12 +519,11 @@ document.getElementById('btn').addEventListener('click', async () => {
             }
 
             let hasarEtkisi = i.hasarPuani * 0.02;
-
-            // Adil Değer Hesaplaması
-            let toplamCarpan = 1 + yasEtkisi + kmEtkisi + hasarEtkisi;
+            if (i.aciklamaDurumu === 'riskli') hasarEtkisi = Math.min(hasarEtkisi, -0.06);
+            else if (i.aciklamaDurumu === 'kusurlu') hasarEtkisi = Math.min(hasarEtkisi, -0.02);
+            let donanimEtkisi = i.donanimPuani || 0;
+            let toplamCarpan = 1 + yasEtkisi + kmEtkisi + hasarEtkisi + donanimEtkisi;
             let adilDeger = Math.round(genelOrtFiyat * toplamCarpan);
-
-            // Karlılık (Fırsat) Hesaplaması
             let kazancOrani = (adilDeger - i.price) / adilDeger; 
 
             let yildizSayisi = 3;
@@ -333,16 +532,25 @@ document.getElementById('btn').addEventListener('click', async () => {
             else if (kazancOrani < -0.08) yildizSayisi = 1; 
             else if (kazancOrani < -0.03) yildizSayisi = 2; 
 
-            // 🚀 ROZETLER İÇİN YENİ MUTLAK (ABSOLUTE) KURAL
             let avantajRozetleri = [];
-            
-            // KURAL 1: KM 50.000'den küçükse VEYA ortalamadan çok daha iyiyse rozeti ver!
-            if (i.km <= 50000 || kmEtkisi > 0.015) avantajRozetleri.push("✨ Düşük KM Avantajı");
-            
-            // KURAL 2: Araç 2023 ve üstü modelse VEYA kendi sınıfının yaş ortalamasından yeniyse rozeti ver!
-            if (i.yil >= 2023 || yasEtkisi > 0.02) avantajRozetleri.push("📅 Model Yılı Yeni");
+            if ((i.km > 0 && i.km <= 50000) || kmEtkisi > 0.015) avantajRozetleri.push("✨ Düşük KM");
+            if (i.yil >= 2023 || yasEtkisi > 0.02) avantajRozetleri.push("📅 Yeni Model");
+            if (i.donanimlar && i.donanimlar.includes("Cam Tavan/Sunroof")) avantajRozetleri.push("☀️ Cam Tavan");
+            if (i.donanimlar && i.donanimlar.includes("Üst Donanım Paketi")) avantajRozetleri.push("💎 Üst Paket");
             
             let rozetHtml = avantajRozetleri.length > 0 ? `<div style="font-size: 10px; color: #0284c7; margin-top: 4px; font-weight: bold;">${avantajRozetleri.join(" | ")}</div>` : "";
+
+            let aciklamaEtiketi = {
+                riskli: 'Açıklamada kritik risk ifadesi',
+                kusurlu: 'Açıklamada boya / değişen / tramer ifadesi',
+                belirsiz: 'Açıklamada belirgin hasar ifadesi yok (teyitsiz)'
+            }[i.aciklamaDurumu];
+            let gosterilecekHasar = aciklamaEtiketi || i.hasar || 'Teyitsiz';
+            let gosterilecekRenk = i.aciklamaDurumu === 'riskli' ? '#b91c1c' : (i.aciklamaDurumu ? '#0284c7' : (i.renk || '#64748b'));
+            if (i.hasarPuani <= -3) {
+                gosterilecekHasar = i.hasar || 'İlan başlığında kritik risk';
+                gosterilecekRenk = '#b91c1c';
+            }
 
             let fiyatFarkiHtml = "";
             let firsatDurumu = "⚖️ <b>STANDART</b>";
@@ -353,9 +561,7 @@ document.getElementById('btn').addEventListener('click', async () => {
                 let fiyatFarki = i.price - ilkFiyat;
                 if (fiyatFarki < 0) {
                     fiyatFarkiHtml = `<div style="color: #ef4444; font-weight: 800; font-size: 11px; margin-top: 6px; background: #fee2e2; padding: 3px 6px; border-radius: 4px; display: inline-block;">📉 Fiyat Düştü: ${fiyatFarki.toLocaleString('tr-TR')} ₺</div>`;
-                    yildizSayisi = 5; 
-                    isFirsat = true;
-                    firsatDurumu = "🔥 <b style='color:#ef4444;'>ACİL İNDİRİM</b>";
+                    // Fiyat indirimi tek başına fırsat kararı vermez.
                 } else if (fiyatFarki > 0) {
                     fiyatFarkiHtml = `<div style="color: #10b981; font-weight: 800; font-size: 11px; margin-top: 6px; background: #d1fae5; padding: 3px 6px; border-radius: 4px; display: inline-block;">📈 Fiyat Arttı: +${fiyatFarki.toLocaleString('tr-TR')} ₺</div>`;
                 }
@@ -371,32 +577,50 @@ document.getElementById('btn').addEventListener('click', async () => {
                 firsatDurumu = isFirsat ? "✅ <b style='color:#10b981;'>FIRSAT</b>" : (yildizSayisi <= 2 ? "⚠️ <b style='color:#ef4444;'>DİKKAT</b>" : "⚖️ <b>STANDART</b>");
             }
 
-            html += `<div class="ilan-karti" data-id="${i.id}" data-fiyat="${i.price}" data-firsat="${isFirsat}">
+            if (i.aciklamaDurumu === 'riskli' || i.hasarPuani <= -3) {
+                isFirsat = false;
+                yildizSayisi = Math.min(yildizSayisi, 2);
+                yildizlar = '⭐'.repeat(yildizSayisi);
+                firsatDurumu = "⚠️ <b style='color:#b91c1c;'>KRİTİK RİSK</b>";
+            } else if (mData.adet < 4) {
+                isFirsat = false;
+                yildizSayisi = Math.min(yildizSayisi, 3);
+                yildizlar = '⭐'.repeat(yildizSayisi);
+                firsatDurumu = "ℹ️ <b>AZ ÖRNEK</b>";
+            }
+
+            let yorum = aracYorumuOlustur(i, genelOrtFiyat, adilDeger, mData.adet);
+            let guvenRenk = yorum.guven === 'Orta' ? '#a16207' : '#b91c1c';
+
+            html += `<div class="ilan-karti" data-id="${escapeHtml(i.id)}" data-fiyat="${i.price}" data-firsat="${isFirsat}">
                 <div style="padding:10px;">
-                    <div style="font-size:13px; font-weight:800; margin-bottom:8px; color:#1e293b; line-height:1.3;">${i.title}</div>
+                    <div style="font-size:13px; font-weight:800; margin-bottom:8px; color:#1e293b; line-height:1.3;">${escapeHtml(i.title)}</div>
                     
                     <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:8px;">
-                        <span style="color:#059669; font-weight:700; background:#d1fae5; padding:4px 8px; border-radius:4px;">${i.model} (${i.yil})</span>
-                        <span style="color:#64748b; font-weight:500;">📍 ${i.loc} | 🛣️ ${i.km.toLocaleString('tr-TR')} KM</span>
+                        <span style="color:#059669; font-weight:700; background:#d1fae5; padding:4px 8px; border-radius:4px;">${escapeHtml(i.model || 'DİĞER')} (${escapeHtml(i.yil || 'Bilinmiyor')})</span>
+                        <span style="color:#64748b; font-weight:500;">📍 ${escapeHtml(i.loc)} | 🛣️ ${(i.km || 0).toLocaleString('tr-TR')} KM</span>
                     </div>
                     
                     <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px;">
-                        <span style="background:${i.renk}; color:white; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold;">${i.hasar}</span>
+                        <span data-ekspertiz-goster-id="${escapeHtml(i.id)}" style="background:${gosterilecekRenk}; color:white; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold;">${escapeHtml(gosterilecekHasar)}</span>
                         <div style="text-align: right;">
                             <span style="color:#0f172a; font-size:16px; font-weight:900; display:block;">${i.price.toLocaleString('tr-TR')} ₺</span>
                         </div>
                     </div>
                     ${rozetHtml}
                     ${fiyatFarkiHtml}
+                    <div data-yorum-id="${escapeHtml(i.id)}" style="font-size:11px; color:#334155; margin-top:8px; line-height:1.4;">💡 ${escapeHtml(yorum.metin)}</div>
+                    ${i.aciklamaBulgu ? `<div style="font-size:10px; margin-top:5px; color:#475569;">Açıklamadan: “${escapeHtml(i.aciklamaBulgu)}”</div>` : ''}
+                    <div style="font-size:10px; margin-top:5px; color:${guvenRenk}; font-weight:bold;">Kayıt sayısına göre veri düzeyi: ${yorum.guven} · Tahmini yorum, ekspertiz doğrulaması değildir.</div>
                 </div>
                 
                 <div style="font-size:11px; display:flex; justify-content:space-between; align-items:center; background:#f1f5f9; padding:8px 10px; border-top:1px solid #e2e8f0;">
-                    <span style="color:#475569;">Piyasa: <b>${genelOrtFiyat.toLocaleString('tr-TR')} ₺</b> | Adil Değer: <b style="color:#2563eb;">${adilDeger.toLocaleString('tr-TR')} ₺</b></span>
+                    <span style="color:#475569;">Kayıt Ort.: <b>${genelOrtFiyat.toLocaleString('tr-TR')} ₺</b> | Tahmini Değer: <b style="color:#2563eb;">${adilDeger.toLocaleString('tr-TR')} ₺</b></span>
                     <span>${yildizlar} ${firsatDurumu}</span>
                 </div>
             </div>`;
         });
-        
+
         html += `</div>`; 
         div.innerHTML = html;
         document.getElementById('excelBtn').style.display = "block";
@@ -426,7 +650,9 @@ document.getElementById('btn').addEventListener('click', async () => {
         document.querySelectorAll('.ilan-karti').forEach(karti => {
             karti.addEventListener('click', () => {
                 let id = karti.getAttribute('data-id');
-                window.open(`https://www.sahibinden.com/ilan/${id}/detay`, '_blank');
+                let ilan = hafiza.find(kayit => String(kayit.id) === id);
+                let url = ilan && guvenliIlanUrl(ilan);
+                if (url) window.open(url, '_blank');
             });
         });
 
@@ -436,66 +662,79 @@ document.getElementById('btn').addEventListener('click', async () => {
             document.getElementById('excelBtn').style.display = "none";
             sonCekilenVeriler = [];
         });
-    });
-});
+}
 
-// 🚀 PROFESYONEL EXCEL (.XLSX) OLUŞTURMA MOTORU
 let excelBtn = document.getElementById('excelBtn');
 if (excelBtn) {
     excelBtn.addEventListener('click', () => {
-        if (typeof XLSX === 'undefined') {
-            alert("Lütfen 'popup.html' dosyasına SheetJS kütüphanesini eklediğinizden emin olun!");
-            return;
-        }
+        let htmlTable = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+        <head><meta charset="utf-8"></head><body>
+        <table border="1">
+            <tr>
+                <th style="background-color:#1e293b; color:white;">Başlık</th>
+                <th style="background-color:#1e293b; color:white;">Model</th>
+                <th style="background-color:#1e293b; color:white;">Yıl</th>
+                <th style="background-color:#1e293b; color:white;">KM</th>
+                <th style="background-color:#1e293b; color:white;">Şehir</th>
+                <th style="background-color:#1e293b; color:white;">Hasar Durumu</th>
+                <th style="background-color:#1e293b; color:white;">İlan Açıklaması Analizi</th>
+                <th style="background-color:#1e293b; color:white;">Açıklamadaki İfade</th>
+                <th style="background-color:#1e293b; color:white;">Eski Kullanıcı Notu</th>
+                <th style="background-color:#1e293b; color:white;">İlk Fiyat</th>
+                <th style="background-color:#1e293b; color:white;">Güncel Fiyat</th>
+                <th style="background-color:#1e293b; color:white;">Değişim</th>
+                <th style="background-color:#1e293b; color:white;">İlan Linki</th>
+            </tr>`;
 
-        // 1. Veri Tablosunu Oluştur
-        let excelVerisi = sonCekilenVeriler.map(i => {
+        sonCekilenVeriler.forEach(i => {
+            let ilanId = String(i.id || '');
+            if (!/^\d+$/.test(ilanId)) return;
             let ilkP = i.ilkFiyat || i.price;
             let degisim = i.price - ilkP;
-            let url = `https://www.sahibinden.com/ilan/${i.id}/detay`;
+            let url = guvenliIlanUrl(i);
+            if (!url) return;
             
-            let temizBaslik = i.title.replace(/\r?\n|\r/g, " ");
-            let temizLoc = i.loc.replace(/\r?\n|\r/g, " ");
+            let temizBaslik = excelMetni(i.title);
+            let temizLoc = excelMetni(i.loc);
+            let aciklamaDurumu = {
+                riskli: 'Kritik risk ifadesi',
+                kusurlu: 'Boya / değişen / tramer ifadesi',
+                belirsiz: 'Belirgin hasar ifadesi bulunamadı (teyitsiz)'
+            }[i.aciklamaDurumu] || 'Henüz okunmadı';
 
-            return {
-                "Başlık": temizBaslik,
-                "Model": i.model,
-                "Yıl": i.yil || 'Bilinmiyor',
-                "KM": i.km || 0,
-                "Şehir": temizLoc,
-                "Hasar Durumu": i.hasar,
-                "İlk Fiyat": ilkP,
-                "Güncel Fiyat": i.price,
-                "Değişim": degisim,
-                "İlan Linki": "İlana Git" // Hücrede görünecek metin
-            };
+            htmlTable += `<tr>
+                <td>${escapeHtml(temizBaslik)}</td>
+                <td>${escapeHtml(excelMetni(i.model))}</td>
+                <td>${escapeHtml(excelMetni(i.yil || 'Bilinmiyor'))}</td>
+                <td>${i.km || 0}</td>
+                <td>${escapeHtml(temizLoc)}</td>
+                <td>${escapeHtml(excelMetni(i.hasar))}</td>
+                <td>${escapeHtml(excelMetni(aciklamaDurumu))}</td>
+                <td>${escapeHtml(excelMetni(i.aciklamaBulgu))}</td>
+                <td>${escapeHtml(excelMetni(i.gercekEkspertiz))}</td>
+                <td>${ilkP}</td>
+                <td>${i.price}</td>
+                <td>${degisim}</td>
+                <td><a href="${url}" target="_blank">İlana Git</a></td>
+            </tr>`;
         });
 
-        // 2. SheetJS Çalışma Kitabı Oluştur
-        let ws = XLSX.utils.json_to_sheet(excelVerisi);
+        htmlTable += `</table></body></html>`;
 
-        // 3. İlan Linki Sütunundaki Metinleri Gerçek Tıklanabilir HYPERLINK Yap
-        let range = XLSX.utils.decode_range(ws['!ref']);
-        for (let R = range.s.r + 1; R <= range.e.r; ++R) {
-            let cellRef = XLSX.utils.encode_cell({ c: 9, r: R }); // 9. Sütun -> İlan Linki
-            let verininKendisi = sonCekilenVeriler[R - 1];
-            if (verininKendisi && ws[cellRef]) {
-                let url = `https://www.sahibinden.com/ilan/${verininKendisi.id}/detay`;
-                ws[cellRef].l = { Target: url, Tooltip: "İlana Gitmek İçin Tıklayın" };
-            }
-        }
+        let blob = new Blob([htmlTable], { type: 'application/vnd.ms-excel' });
+        let url = URL.createObjectURL(blob);
 
-        // 4. Doğrudan .xlsx (Gerçek Excel) Formatında İndir
-        let wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Arac_Analiz_Raporu");
-        XLSX.writeFile(wb, "Arac_Piyasa_Raporu_Detayli.xlsx");
+        let a = document.createElement("a");
+        a.href = url;
+        a.download = "Arac_Piyasa_Raporu.xls";
+        a.click();
     });
 }
 
 let yedekleBtn = document.getElementById('yedekleBtn');
 if (yedekleBtn) {
     yedekleBtn.addEventListener('click', () => {
-        let hafiza = JSON.parse(localStorage.getItem('sahibindenHafiza_v20')) || [];
+        let hafiza = sonCekilenVeriler.length ? sonCekilenVeriler : hafizayiOku();
         if (hafiza.length === 0) {
             alert("Arşivlenecek veri bulunamadı.");
             return;
