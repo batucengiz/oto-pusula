@@ -1,0 +1,348 @@
+(function (root) {
+  'use strict';
+
+  // Sahibinden sayfasından gelen ham metni (extract.js çıktısı) kayıt modeline çevirir.
+  // DOM'a erişmez; bu sayede tamamı Node testleriyle doğrulanabilir.
+  const core = root.OtoCore || (typeof require === 'function' ? require('./core.js') : null);
+  const MAX_PAGE_ROWS = 200;
+
+  const CATALOG = {
+    FIAT: ['EGEA', 'LINEA', 'PUNTO', 'DOBLO', 'FIORINO', 'ALBEA', 'PALIO', 'TIPO', '500L', '500X', '500'],
+    RENAULT: ['MEGANE', 'CLIO', 'SYMBOL', 'FLUENCE', 'KADJAR', 'CAPTUR', 'TALISMAN', 'KANGOO', 'TALIANT', 'AUSTRAL'],
+    VOLKSWAGEN: ['PASSAT', 'GOLF', 'POLO', 'TIGUAN', 'JETTA', 'CADDY', 'TRANSPORTER', 'AMAROK', 'T-ROC', 'T-CROSS', 'TAIGO'],
+    FORD: ['FOCUS', 'FIESTA', 'COURIER', 'TRANSIT', 'MONDEO', 'KUGA', 'PUMA', 'CONNECT', 'C-MAX'],
+    OPEL: ['ASTRA', 'CORSA', 'INSIGNIA', 'MOKKA', 'CROSSLAND', 'GRANDLAND', 'VECTRA', 'COMBO'],
+    PEUGEOT: ['208', '301', '308', '408', '508', '2008', '3008', '5008', 'RIFTER', 'PARTNER'],
+    TOYOTA: ['COROLLA', 'YARIS', 'AURIS', 'C-HR', 'HILUX', 'RAV4'],
+    HONDA: ['CIVIC', 'ACCORD', 'CITY', 'CR-V', 'HR-V', 'JAZZ'],
+    DACIA: ['DUSTER', 'SANDERO', 'LODGY', 'LOGAN', 'DOKKER', 'SPRING', 'JOGGER'],
+    SKODA: ['OCTAVIA', 'SUPERB', 'FABIA', 'KAMIQ', 'KAROQ', 'KODIAQ', 'SCALA'],
+    SEAT: ['LEON', 'IBIZA', 'ARONA', 'ATECA', 'TARRACO'],
+    AUDI: ['A3', 'A4', 'A5', 'A6', 'A1', 'A7', 'Q2', 'Q3', 'Q5', 'Q7'],
+    BMW: ['116', '118', '316', '318', '320', '418', '420', '520', 'X1', 'X3', 'X5'],
+    MERCEDES: ['C200', 'C180', 'E200', 'E180', 'A180', 'CLA', 'GLA', 'VITO', 'B180', 'GLC'],
+    HYUNDAI: ['I20', 'I10', 'I30', 'TUCSON', 'ELANTRA', 'ACCENT', 'BAYON', 'KONA'],
+    KIA: ['SPORTAGE', 'CEED', 'RIO', 'STONIC', 'PICANTO', 'CERATO'],
+    NISSAN: ['QASHQAI', 'JUKE', 'MICRA', 'X-TRAIL'],
+    VOLVO: ['S60', 'S90', 'V40', 'V60', 'XC40', 'XC60', 'XC90'],
+    CHERY: ['TIGGO 7', 'TIGGO 8', 'OMODA 5', 'TIGGO 4'],
+    CHEVROLET: ['CRUZE', 'AVEO', 'CAPTIVA'],
+    SUZUKI: ['SWIFT', 'VITARA', 'JIMNY']
+  };
+
+  const BRAND_TOKENS = { VOLKSWAGEN: ['VOLKSWAGEN', 'VW'], MERCEDES: ['MERCEDES-BENZ', 'MERCEDES'] };
+  const BRAND_NAMES = { VOLKSWAGEN: 'Volkswagen', MERCEDES: 'Mercedes-Benz', BMW: 'BMW', KIA: 'Kia' };
+
+  const ENGINES = {
+    FIAT: { '1.3': '1.3 Multijet', '1.4': '1.4 Fire', '1.6': '1.6 Multijet', '1.5': '1.5 Hybrid' },
+    RENAULT: { '1.5': '1.5 dCi', '1.3': '1.3 TCe', '1.0': '1.0 TCe', '1.6': '1.6 dCi', '1.2': '1.2 TCe', '1.4': '1.4' },
+    DACIA: { '1.5': '1.5 dCi', '1.3': '1.3 TCe', '1.0': '1.0 TCe', '1.6': '1.6', '1.4': '1.4' },
+    VOLKSWAGEN: { '1.6': '1.6 TDI', '1.4': '1.4 TSI', '1.5': '1.5 TSI', '1.0': '1.0 TSI', '2.0': '2.0 TDI', '1.2': '1.2 TSI' },
+    SKODA: { '1.6': '1.6 TDI', '1.4': '1.4 TSI', '1.5': '1.5 TSI', '1.0': '1.0 TSI', '1.2': '1.2 TSI', '2.0': '2.0 TDI' },
+    SEAT: { '1.6': '1.6 TDI', '1.4': '1.4 TSI', '1.5': '1.5 TSI', '1.0': '1.0 TSI', '1.2': '1.2 TSI', '2.0': '2.0 TDI' },
+    AUDI: { '1.6': '1.6 TDI', '1.4': '1.4 TFSI', '1.5': '35 TFSI', '1.0': '30 TFSI', '2.0': '2.0 TDI', '35 TFSI': '35 TFSI', '30 TFSI': '30 TFSI' },
+    FORD: { '1.5': '1.5 TDCi', '1.6': '1.6 TDCi', '1.0': '1.0 EcoBoost' },
+    OPEL: { '1.6': '1.6 CDTI', '1.4': '1.4', '1.2': '1.2', '1.3': '1.3 CDTI', '1.5': '1.5 D' },
+    PEUGEOT: { '1.5': '1.5 BlueHDi', '1.6': '1.6 BlueHDi', '1.2': '1.2 PureTech' },
+    TOYOTA: { '1.4': '1.4 D-4D', '1.6': '1.6', '1.5': '1.5', '1.8': '1.8 Hybrid' },
+    HONDA: { '1.6': '1.6 i-VTEC', '1.5': '1.5 VTEC', '1.4': '1.4' },
+    KIA: { '1.6': '1.6 CRDi', '1.4': '1.4', '1.0': '1.0 T-GDI', '1.2': '1.2' },
+    HYUNDAI: { '1.6': '1.6 CRDi', '1.4': '1.4 MPI', '1.0': '1.0 T-GDI', '1.2': '1.2' },
+    VOLVO: { '2.0 D': 'D4', '1.5': 'T3', '2.0': 'B4', '1.6': '1.6 D' },
+    CHERY: { '1.6': '1.6 TGDI' },
+    CHEVROLET: { '1.6': '1.6', '1.4': '1.4', '1.2': '1.2', '2.0': '2.0 D' },
+    SUZUKI: { '1.2': '1.2', '1.4': '1.4 BoosterJet', '1.6': '1.6', '1.0': '1.0' },
+    BMW: { '1.5': '1.5', '1.6': '1.6', '2.0': '2.0' }
+  };
+
+  const BODIES = [['Sedan', /\bSEDAN\b/], ['Hatchback', /\b(HATCHBACK|HB)\b/], ['Cross', /\bCROSS\b/], ['Sportback', /\bSPORTBACK\b/], ['Station', /\b(STATION WAGON|SW|SPORTS TOURER|VARIANT|COMBI|KOMBI)\b/]];
+  const TRIMS = ['URBAN PLUS', 'URBAN', 'LOUNGE', 'EASY', 'STREET', 'LIMITED', 'JOY', 'TOUCH', 'ICON', 'ELEGANCE', 'DREAM', 'FLAME', 'VISION', 'PASSION', 'COMFORTLINE', 'HIGHLINE', 'TRENDLINE', 'IMPRESSION', 'ELITE', 'TITANIUM', 'TREND X', 'ST-LINE', 'ALLURE', 'GT LINE', 'PRESTIGE', 'EXCLUSIVE', 'R-LINE', 'S LINE', 'M SPORT', 'AMG', 'JOY PLUS', 'TOUCH PLUS', 'STYLE', 'PRESTIGE PLUS'];
+
+  // Türkçe büyük harf + ASCII; regex karşılaştırmaları için.
+  function norm(value) {
+    return String(value ?? '').toLocaleUpperCase('tr-TR')
+      .replace(/İ/g, 'I').replace(/Ş/g, 'S').replace(/Ğ/g, 'G')
+      .replace(/Ç/g, 'C').replace(/Ö/g, 'O').replace(/Ü/g, 'U')
+      .replace(/\s+/g, ' ').trim();
+  }
+
+  function escapeRegex(text) {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  function token(text) {
+    return new RegExp(`(^|[^A-Z0-9])${escapeRegex(text)}($|[^A-Z0-9])`);
+  }
+
+  // "1.3" fiyat içindeki "1.300.000" ile karışmasın diye rakam ve ayraç sınırı aranır.
+  function engineToken(text) {
+    return new RegExp(`(^|[^0-9.,])${escapeRegex(text)}(?![0-9])(?![.,][0-9])`);
+  }
+
+  // Girdi norm() ile ASCII'ye çevrildiği için tr-TR yerine düz küçültme: "FIAT" → "Fiat", "Fıat" değil.
+  function titleCase(text) {
+    return String(text).split(' ').map(word =>
+      /\d|-/.test(word) || word.length <= 3 ? word : word[0] + word.slice(1).toLowerCase()
+    ).join(' ');
+  }
+
+  function brandName(code) {
+    return BRAND_NAMES[code] || titleCase(code);
+  }
+
+  function findBrand(text) {
+    for (const code of Object.keys(CATALOG)) {
+      if ((BRAND_TOKENS[code] || [code]).some(name => token(name).test(text))) return code;
+    }
+    return '';
+  }
+
+  function findModel(brand, text, allowYearLike = true) {
+    for (const model of CATALOG[brand] || []) {
+      if (!allowYearLike && /^(19|20)\d{2}$/.test(model)) continue;
+      if (token(model).test(text)) return model;
+    }
+    return '';
+  }
+
+  function findEngine(brand, text) {
+    const map = ENGINES[brand] || {};
+    const keys = Object.keys(map).sort((a, b) => b.length - a.length);
+    const found = keys.find(k => engineToken(k).test(text));
+    return found ? map[found] : '';
+  }
+
+  function findBody(text) {
+    return BODIES.find(([, pattern]) => pattern.test(text))?.[0] || '';
+  }
+
+  function findTrim(text) {
+    const sorted = [...TRIMS].sort((a, b) => b.length - a.length);
+    const found = sorted.find(trim => token(trim).test(text));
+    return found ? titleCase(found) : '';
+  }
+
+  // Öncelik: model sütunu (en güvenilir) → ilan başlığı → sayfa başlığı.
+  function identifyVehicle({ context = '', title = '', pageTitle = '', brandHint = '', modelHint = '' }) {
+    const sources = [context, title, pageTitle].map(norm);
+    let brand = findBrand(norm(brandHint)) || '';
+    for (const text of sources) { if (!brand) brand = findBrand(text); }
+
+    let model = '';
+    if (brand) {
+      const hint = norm(modelHint);
+      model = hint ? (findModel(brand, hint) || hint) : '';
+      for (const text of sources) { if (!model) model = findModel(brand, text); }
+    } else {
+      for (const text of sources.slice(0, 2)) {
+        for (const code of Object.keys(CATALOG)) {
+          // Markasız metinde "2008" gibi model adları yıl ile karışabilir.
+          const found = findModel(code, text, false);
+          if (found) { brand = code; model = found; break; }
+        }
+        if (model) break;
+      }
+    }
+    if (brand && !model && sources[0]) model = sources[0].split(' ')[0];
+    if (!brand || !model) return null;
+
+    const detailText = `${sources[0]} ${sources[1]}`;
+    return {
+      brand: CATALOG[brand] ? brandName(brand) : titleCase(brand),
+      model: titleCase(model),
+      engine: findEngine(brand, detailText),
+      body: findBody(detailText),
+      trim: findTrim(sources[0] || sources[1])
+    };
+  }
+
+  const CONDITION_RULES = [
+    ['riskli', /\bPERT\b|AGIR HASAR|\b(SASE|SASI|PODYE|KULE)(LER)?\b[A-Z ]{0,20}?\b(ISLEMLI|ISLEM GORMUS|HASARLI|DUZELTMELI|DARBELI)\b|\b(AIRBAG|HAVA YASTIGI) (ACIK|ACILMIS|PATLAMIS|PATLAK)\b|\b(SEL|YANGIN) HASAR/g],
+    ['kusurlu', /\bBOYALI\b|\bLOKAL BOYA|\bDEGISEN\b|\bDEGISMIS\b|\bTRAMER\b|\bHASAR KAYD|\bHASAR KAYITLI/g],
+    ['temiz-iddia', /\bHATASIZ\b|\bBOYASIZ\b|\bDEGISENSIZ\b|\bTRAMERSIZ\b|\bTERTEMIZ\b|\bORIJINAL\b/g]
+  ];
+  const ANY_CONDITION = new RegExp(CONDITION_RULES.map(([, pattern]) => pattern.source).join('|'));
+  const NEGATION = /\b(YOK|YOKTUR|DEGIL|DEGILDIR|BULUNMUYOR|BULUNMAMAKTADIR|ACMAMIS|ACILMAMIS|YAPILMAMIS|SIFIR)\b/;
+  const SEVERITY = { riskli: 3, kusurlu: 2, 'temiz-iddia': 1 };
+
+  // İlan başlığı ve satıcı açıklamasındaki beyanı sınıflandırır; ekspertiz doğrulaması değildir.
+  // Olumsuzluk yalnızca anahtar kelimeden hemen sonraki birkaç kelimede aranır:
+  // "2 parça boyalı değişen yok" → boyalı geçerli, değişen olumsuzlanmış.
+  function assessCondition(text) {
+    const clauses = String(text ?? '').slice(0, 12000).split(/\r?\n/)
+      .flatMap(line => norm(line).split(/[.!?;,()]+| - /))
+      .map(s => s.trim()).filter(Boolean);
+    let best = null;
+    for (const clause of clauses) {
+      for (const [condition, pattern] of CONDITION_RULES) {
+        for (const match of clause.matchAll(pattern)) {
+          let after = clause.slice(match.index + match[0].length);
+          const next = after.search(ANY_CONDITION);
+          if (next >= 0) after = after.slice(0, next);
+          if (NEGATION.test(after.trim().split(' ').slice(0, 3).join(' '))) continue;
+          if (!best || SEVERITY[condition] > SEVERITY[best.condition]) best = { condition, note: clause.slice(0, 140) };
+        }
+      }
+    }
+    return best || { condition: '', note: '' };
+  }
+
+  function priceFrom(text) {
+    const match = String(text ?? '').match(/\d{1,3}(?:[.,]\d{3})+|\d{4,}/);
+    return match ? core.number(match[0]) : NaN;
+  }
+
+  function digits(text) {
+    const cleaned = String(text ?? '').replace(/[^\d]/g, '');
+    return cleaned ? Number(cleaned) : NaN;
+  }
+
+  // "OsmaniyeDüziçi" gibi bitişik il+ilçe, küçük→büyük harf geçişinden ayrılır.
+  function firstLine(text) {
+    return String(text ?? '').replace(/([a-zçğıöşü])([A-ZÇĞİÖŞÜ])/g, '$1\n$2')
+      .split(/\r?\n/).map(s => s.trim()).filter(Boolean)[0] || '';
+  }
+
+  function headerIndex(headers, pattern) {
+    return headers.findIndex(header => pattern.test(norm(header)));
+  }
+
+  function toRecord(fields) {
+    return core.normalizeRecord({ ...fields, id: `sh-${fields.listingId}`, source: 'sahibinden' }, 'comparable');
+  }
+
+  function parseSearchPage(raw) {
+    const headers = Array.isArray(raw?.headers) ? raw.headers : [];
+    const yearIndex = headerIndex(headers, /^(YIL|MODEL YILI)$/);
+    const kmIndex = headerIndex(headers, /^(KM|KILOMETRE)$/);
+    const records = [];
+    const skipped = [];
+    for (const row of (raw?.rows || []).slice(0, MAX_PAGE_ROWS)) {
+      const listingId = String(row?.id ?? '');
+      if (!/^\d{6,13}$/.test(listingId)) { skipped.push({ id: listingId, reason: 'ilan numarası yok' }); continue; }
+      const cells = Array.isArray(row.cells) ? row.cells.map(cell => String(cell ?? '')) : [];
+      const title = String(row.title ?? '').trim();
+      const context = row.titleIndex > 1 ? cells.slice(1, row.titleIndex).join(' ') : '';
+      const vehicle = identifyVehicle({ context, title, pageTitle: raw.pageTitle });
+      if (!vehicle) { skipped.push({ id: listingId, reason: 'marka/model tanınamadı' }); continue; }
+      let year = yearIndex >= 0 ? digits(cells[yearIndex]) : NaN;
+      if (!Number.isInteger(year) || year < 1980) year = Number(title.match(/\b(19[89]\d|20\d{2})\b/)?.[1]);
+      const km = kmIndex >= 0 ? digits(cells[kmIndex]) : NaN;
+      const { condition, note } = assessCondition(title);
+      try {
+        records.push(toRecord({
+          ...vehicle, listingId, title, year, km, price: priceFrom(row.price),
+          url: row.href, city: firstLine(row.location), condition, conditionNote: note
+        }));
+      } catch (error) {
+        skipped.push({ id: listingId, reason: error.message });
+      }
+    }
+    return { records, skipped };
+  }
+
+  function parseDetailPage(raw) {
+    const info = new Map((raw?.info || []).map(([label, value]) => [norm(label).replace(/:$/, ''), String(value ?? '').trim()]));
+    const get = (...labels) => labels.map(label => info.get(label)).find(Boolean) || '';
+    const listingId = String(raw?.listingId || get('ILAN NO')).replace(/\D/g, '');
+    if (!/^\d{6,13}$/.test(listingId)) throw new Error('İlan numarası okunamadı.');
+    const title = String(raw.title ?? '').trim();
+    const vehicle = identifyVehicle({ context: get('MODEL'), title, brandHint: get('MARKA'), modelHint: get('SERI') });
+    if (!vehicle) throw new Error('Marka ve model okunamadı.');
+    const fromDescription = assessCondition(raw.description);
+    const fromTitle = assessCondition(title);
+    // İlan bilgi listesindeki yapısal "Ağır Hasar Kayıtlı: Evet" alanı serbest metinden önce gelir.
+    const heavyDamage = norm(get('AGIR HASAR KAYITLI', 'AGIR HASARLI', 'AGIR HASAR KAYDI'));
+    const condition = heavyDamage === 'EVET'
+      ? { condition: 'riskli', note: 'İlan bilgisi: ağır hasar kayıtlı' }
+      : fromDescription.condition ? fromDescription : fromTitle;
+    const city = firstLine(String(raw.location ?? '').split('/')[0]);
+    return toRecord({
+      ...vehicle, listingId, title,
+      body: vehicle.body || titleCase(norm(get('KASA TIPI'))),
+      year: digits(get('YIL')), km: digits(get('KM')), price: priceFrom(raw.priceText),
+      fuel: get('YAKIT TIPI', 'YAKIT'), transmission: get('VITES TIPI', 'VITES'),
+      url: raw.url, city, condition: condition.condition, conditionNote: condition.note
+    });
+  }
+
+  // Türkiye cep numarası (WhatsApp yalnızca cep hattında çalışır). Maskeli "0 (5xx) xxx ** **" eşleşmez.
+  const MOBILE = /(?:\+?90|0)?[\s(]*(5\d{2})[\s).-]*(\d{3})[\s.-]*(\d{2})[\s.-]*(\d{2})(?!\d)/;
+
+  function findMobile(...texts) {
+    for (const value of texts) {
+      const match = String(value ?? '').match(MOBILE);
+      if (match) return `90${match.slice(1).join('')}`;
+    }
+    return '';
+  }
+
+  // Kullanıcının WhatsApp'ta düzenleyip kendisinin göndereceği hazır mesaj bağlantısı. Numara saklanmaz.
+  function whatsappLink(phone, record) {
+    if (!/^905\d{9}$/.test(phone)) return '';
+    const name = record.title || [record.brand, record.model].filter(Boolean).join(' ');
+    const message = `Merhaba, sahibinden.com'daki "${name}" ilanınız (ilan no: ${record.listingId}) için yazıyorum. Araç hâlâ satılık mı?`;
+    return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+  }
+
+  function formatPhone(phone) {
+    const m = String(phone ?? '').match(/^90(5\d{2})(\d{3})(\d{2})(\d{2})$/);
+    return m ? `0${m[1]} ${m[2]} ${m[3]} ${m[4]}` : '';
+  }
+
+  // Kullanıcının açıkça onayladığı tek bir ilana numarayı yazar ve ilanı takip listesine alır.
+  function savePhone(state, recordId, phone) {
+    if (!/^905\d{9}$/.test(phone)) throw new Error('Geçerli bir cep numarası bulunamadı.');
+    let found = false;
+    const comparables = state.comparables.map(item => {
+      if (item.id !== recordId) return item;
+      found = true;
+      return { ...item, sellerPhone: phone, watched: true };
+    });
+    if (!found) throw new Error('İlan kaydı bulunamadı; sayfayı tekrar analiz edin.');
+    return { ...state, comparables };
+  }
+
+  function clearPhones(state, recordId = null) {
+    return {
+      ...state,
+      comparables: state.comparables.map(item => {
+        if (!item.sellerPhone || (recordId && item.id !== recordId)) return item;
+        const { sellerPhone, ...rest } = item;
+        return rest;
+      })
+    };
+  }
+
+  // Popup akışı: ham sayfa → kayıtlar → mevcut veriyle birleştirme → bu sayfadaki öne çıkanlar.
+  function ingest(raw, state, today = new Date().toISOString().slice(0, 10)) {
+    let records;
+    let skipped = [];
+    if (raw?.kind === 'search') ({ records, skipped } = parseSearchPage(raw));
+    else if (raw?.kind === 'detail') records = [parseDetailPage(raw)];
+    else if (raw?.kind === 'empty') throw new Error('Bu sayfada ilan listesi bulunamadı. Bir arama sonucu veya ilan sayfası açın.');
+    else throw new Error('Analiz yalnızca sahibinden.com arama ve ilan sayfalarında çalışır.');
+    if (!records.length) throw new Error(`Okunabilir ilan bulunamadı.${skipped.length ? ` ${skipped.length} satır atlandı (${skipped[0].reason}).` : ''}`);
+
+    // Örnek veri kurgusaldır; gerçek ilanlarla karışmaması için ilk gerçek okumada temizlenir.
+    const base = state.sample ? { schema: 1, stock: [], comparables: [], sample: false } : state;
+    const { records: comparables, stats } = core.mergeObservations(base.comparables, records, today);
+    const next = { ...base, comparables, sample: false };
+    const byId = new Map(comparables.map(item => [item.id, item]));
+    const now = new Date(`${today}T12:00:00Z`);
+    const evaluated = records.map(item => {
+      const record = byId.get(item.id);
+      return { record, result: core.estimate(record, comparables, core.DEFAULTS, now), change: core.priceChange(record) };
+    }).filter(entry => entry.record);
+    const highlights = evaluated
+      .filter(({ record, result }) => ['düşük fiyat', 'uygun'].includes(result.status) && record.condition !== 'riskli')
+      .sort((a, b) => a.result.gap - b.result.gap)
+      .slice(0, 3);
+    const drops = evaluated.filter(({ change }) => change && change.amount < 0).length;
+    return { state: next, stats, skipped, evaluated, highlights, drops, clearedSample: !!state.sample };
+  }
+
+  const api = { MAX_PAGE_ROWS, norm, identifyVehicle, assessCondition, priceFrom, parseSearchPage, parseDetailPage, ingest, findMobile, whatsappLink, formatPhone, savePhone, clearPhones };
+  root.OtoListing = api;
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+})(globalThis);

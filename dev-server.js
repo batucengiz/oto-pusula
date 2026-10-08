@@ -7,7 +7,10 @@ const files = new Map([
   ['/dashboard.html', ['dashboard.html', 'text/html; charset=utf-8']],
   ['/dashboard.css', ['dashboard.css', 'text/css; charset=utf-8']],
   ['/dashboard.js', ['dashboard.js', 'text/javascript; charset=utf-8']],
-  ['/core.js', ['core.js', 'text/javascript; charset=utf-8']]
+  ['/core.js', ['core.js', 'text/javascript; charset=utf-8']],
+  ['/store.js', ['store.js', 'text/javascript; charset=utf-8']],
+  ['/listing.js', ['listing.js', 'text/javascript; charset=utf-8']],
+  ['/charts.js', ['charts.js', 'text/javascript; charset=utf-8']]
 ]);
 
 const server = http.createServer(async (request, response) => {

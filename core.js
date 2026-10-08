@@ -86,6 +86,8 @@
     brand: ['marka', 'brand', 'make'],
     model: ['model'],
     trim: ['paket', 'donanim', 'trim'],
+    engine: ['motor', 'motorhacmi', 'engine'],
+    body: ['kasa', 'kasatipi', 'body'],
     year: ['yil', 'modelyili', 'year'],
     km: ['km', 'kilometre', 'mileage'],
     fuel: ['yakit', 'yakitipi', 'fuel'],
@@ -105,6 +107,43 @@
     return record;
   }
 
+  const CONDITIONS = ['riskli', 'kusurlu', 'temiz-iddia'];
+
+  function safeListingUrl(value) {
+    try {
+      const url = new URL(plain(value));
+      if (url.protocol === 'https:' && url.hostname === 'www.sahibinden.com' && url.pathname.startsWith('/ilan/')) return url.href;
+    } catch { /* Geçersiz bağlantı saklanmaz. */ }
+    return '';
+  }
+
+  function priceHistory(value) {
+    if (!Array.isArray(value)) return [];
+    return value.slice(-50)
+      .map(entry => ({ date: date(entry?.date), price: Math.round(number(entry?.price)) }))
+      .filter(entry => entry.date && Number.isFinite(entry.price) && entry.price >= 1000 && entry.price <= 100000000);
+  }
+
+  // İlan kaynaklı kayıtların ek alanları; CSV kayıtlarında boş kalır.
+  function listingFields(input) {
+    const listingId = /^\d{6,13}$/.test(plain(input.listingId)) ? plain(input.listingId) : '';
+    return {
+      source: plain(input.source) === 'sahibinden' && listingId ? 'sahibinden' : 'csv',
+      listingId,
+      url: safeListingUrl(input.url),
+      title: plain(input.title).slice(0, 200),
+      city: plain(input.city).slice(0, 80),
+      firstSeen: date(input.firstSeen),
+      priceHistory: priceHistory(input.priceHistory),
+      condition: CONDITIONS.includes(input.condition) ? input.condition : '',
+      conditionNote: plain(input.conditionNote).slice(0, 200),
+      // Yalnızca true iken yazılır; böylece yeniden okunan ilan takip işaretini silmez.
+      ...(input.watched === true ? { watched: true } : {}),
+      // Satıcı numarası yalnızca kullanıcı popup'ta "kaydet" dediğinde gelir; otomatik toplanmaz.
+      ...(/^905\d{9}$/.test(plain(input.sellerPhone)) ? { sellerPhone: plain(input.sellerPhone) } : {})
+    };
+  }
+
   function normalizeRecord(input, type, rowIndex = 0) {
     const brand = plain(input.brand);
     const model = plain(input.model);
@@ -120,14 +159,15 @@
     if (plain(input.date) && !date(input.date)) throw new Error('geçersiz tarih');
     const sourceId = plain(input.id);
     const fingerprint = [brand, model, year, km, price, rowIndex].map(key).join('-');
-    return {
+    const record = {
       id: `${type}-${sourceId || fingerprint}`,
-      brand, model, trim: plain(input.trim), year, km,
+      brand, model, trim: plain(input.trim), engine: plain(input.engine), body: plain(input.body), year, km,
       fuel: plain(input.fuel), transmission: plain(input.transmission),
       price, cost: type === 'stock' ? cost : null,
       date: date(input.date), note: plain(input.note).slice(0, 500),
       type
     };
+    return type === 'comparable' ? { ...record, ...listingFields(input) } : record;
   }
 
   function importCsv(text, type) {
@@ -170,22 +210,145 @@
     return Math.max(0, Math.floor((today - start) / 86400000));
   }
 
-  function estimate(vehicle, comparables, settings = DEFAULTS, today = new Date()) {
-    const matched = comparables.filter(item =>
-      key(item.brand) === key(vehicle.brand) && key(item.model) === key(vehicle.model) &&
-      Math.abs(item.year - vehicle.year) <= 4 &&
-      (!vehicle.fuel || !item.fuel || key(item.fuel) === key(vehicle.fuel)) &&
-      (!vehicle.transmission || !item.transmission || key(item.transmission) === key(vehicle.transmission)) &&
-      (!vehicle.trim || !item.trim || key(item.trim) === key(vehicle.trim))
-    );
-    if (!matched.length) return { count: 0, confidence: 'yok', reason: 'Aynı marka/model ve yakın yıl için karşılaştırma verisi yok.' };
+  const BRAND_ALIASES = { vw: 'volkswagen', mercedesbenz: 'mercedes' };
 
-    const yearRate = clamp(Number(settings.yearRate) || DEFAULTS.yearRate, 0, 0.08);
-    const kmRate = clamp(Number(settings.kmRate) || DEFAULTS.kmRate, 0, 0.04);
+  function brandKey(value) {
+    const k = key(value);
+    return BRAND_ALIASES[k] || k;
+  }
+
+  // İki taraf da biliyorsa eşleşmeli; biri boşsa kayıt elenmez.
+  function compatible(a, b) {
+    return !a || !b || key(a) === key(b);
+  }
+
+  const MIN_MATCH = 4;
+  const MATCH_FIELDS = ['fuel', 'transmission', 'engine', 'trim', 'body'];
+  // Yeterli benzer kayıt yoksa önce paket, sonra kasa tipi gevşetilir. Motor, yakıt ve vites
+  // fiyatı en çok belirleyen alanlar olduğu için hiç gevşetilmez.
+  const RELAX_STEPS = [[], ['trim'], ['trim', 'body']];
+  const FIELD_LABELS = { trim: 'paket', body: 'kasa tipi' };
+
+  // --- Fiyat modeli: marka/model içindeki tüm kayıtlardan öğrenilen ridge regresyon ---
+  // ln(fiyat) = sabit + b1·yaş + b2·(km/10.000) + kategori etkileri (motor, paket, kasa, yakıt, vites).
+  // Kategori etkileri cezalandırılır (ridge); az görülen paket ortalamaya doğru çekilir,
+  // bilinmeyen kategori "ortalama" kabul edilir.
+  const MODEL_MIN_ROWS = 12;
+  const MODEL_FIELDS = ['engine', 'trim', 'body', 'fuel', 'transmission'];
+  const RIDGE = 1;
+  const modelCache = new WeakMap();
+
+  function solve(matrix, vector) {
+    const n = vector.length;
+    const m = matrix.map((row, i) => [...row, vector[i]]);
+    for (let col = 0; col < n; col++) {
+      let pivot = col;
+      for (let r = col + 1; r < n; r++) if (Math.abs(m[r][col]) > Math.abs(m[pivot][col])) pivot = r;
+      if (Math.abs(m[pivot][col]) < 1e-10) return null;
+      [m[col], m[pivot]] = [m[pivot], m[col]];
+      for (let r = 0; r < n; r++) {
+        if (r === col) continue;
+        const factor = m[r][col] / m[col][col];
+        for (let k = col; k <= n; k++) m[r][k] -= factor * m[col][k];
+      }
+    }
+    return m.map((row, i) => row[n] / row[i]);
+  }
+
+  function fitPriceModel(records) {
+    const rows = records.filter(r => r.condition !== 'riskli' && r.price > 0 && Number.isFinite(r.year) && Number.isFinite(r.km));
+    if (rows.length < MODEL_MIN_ROWS) return null;
+    const refYear = Math.max(...rows.map(r => r.year));
+    const levels = [];
+    for (const field of MODEL_FIELDS) {
+      const counts = new Map();
+      rows.forEach(r => { const k = key(r[field]); if (k) counts.set(k, (counts.get(k) || 0) + 1); });
+      for (const [k, count] of counts) if (count >= 2) levels.push([field, k]);
+    }
+    const features = r => [1, refYear - r.year, r.km / 10000, ...levels.map(([field, k]) => (key(r[field]) === k ? 1 : 0))];
+    const size = 3 + levels.length;
+    const xtx = Array.from({ length: size }, () => new Array(size).fill(0));
+    const xty = new Array(size).fill(0);
+    const xs = rows.map(features);
+    const ys = rows.map(r => Math.log(r.price));
+    xs.forEach((x, i) => {
+      for (let a = 0; a < size; a++) {
+        xty[a] += x[a] * ys[i];
+        for (let b = 0; b < size; b++) xtx[a][b] += x[a] * x[b];
+      }
+    });
+    for (let a = 3; a < size; a++) xtx[a][a] += RIDGE;
+    const beta = solve(xtx, xty);
+    if (!beta) return null;
+    const predictLog = x => x.reduce((sum, value, i) => sum + value * beta[i], 0);
+    const residuals = xs.map((x, i) => ys[i] - predictLog(x));
+    const sse = residuals.reduce((sum, e) => sum + e * e, 0);
+    const meanY = ys.reduce((a, b) => a + b, 0) / ys.length;
+    const sst = ys.reduce((sum, y) => sum + (y - meanY) ** 2, 0) || 1;
+    // Ridge'in etkin serbestlik derecesi daha düşüktür; yine de tam parametre sayısıyla temkinli hesaplanır.
+    const dof = Math.max(rows.length - size, Math.ceil(rows.length / 3));
+    const sd = Math.sqrt(sse / dof);
+    const yearRate = 1 - Math.exp(beta[1]);
+    const kmRate = 1 - Math.exp(beta[2]);
+    // Fiziksel olarak anlamsız katsayı (ör. eski araç daha pahalı) çıkarsa model kullanılmaz.
+    if (!(yearRate >= 0 && yearRate <= 0.2 && kmRate >= 0 && kmRate <= 0.06 && sd <= 0.25)) return null;
+    return {
+      n: rows.length, sd, r2: 1 - sse / sst, yearRate, kmRate,
+      predict: vehicle => Math.exp(predictLog(features(vehicle)))
+    };
+  }
+
+  // Aynı veri dizisi için model bir kez öğrenilir; kayıt değişince dizi yenilendiği için önbellek düşer.
+  function marketModel(vehicle, comparables) {
+    let byModel = modelCache.get(comparables);
+    if (!byModel) { byModel = new Map(); modelCache.set(comparables, byModel); }
+    const id = `${brandKey(vehicle.brand)}|${key(vehicle.model)}`;
+    if (!byModel.has(id)) {
+      byModel.set(id, fitPriceModel(comparables.filter(item =>
+        item.type !== 'stock' && brandKey(item.brand) === brandKey(vehicle.brand) && key(item.model) === key(vehicle.model))));
+    }
+    return byModel.get(id);
+  }
+
+  function statusFor(vehicle, confidence, gap) {
+    // Ağır hasar beyanlı aracın düşük fiyatı fırsat değil, hasarın karşılığıdır.
+    if (vehicle.condition === 'riskli') return 'hasar riski';
+    if (confidence === 'düşük') return 'az veri';
+    if (gap <= -0.10) return 'düşük fiyat';
+    if (gap <= -0.05) return 'uygun';
+    if (gap < 0.05) return 'aralıkta';
+    if (gap < 0.10) return 'biraz yüksek';
+    return 'yüksek fiyat';
+  }
+
+  const pct = value => `%${(value * 100).toLocaleString('tr-TR', { maximumFractionDigits: 1 })}`;
+
+  function estimate(vehicle, comparables, settings = DEFAULTS, today = new Date()) {
+    const base = comparables.filter(item =>
+      item.id !== vehicle.id &&
+      (item.condition !== 'riskli' || vehicle.condition === 'riskli') &&
+      brandKey(item.brand) === brandKey(vehicle.brand) && key(item.model) === key(vehicle.model) &&
+      Math.abs(item.year - vehicle.year) <= 4
+    );
+    let matched = [];
+    let relaxed = [];
+    for (const skip of RELAX_STEPS) {
+      const candidates = base.filter(item => MATCH_FIELDS.every(field => skip.includes(field) || compatible(vehicle[field], item[field])));
+      // Eşitlikte daha katı seviye korunur; gevşetme yalnızca gerçekten kayıt eklediğinde sayılır.
+      if (candidates.length > matched.length) { matched = candidates; relaxed = skip; }
+      if (matched.length >= MIN_MATCH) break;
+    }
+    const model = marketModel(vehicle, comparables);
+    if (matched.length < MIN_MATCH && model) return modelEstimate(vehicle, model, matched.length);
+    if (!matched.length) return { count: 0, confidence: 'yok', relaxed: [], method: 'yok', reason: 'Aynı marka/model ve yakın yıl için karşılaştırma verisi yok.' };
+
+    // Model varsa yıl/km düzeltmesi sabit varsayım yerine verinin kendisinden gelir.
+    const yearRate = model ? model.yearRate : clamp(Number(settings.yearRate) || DEFAULTS.yearRate, 0, 0.08);
+    const kmRate = model ? model.kmRate : clamp(Number(settings.kmRate) || DEFAULTS.kmRate, 0, 0.04);
     const adjusted = matched.map(item => {
-      const yearEffect = clamp((vehicle.year - item.year) * yearRate, -0.16, 0.16);
-      const kmEffect = clamp(((item.km - vehicle.km) / 10000) * kmRate, -0.20, 0.20);
-      return { item, adjustedPrice: Math.round(item.price * clamp(1 + yearEffect + kmEffect, 0.65, 1.35)) };
+      const yearEffect = clamp((vehicle.year - item.year) * yearRate, -0.25, 0.25);
+      const kmEffect = clamp(((item.km - vehicle.km) / 10000) * kmRate, -0.25, 0.25);
+      return { item, adjustedPrice: Math.round(item.price * clamp(1 + yearEffect + kmEffect, 0.6, 1.4)) };
     });
     const initialMedian = median(adjusted.map(item => item.adjustedPrice));
     const cleaned = adjusted.length >= 5
@@ -199,17 +362,37 @@
     const fresh = used.filter(({ item }) => daysSince(item.date, today) !== null && daysSince(item.date, today) <= 90).length;
     const exactTrim = !vehicle.trim || used.filter(({ item }) => item.trim && key(item.trim) === key(vehicle.trim)).length / used.length >= 0.75;
     let confidence = 'düşük';
-    if (used.length >= 4 && spread <= 0.25 && fresh / used.length >= 0.5) confidence = 'orta';
-    if (used.length >= 8 && spread <= 0.15 && fresh / used.length >= 0.75 && exactTrim) confidence = 'yüksek';
-    const low = Math.round(center * (1 - band));
-    const high = Math.round(center * (1 + band));
+    if (used.length >= MIN_MATCH && spread <= 0.25 && fresh / used.length >= 0.5) confidence = 'orta';
+    if (used.length >= 8 && spread <= 0.15 && fresh / used.length >= 0.75 && exactTrim && !relaxed.length) confidence = 'yüksek';
+    const relaxedLabels = relaxed.map(field => FIELD_LABELS[field]);
     const gap = (vehicle.price - center) / center;
-    const status = confidence === 'düşük' ? 'az veri' : gap > 0.10 ? 'yüksek fiyat' : gap < -0.10 ? 'düşük fiyat' : 'aralıkta';
+    const cheaper = used.filter(({ adjustedPrice }) => adjustedPrice < vehicle.price).length;
     return {
-      count: used.length, excluded: adjusted.length - used.length, confidence,
-      center, low, high, spread, status, gap,
+      method: 'benzer', count: used.length, excluded: adjusted.length - used.length, confidence, relaxed: relaxedLabels,
+      center, low: Math.round(center * (1 - band)), high: Math.round(center * (1 + band)), spread, gap,
+      status: statusFor(vehicle, confidence, gap),
+      // Karşılaştırılan ilanların kaçta kaçı (düzeltilmiş) bu araçtan ucuz: 0 = en ucuzu.
+      position: used.length ? cheaper / used.length : null,
+      learned: model ? { yearRate, kmRate, n: model.n } : null,
       comparables: used.sort((a, b) => Math.abs(a.adjustedPrice - center) - Math.abs(b.adjustedPrice - center)),
-      reason: `${used.length} benzer kayıt (${fresh} tanesi son 90 günde); yıl ve kilometre farkı için sınırlı düzeltme; uç değer kontrolü. Satış fiyatı garantisi değildir.`
+      reason: `${used.length} benzer kayıt (${fresh} tanesi son 90 günde); ${model
+        ? `yıl başına ${pct(yearRate)} ve 10.000 km başına ${pct(kmRate)} düzeltme (${model.n} ilandan öğrenildi)`
+        : 'yıl ve kilometre farkı için varsayılan oranlarla sınırlı düzeltme'}; uç değer kontrolü.${relaxedLabels.length ? ` Aynı ${relaxedLabels.join(' ve ')} için yeterli kayıt olmadığından farklı ${relaxedLabels.join(' / ')} ilanları da kullanıldı.` : ''} Satış fiyatı garantisi değildir.`
+    };
+  }
+
+  function modelEstimate(vehicle, model, nearCount) {
+    const center = Math.round(model.predict(vehicle));
+    const band = clamp(model.sd * 1.3, 0.08, 0.25);
+    const confidence = model.n >= 15 && model.sd <= 0.15 ? 'orta' : 'düşük';
+    const gap = (vehicle.price - center) / center;
+    return {
+      method: 'model', count: model.n, excluded: 0, confidence, relaxed: [],
+      center, low: Math.round(center * (1 - band)), high: Math.round(center * (1 + band)), spread: model.sd, gap,
+      status: statusFor(vehicle, confidence, gap), position: null,
+      learned: { yearRate: model.yearRate, kmRate: model.kmRate, n: model.n, sd: model.sd, r2: model.r2 },
+      comparables: [],
+      reason: `Aynı motor ve donanımda yalnızca ${nearCount} benzer ilan var. Bu yüzden ${model.n} ${vehicle.brand} ${vehicle.model} ilanından öğrenilen fiyat modeli kullanıldı: yıl başına ${pct(model.yearRate)}, 10.000 km başına ${pct(model.kmRate)} değer farkı; motor, paket ve kasa etkileri ayrıca hesaplandı. Modelin tipik hata payı ±${pct(model.sd)}. Satış fiyatı garantisi değildir.`
     };
   }
 
@@ -226,7 +409,93 @@
     };
   }
 
-  const api = { MAX_ROWS, DEFAULTS, key, number, date, parseCsv, importCsv, normalizeRecord, merge, median, daysSince, estimate, summary };
+  const CONDITION_RANK = { '': 0, 'temiz-iddia': 1, kusurlu: 2, riskli: 3 };
+
+  // Sayfadan okunan ilanları mevcut kayıtlarla birleştirir; fiyat değişimlerini geçmişe yazar.
+  function mergeObservations(existing, incoming, today = new Date().toISOString().slice(0, 10)) {
+    const map = new Map(existing.map(item => [item.id, item]));
+    const stats = { added: 0, updated: 0, priceChanged: 0, dropped: 0 };
+    for (const item of incoming) {
+      const previous = map.get(item.id);
+      if (!previous) {
+        map.set(item.id, { ...item, date: today, firstSeen: today, priceHistory: [{ date: today, price: item.price }] });
+        stats.added++;
+        continue;
+      }
+      const history = previous.priceHistory?.length ? [...previous.priceHistory] : [{ date: previous.firstSeen || previous.date || today, price: previous.price }];
+      const last = history[history.length - 1];
+      if (last.price !== item.price) {
+        if (last.date === today) history[history.length - 1] = { date: today, price: item.price };
+        else history.push({ date: today, price: item.price });
+        stats.priceChanged++;
+      }
+      const next = { ...previous };
+      // Boş gelen alan (ör. arama listesinde yakıt yok) detay sayfasından gelen bilgiyi silmez.
+      for (const [field, value] of Object.entries(item)) {
+        if (value !== '' && value !== null && value !== undefined && !(Array.isArray(value) && !value.length)) next[field] = value;
+      }
+      if (CONDITION_RANK[previous.condition || ''] > CONDITION_RANK[item.condition || '']) {
+        next.condition = previous.condition;
+        next.conditionNote = previous.conditionNote;
+      }
+      Object.assign(next, { date: today, firstSeen: previous.firstSeen || previous.date || today, priceHistory: history.slice(-50) });
+      map.set(item.id, next);
+      stats.updated++;
+    }
+    let records = [...map.values()];
+    if (records.length > MAX_ROWS) {
+      records = records.sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, MAX_ROWS);
+      stats.dropped = map.size - MAX_ROWS;
+    }
+    return { records, stats };
+  }
+
+  // İlk görülen fiyattan bugüne değişim (yalnız ilan kayıtlarında anlamlı).
+  function priceChange(record) {
+    const history = record.priceHistory || [];
+    if (history.length < 2) return null;
+    const first = history[0].price;
+    return { amount: record.price - first, ratio: (record.price - first) / first, first };
+  }
+
+  const tl = value => `₺${Math.round(value).toLocaleString('tr-TR')}`;
+  const round5k = value => Math.round(value / 5000) * 5000;
+
+  // Alıcı için uyarılar ve pazarlık önerisi. Tümü ilan verisinden türetilir; ekspertiz yerine geçmez.
+  function advise(record, result, today = new Date()) {
+    const flags = [];
+    const ageYears = Math.max(0.5, today.getUTCFullYear() - record.year + 0.5);
+    const annualKm = record.km / ageYears;
+    if (record.km >= 60000 && annualKm >= 35000) {
+      flags.push({ level: 'warn', label: 'Yoğun kullanım', text: `Yılda ortalama ${Math.round(annualKm / 1000)} bin km yapılmış; taksi, kiralık veya ticari kullanım olabilir. Araç geçmişini ve bakım kayıtlarını sorun.` });
+    }
+    if (record.condition === 'riskli') {
+      flags.push({ level: 'bad', label: 'Ağır hasar', text: `İlanda ağır hasar/pert bilgisi var${record.conditionNote ? ` (“${record.conditionNote}”)` : ''}. Düşük fiyat bundan kaynaklanır.` });
+    } else if (result?.center && result.confidence !== 'düşük' && result.gap <= -0.2) {
+      flags.push({ level: 'bad', label: 'Şüpheli ucuz', text: `Fiyat piyasanın %${Math.round(-result.gap * 100)} altında. Gizli hasar veya dolandırıcılık olabilir: aracı görmeden kapora ya da ödeme göndermeyin.` });
+    }
+    const change = priceChange(record);
+    if (change && change.amount < 0) {
+      flags.push({ level: 'good', label: 'Fiyat düştü', text: `Takip süresince fiyat ${tl(-change.amount)} düşmüş; satıcı pazarlığa açık olabilir.` });
+    }
+    const days = daysSince(record.firstSeen, today);
+    if (days !== null && days >= 30) {
+      flags.push({ level: 'info', label: 'Uzun süredir ilanda', text: `En az ${days} gündür yayında; uzun süre satılamayan araçlarda pazarlık payı genelde daha yüksektir.` });
+    }
+    let offer = null;
+    if (result?.center && result.confidence !== 'düşük' && record.condition !== 'riskli') {
+      const target = Math.min(record.price * 0.98, result.center);
+      offer = {
+        open: round5k(target * 0.95), target: round5k(target),
+        note: record.price > result.center
+          ? 'İlan fiyatı tahmini piyasa ortasının üzerinde; hedef olarak piyasa ortasını alın.'
+          : 'İlan zaten piyasa ortasının altında; küçük bir pazarlık payı makul.'
+      };
+    }
+    return { flags, offer };
+  }
+
+  const api = { MAX_ROWS, advise, DEFAULTS, key, brandKey, number, date, safeListingUrl, parseCsv, importCsv, normalizeRecord, merge, mergeObservations, priceChange, median, daysSince, estimate, summary };
   root.OtoCore = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);

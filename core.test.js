@@ -79,10 +79,96 @@ test('eski tarihli gözlemler fiyat güvenini yükseltmez', () => {
   assert.equal(result.status, 'az veri');
 });
 
-test('paket bilinmiyorsa yüksek güven verilmez; farklı paket karşılaştırmaya alınmaz', () => {
+test('paket bilinmiyorsa yüksek güven verilmez; farklı paket yalnızca yedek olarak ve açıklamayla kullanılır', () => {
   const target = vehicle('S-1', 1000000, { trim: 'Dream' });
   const unknownTrim = Array.from({ length: 8 }, (_, i) => vehicle(`R-${i}`, 1100000, { trim: '' }));
   assert.equal(core.estimate(target, unknownTrim, core.DEFAULTS, new Date('2026-10-08')).confidence, 'orta');
-  const differentTrim = vehicle('R-9', 1100000, { trim: 'Flame' });
-  assert.equal(core.estimate(target, [differentTrim]).count, 0);
+  const differentTrim = core.estimate(target, [vehicle('R-9', 1100000, { trim: 'Flame' })]);
+  assert.equal(differentTrim.count, 1);
+  assert.deepEqual(differentTrim.relaxed, ['paket']);
+  assert.match(differentTrim.reason, /farklı paket/);
+});
+
+test('aynı paketten yeterli kayıt varsa farklı paketler karışmaz; yoksa paket gevşetilir, motor asla', () => {
+  const today = new Date('2026-10-08');
+  const target = vehicle('S-1', 1000000, { trim: 'Easy', engine: '1.4 Fire' });
+  const sameTrim = [1, 2, 3, 4].map(i => vehicle(`E-${i}`, 1000000, { trim: 'Easy', engine: '1.4 Fire' }));
+  const otherTrim = [1, 2, 3, 4].map(i => vehicle(`U-${i}`, 1100000, { trim: 'Urban', engine: '1.4 Fire' }));
+  const otherEngine = [1, 2, 3, 4].map(i => vehicle(`M-${i}`, 1300000, { trim: 'Easy', engine: '1.6 Multijet' }));
+
+  const strict = core.estimate(target, [...sameTrim, ...otherTrim, ...otherEngine], core.DEFAULTS, today);
+  assert.equal(strict.count, 4);
+  assert.deepEqual(strict.relaxed, []);
+
+  const relaxed = core.estimate(target, [...sameTrim.slice(0, 2), ...otherTrim, ...otherEngine], core.DEFAULTS, today);
+  assert.equal(relaxed.count, 6);
+  assert.deepEqual(relaxed.relaxed, ['paket']);
+  assert.ok(relaxed.comparables.every(({ item }) => item.engine === '1.4 Fire'));
+  assert.notEqual(relaxed.confidence, 'yüksek');
+});
+
+// Bilinen formülle üretilmiş sentetik piyasa: yılda %7, 10.000 km'de %1,5 değer kaybı; 1.6 motor %12 pahalı.
+function syntheticMarket(count, seed = 7) {
+  let state = seed;
+  const random = () => ((state = (state * 1103515245 + 12345) % 2147483648) / 2147483648);
+  return Array.from({ length: count }, (_, i) => {
+    const year = 2018 + Math.floor(random() * 7);
+    const km = 20000 + Math.floor(random() * 160000);
+    const engine = i % 3 === 0 ? '1.6 Multijet' : '1.4 Fire';
+    const trim = ['Easy', 'Urban', 'Lounge'][i % 3 === 0 ? 1 : i % 2];
+    const noise = 1 + (random() - 0.5) * 0.06;
+    const price = Math.round(1000000 * 0.93 ** (2024 - year) * 0.985 ** (km / 10000) * (engine === '1.6 Multijet' ? 1.12 : 1) * noise);
+    return core.normalizeRecord({ id: `M-${i}`, brand: 'Fiat', model: 'Egea', engine, trim, year, km, price, date: '2026-10-01' }, 'comparable');
+  });
+}
+
+test('fiyat modeli yıl ve km değer kaybını veriden öğrenir', () => {
+  const market = syntheticMarket(40);
+  const target = core.normalizeRecord({ id: 'T', brand: 'Fiat', model: 'Egea', engine: '1.4 Fire', trim: 'Easy', year: 2022, km: 60000, price: 800000 }, 'stock');
+  const result = core.estimate(target, market, core.DEFAULTS, new Date('2026-10-08'));
+  assert.ok(result.learned, 'model öğrenilmeli');
+  assert.ok(Math.abs(result.learned.yearRate - 0.07) < 0.015, `yıllık oran ${result.learned.yearRate}`);
+  assert.ok(Math.abs(result.learned.kmRate - 0.015) < 0.005, `km oranı ${result.learned.kmRate}`);
+  const truth = 1000000 * 0.93 ** 2 * 0.985 ** 6;
+  assert.ok(Math.abs(result.center - truth) / truth < 0.05, `merkez ${result.center}, gerçek ${Math.round(truth)}`);
+});
+
+test('benzer ilan azsa model devreye girer ve bunu açıkça söyler', () => {
+  const market = syntheticMarket(40);
+  // Piyasada hiç olmayan paket + kasa ve yalnızca 1.6 motorlu az sayıda yakın yıl: benzer yöntemi yetersiz kalır.
+  const target = core.normalizeRecord({ id: 'T', brand: 'Fiat', model: 'Egea', engine: '1.6 Multijet', trim: 'Limited', body: 'Cross', year: 2018, km: 170000, price: 600000 }, 'stock');
+  const result = core.estimate(target, market.filter(r => !(r.engine === '1.6 Multijet' && r.year <= 2021)), core.DEFAULTS, new Date('2026-10-08'));
+  assert.equal(result.method, 'model');
+  assert.equal(result.confidence, 'orta');
+  assert.match(result.reason, /öğrenilen fiyat modeli/);
+  const truth = 1000000 * 0.93 ** 6 * 0.985 ** 17 * 1.12;
+  assert.ok(Math.abs(result.center - truth) / truth < 0.08, `merkez ${result.center}, gerçek ${Math.round(truth)}`);
+});
+
+test('fiyat durumu kademelidir: uygun ve biraz yüksek ara basamaklardır', () => {
+  const market = syntheticMarket(40);
+  const base = { brand: 'Fiat', model: 'Egea', engine: '1.4 Fire', trim: 'Easy', year: 2022, km: 60000 };
+  const center = core.estimate(core.normalizeRecord({ ...base, id: 'C', price: 800000 }, 'stock'), market, core.DEFAULTS, new Date('2026-10-08')).center;
+  const statusAt = ratio => core.estimate(core.normalizeRecord({ ...base, id: 'X', price: Math.round(center * ratio) }, 'stock'), market, core.DEFAULTS, new Date('2026-10-08')).status;
+  assert.equal(statusAt(0.85), 'düşük fiyat');
+  assert.equal(statusAt(0.93), 'uygun');
+  assert.equal(statusAt(1.0), 'aralıkta');
+  assert.equal(statusAt(1.07), 'biraz yüksek');
+  assert.equal(statusAt(1.15), 'yüksek fiyat');
+});
+
+test('uyarılar: yoğun kullanım, şüpheli ucuz ilan, fiyat düşüşü ve pazarlık önerisi', () => {
+  const today = new Date('2026-10-08');
+  const taxi = core.normalizeRecord({ id: 'T', brand: 'Fiat', model: 'Egea', year: 2023, km: 217100, price: 699000 }, 'comparable');
+  const labels = core.advise(taxi, { center: 1000000, gap: -0.3, confidence: 'orta' }, today).flags.map(f => f.label);
+  assert.deepEqual(labels, ['Yoğun kullanım', 'Şüpheli ucuz']);
+
+  const dropped = core.normalizeRecord({ id: 'D', brand: 'Fiat', model: 'Egea', year: 2021, km: 60000, price: 850000, firstSeen: '2026-08-01',
+    priceHistory: [{ date: '2026-08-01', price: 900000 }, { date: '2026-10-01', price: 850000 }] }, 'comparable');
+  const advice = core.advise(dropped, { center: 800000, gap: 0.0625, confidence: 'orta' }, today);
+  assert.deepEqual(advice.flags.map(f => f.label), ['Fiyat düştü', 'Uzun süredir ilanda']);
+  assert.equal(advice.offer.target, 800000);
+  assert.equal(advice.offer.open, 760000);
+
+  assert.equal(core.advise(dropped, { center: 800000, gap: 0.06, confidence: 'düşük' }, today).offer, null);
 });

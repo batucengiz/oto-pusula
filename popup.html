@@ -4,19 +4,18 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Oto Pusula</title>
-  <style>
-    body { width: 300px; margin: 0; padding: 22px; font: 14px/1.5 system-ui, sans-serif; color: #eaf3f0; background: #112a2a; }
-    h1 { margin: 0 0 5px; font-size: 21px; }
-    p { margin: 0 0 19px; color: #b9d1cb; }
-    button { width: 100%; padding: 12px; border: 0; border-radius: 9px; background: #a9e85a; color: #173018; font: inherit; font-weight: 750; cursor: pointer; }
-    small { display: block; margin-top: 13px; color: #9ab5ad; }
-  </style>
+  <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <h1>Oto Pusula</h1>
-  <p>Galeri stoğu için yerel analiz paneli</p>
-  <button id="open-dashboard" type="button">Paneli aç →</button>
-  <small>İzinli CSV verileriyle çalışır. Sahibinden sayfalarını taramaz.</small>
-  <script src="launcher.js"></script>
+  <header><span class="mark">◈</span><div><h1>Oto Pusula</h1><p>İlan fiyat analizi</p></div></header>
+  <p id="page-hint" class="hint">Sayfa kontrol ediliyor…</p>
+  <button id="analyze" class="primary" type="button" disabled>Bu sayfayı analiz et</button>
+  <section id="result" class="result" aria-live="polite" hidden></section>
+  <button id="open-dashboard" class="secondary" type="button">Paneli aç →</button>
+  <small>Yalnızca düğmeye bastığınızda açık sekmeyi okur. Veriler bu cihazda kalır, hiçbir sunucuya gönderilmez.</small>
+  <script src="core.js"></script>
+  <script src="listing.js"></script>
+  <script src="store.js"></script>
+  <script src="popup.js"></script>
 </body>
 </html>

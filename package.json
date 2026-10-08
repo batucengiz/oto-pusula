@@ -1,10 +1,14 @@
 {
   "name": "oto-pusula",
-  "version": "3.0.0",
+  "version": "4.6.0",
   "private": true,
-  "description": "Yerel galeri stok ve fiyat karar paneli",
+  "description": "sahibinden.com ilanları ve galeri stoğu için yerel fiyat analizi (Chrome eklentisi)",
   "scripts": {
     "dev": "node dev-server.js",
-    "test": "node --test core.test.js dashboard.smoke.test.js"
+    "test": "node --test core.test.js listing.test.js dashboard.smoke.test.js pages.test.js",
+    "verify-page": "node tools/verify-page.js"
+  },
+  "devDependencies": {
+    "jsdom": "^24.1.3"
   }
 }

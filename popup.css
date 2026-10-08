@@ -1,0 +1,26 @@
+body { width: 340px; margin: 0; padding: 18px; font: 13px/1.5 Inter, "Segoe UI", system-ui, sans-serif; color: #eaf3f0; background: #112a2a; }
+header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.mark { width: 34px; height: 34px; border-radius: 10px; background: #a8e65c; color: #123727; font-size: 22px; display: grid; place-items: center; }
+h1 { margin: 0; font-size: 18px; letter-spacing: -.02em; }
+header p { margin: 0; font-size: 11px; color: #9ab5ad; }
+.hint { margin: 0 0 12px; color: #b9d1cb; }
+button { width: 100%; padding: 11px; border: 0; border-radius: 9px; font: inherit; font-weight: 750; cursor: pointer; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button:focus-visible { outline: 3px solid #89d728; outline-offset: 2px; }
+.primary { background: #a9e85a; color: #173018; }
+.secondary { margin-top: 10px; background: transparent; color: #dcebe5; border: 1px solid #34504a; }
+.result { margin-top: 12px; padding: 12px; border-radius: 10px; background: #183836; }
+.result.error { background: #4a2323; color: #ffd9d9; }
+.result h2 { margin: 10px 0 6px; font-size: 11px; letter-spacing: .1em; color: #9ab5ad; }
+.result p { margin: 0; }
+.stats { font-weight: 700; }
+.deal { display: block; width: 100%; text-align: left; margin-top: 6px; padding: 9px 10px; border-radius: 8px; background: #21433f; color: #eaf3f0; font-weight: 500; }
+.deal:hover { background: #2a524c; }
+.deal strong { display: block; }
+.deal span { font-size: 12px; color: #b2e977; }
+.muted { color: #9ab5ad; font-size: 12px; }
+small { display: block; margin-top: 12px; color: #86a39a; font-size: 11px; }
+.deal .warning { display: block; font-style: normal; font-size: 11px; color: #ffcf8a; margin-top: 2px; }
+.whatsapp { margin-top: 10px; background: #25d366; color: #0b3d1f; }
+.whatsapp:hover { background: #2ee774; }
+.save-phone { margin-top: 6px; }

@@ -2,33 +2,26 @@
   'use strict';
 
   const core = globalThis.OtoCore;
-  const STORAGE_KEY = 'otoPusula_v1';
+  const listingTools = globalThis.OtoListing;
+  const charts = globalThis.OtoCharts;
+  const store = globalThis.OtoStore;
   const titles = {
-    overview: ['Genel bakış', 'Stoğunuzdaki fırsatları ve fiyat risklerini tek yerde görün.'],
+    overview: ['Genel bakış', 'İzlediğiniz ilanları ve varsa stoğunuzu tek yerde görün.'],
+    market: ['Piyasa ilanları', 'Analiz ettiğiniz ilanları piyasa aralığı ve fiyat geçmişiyle karşılaştırın.'],
     stock: ['Araç stoğu', 'Fiyat aralıkları ve brüt farklar, yalnızca içe aktardığınız verilerden hesaplanır.'],
-    comparables: ['Karşılaştırmalar', 'İzinli fiyat gözlemlerinizin kapsamını kontrol edin.'],
+    comparables: ['Karşılaştırmalar', 'Fiyat tahmininde kullanılan tüm kayıtlar: okunan ilanlar ve CSV verileri.'],
     method: ['Yöntem ve veri', 'Hesabın sınırlarını ve veri yönetimini görün.']
   };
   const lira = value => Number.isFinite(value) ? `₺${Math.round(value).toLocaleString('tr-TR')}` : '—';
   const $ = id => document.getElementById(id);
-  let state = loadState();
+  let state = store.load();
   let activeView = 'overview';
   let selectedVehicle = null;
   let editingId = null;
 
-  function loadState() {
-    try {
-      const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      if (parsed?.schema === 1 && Array.isArray(parsed.stock) && Array.isArray(parsed.comparables)) {
-        return { schema: 1, stock: parsed.stock.slice(0, core.MAX_ROWS), comparables: parsed.comparables.slice(0, core.MAX_ROWS), sample: !!parsed.sample };
-      }
-    } catch { /* Bozuk kayıt yerine boş panel açılır. */ }
-    return { schema: 1, stock: [], comparables: [], sample: false };
-  }
-
   function save(next) {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      store.save(next);
       state = next;
       render();
       return true;
@@ -65,10 +58,57 @@
   }
 
   function badge(status) {
-    const kind = status === 'düşük fiyat' ? 'good'
-      : status === 'yüksek fiyat' ? 'bad'
-      : status === 'az veri' ? 'warn' : 'neutral';
+    const kind = ['düşük fiyat', 'uygun'].includes(status) ? 'good'
+      : ['yüksek fiyat', 'hasar riski'].includes(status) ? 'bad'
+      : ['az veri', 'biraz yüksek'].includes(status) ? 'warn' : 'neutral';
     return element('span', `badge ${kind}`, status);
+  }
+
+  const conditionLabels = { riskli: 'Ağır hasar beyanı', kusurlu: 'Boya/değişen/tramer', 'temiz-iddia': 'Hatasız iddiası' };
+  const conditionKinds = { riskli: 'bad', kusurlu: 'warn', 'temiz-iddia': 'neutral' };
+
+  function conditionBadge(record) {
+    if (!record.condition) return element('span', 'vehicle-meta', 'Beyan yok');
+    const node = element('span', `badge ${conditionKinds[record.condition]}`, conditionLabels[record.condition]);
+    if (record.conditionNote) node.title = record.conditionNote;
+    return node;
+  }
+
+  function percent(ratio) {
+    return `${ratio > 0 ? '+' : ''}${Math.round(ratio * 100)}%`;
+  }
+
+  function listings() {
+    return state.comparables.filter(item => item.source === 'sahibinden');
+  }
+
+  // Piyasa ilanlarını bir kez değerlendirip görünümler arasında paylaşır.
+  function evaluateListings() {
+    return listings().map(record => {
+      const result = core.estimate(record, state.comparables);
+      return { record, result, advice: core.advise(record, result), change: core.priceChange(record), age: core.daysSince(record.firstSeen) };
+    });
+  }
+
+  function isDeal(entry) {
+    return ['düşük fiyat', 'uygun'].includes(entry.result.status) && entry.record.condition !== 'riskli';
+  }
+
+  function hasWarning(entry) {
+    return entry.advice.flags.some(flag => flag.level === 'bad' || flag.level === 'warn');
+  }
+
+  const methodLabels = { benzer: 'benzer ilanlar', model: 'fiyat modeli' };
+  const flagKinds = { bad: 'bad', warn: 'warn', good: 'good', info: 'neutral' };
+
+  function flagBadges(flags) {
+    const box = element('span', 'flags');
+    flags.forEach(flag => {
+      const node = element('span', `badge ${flagKinds[flag.level]}`, flag.label);
+      node.title = flag.text;
+      box.append(node);
+    });
+    return box;
   }
 
   function showView(view) {
@@ -91,6 +131,11 @@
     $('stat-stale').textContent = String(summary.stale);
     $('stat-units-note').textContent = `${summary.comparables} karşılaştırma kaydı`;
 
+    renderMarketSummary();
+    // Bireysel kullanıcıda (stok yok, ilan var) galeri kutuları gizlenir.
+    const buyerOnly = !state.stock.length && listings().length > 0;
+    $('stock-overview').hidden = buyerOnly;
+    $('stock-hint').hidden = !buyerOnly;
     const insights = $('insights');
     insights.replaceChildren();
     const quality = $('quality');
@@ -98,8 +143,8 @@
     const actions = $('action-list');
     actions.replaceChildren();
     if (!state.stock.length) {
-      insights.append(element('div', 'empty-card', 'Başlamak için kendi stok CSV’nizi yükleyin veya örnek veriyi açın.'));
-      quality.append(element('div', 'empty-card', 'Fiyat aralığı için izinli karşılaştırma kayıtları ekleyin.'));
+      insights.append(element('div', 'empty-card', 'Galerici iseniz Araç stoğu sekmesinden kendi araçlarınızı ekleyin veya stok CSV’nizi yükleyin.'));
+      quality.append(element('div', 'empty-card', 'Fiyat aralığı için eklentiyle ilan okuyun veya CSV ile fiyat kaydı yükleyin.'));
       actions.append(element('div', 'empty-card', 'Stok yüklediğinizde öncelikli inceleme listesi burada görünür.'));
       return;
     }
@@ -147,6 +192,150 @@
     }
   }
 
+  function renderMarketSummary() {
+    const box = $('market-summary');
+    box.replaceChildren();
+    const entries = evaluateListings();
+    const csvCount = state.comparables.length - entries.length;
+    $('hero-source').textContent = entries.length || csvCount
+      ? `${entries.length} ilan${csvCount ? ` + ${csvCount} CSV kaydı` : ''}`
+      : 'Henüz veri yok';
+    if (!entries.length) {
+      box.append(element('div', 'empty-card', 'Eklenti simgesine tıklayıp bir sahibinden arama sayfasında “Bu sayfayı analiz et” deyin. İlanlar burada birikir.'));
+      return;
+    }
+    for (const [title, value] of [
+      ['İzlenen ilan', entries.length],
+      ['Fırsat adayı (uygun ve altı)', entries.filter(isDeal).length],
+      ['Fiyatı düşen', entries.filter(entry => entry.change && entry.change.amount < 0).length],
+      ['Dikkat gerektiren (risk uyarısı)', entries.filter(hasWarning).length],
+      ['Takip listende', entries.filter(entry => entry.record.watched).length],
+      ['Yeterli karşılaştırması olan', `${entries.filter(entry => ['orta', 'yüksek'].includes(entry.result.confidence)).length}/${entries.length}`]
+    ]) {
+      const line = element('div', 'insight');
+      line.append(element('span', '', title), element('strong', '', value));
+      box.append(line);
+    }
+  }
+
+  const tooltipNode = element('div', 'chart-tooltip');
+  tooltipNode.hidden = true;
+  const chartTooltip = {
+    show(text, event) { tooltipNode.textContent = text; tooltipNode.hidden = false; this.move(event); },
+    move(event) {
+      const box = $('market-chart').getBoundingClientRect();
+      const target = event.currentTarget?.getBoundingClientRect?.();
+      const px = (event.clientX || (target ? target.left + target.width / 2 : box.left)) - box.left;
+      const py = (event.clientY || (target ? target.top : box.top)) - box.top;
+      tooltipNode.setAttribute('style', `left:${Math.max(0, Math.min(px + 14, box.width - 260))}px;top:${py + 14}px`);
+    },
+    hide() { tooltipNode.hidden = true; }
+  };
+
+  function renderMarketChart(entries) {
+    const box = $('market-chart');
+    const legend = $('market-legend');
+    box.replaceChildren();
+    legend.replaceChildren();
+    const built = charts.fairValueChart(entries, {
+      onSelect: record => showDetail(record),
+      tooltip: chartTooltip,
+      label: record => [labelFor(record), record.engine].filter(Boolean).join(' · ')
+    });
+    $('market-chart-panel').hidden = !built;
+    if (!built) return;
+    box.append(built.chart, tooltipNode);
+    for (const item of built.legend) {
+      const entry = element('span', 'legend-item');
+      const swatch = element('span', 'swatch');
+      swatch.setAttribute('style', `background:${item.color}`);
+      entry.append(swatch, element('span', '', item.text));
+      legend.append(entry);
+    }
+    if (built.skipped) legend.append(element('span', 'legend-note', `${built.skipped} ilan (az veri veya ağır hasar) grafikte yok, tabloda var.`));
+  }
+
+  function renderMarket() {
+    const body = $('market-body');
+    body.replaceChildren();
+    const query = core.key($('market-search').value);
+    const filter = $('market-filter').value;
+    const sort = $('market-sort').value;
+    const all = evaluateListings();
+    const entries = all
+      .filter(({ record }) => core.key([labelFor(record), record.engine, record.city, record.title].join(' ')).includes(query))
+      .filter(entry => filter === 'deal' ? isDeal(entry)
+        : filter === 'drop' ? entry.change && entry.change.amount < 0
+        : filter === 'expensive' ? ['yüksek fiyat', 'biraz yüksek'].includes(entry.result.status)
+        : filter === 'watch' ? entry.record.watched
+        : filter === 'warn' ? hasWarning(entry) : true);
+    const gapOf = entry => (entry.record.condition === 'riskli' ? 1e6 : entry.result.center ? entry.result.gap : 2e6);
+    entries.sort((a, b) => sort === 'price' ? a.record.price - b.record.price
+      : sort === 'recent' ? String(b.record.date).localeCompare(String(a.record.date))
+      : sort === 'age' ? (b.age ?? -1) - (a.age ?? -1)
+      : gapOf(a) - gapOf(b));
+    $('market-count').textContent = `${entries.length}/${all.length} ilan gösteriliyor`;
+    renderMarketChart(entries);
+    if (!entries.length) {
+      const row = element('tr');
+      const td = cell(row, all.length ? 'Filtreye uygun ilan yok.' : 'Henüz ilan yok. Eklentiyle bir sahibinden arama sayfasını analiz edin.');
+      td.colSpan = 7;
+      body.append(row);
+      return;
+    }
+    for (const entry of entries.slice(0, 500)) {
+      const { record, result, change, age, advice } = entry;
+      const row = element('tr', 'clickable');
+      row.tabIndex = 0;
+      row.setAttribute('role', 'button');
+      row.setAttribute('aria-label', `${labelFor(record)} ilan detayını aç`);
+      const nameCell = element('span');
+      nameCell.append(
+        element('span', 'vehicle-name', `${record.watched ? '★ ' : ''}${record.sellerPhone ? '☎ ' : ''}${[labelFor(record), record.engine].filter(Boolean).join(' · ')}`),
+        element('span', 'vehicle-meta', [record.year, `${record.km.toLocaleString('tr-TR')} km`, record.city].filter(Boolean).join(' · '))
+      );
+      if (advice.flags.length) nameCell.append(flagBadges(advice.flags));
+      cell(row, nameCell);
+      const priceCell = element('span');
+      priceCell.append(element('span', '', lira(record.price)));
+      if (change) priceCell.append(element('span', `trend ${change.amount < 0 ? 'down' : 'up'}`, `${change.amount < 0 ? '↓' : '↑'} ${lira(Math.abs(change.amount))}`));
+      cell(row, priceCell, 'money');
+      cell(row, result.center ? `${lira(result.low)} – ${lira(result.high)}` : 'Veri yok');
+      cell(row, result.center ? percent(result.gap) : '—', 'money');
+      cell(row, age === null ? '—' : age === 0 ? 'bugün' : `${age} gün`);
+      cell(row, conditionBadge(record));
+      cell(row, badge(result.status || 'veri yok'));
+      row.addEventListener('click', () => showDetail(record));
+      row.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); showDetail(record); }
+      });
+      body.append(row);
+    }
+  }
+
+  // Excel'in formül olarak yorumlayabileceği hücreleri düz metne çevirir.
+  function csvCell(value) {
+    let text = String(value ?? '').replace(/\r?\n|\r/g, ' ').trim();
+    if (/^[=+\-@]/.test(text)) text = `'${text}`;
+    return /[;"]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  }
+
+  function exportMarket() {
+    const entries = evaluateListings();
+    if (!entries.length) { notice('Dışa aktarılacak ilan yok.', true); return; }
+    const header = ['ilan_no', 'marka', 'model', 'motor', 'paket', 'yıl', 'km', 'şehir', 'fiyat', 'ilk_fiyat', 'tahmini_alt', 'tahmini_merkez', 'tahmini_üst', 'fark_yüzde', 'güven', 'yöntem', 'durum', 'uyarılar', 'pazarlık_hedefi', 'takipte', 'satıcı_telefonu', 'beyan', 'beyan_ifadesi', 'ilk_görülme', 'son_görülme', 'başlık', 'bağlantı'];
+    const lines = entries.map(({ record, result, change, advice }) => [
+      record.listingId, record.brand, record.model, record.engine, record.trim, record.year, record.km, record.city,
+      record.price, change ? change.first : record.price, result.low ?? '', result.center ?? '', result.high ?? '',
+      result.center ? Math.round(result.gap * 100) : '', result.confidence, methodLabels[result.method] || '', result.status ?? '',
+      advice.flags.map(flag => flag.label).join(', '), advice.offer ? advice.offer.target : '', record.watched ? 'evet' : '', listingTools.formatPhone(record.sellerPhone),
+      conditionLabels[record.condition] || '', record.conditionNote, record.firstSeen, record.date, record.title, record.url
+    ].map(csvCell).join(';'));
+    download(`oto-pusula-piyasa-${new Date().toISOString().slice(0, 10)}.csv`, `﻿${[header.join(';'), ...lines].join('\r\n')}\r\n`, 'text/csv;charset=utf-8');
+    const phones = entries.filter(entry => entry.record.sellerPhone).length;
+    notice(`${entries.length} ilan CSV olarak indirildi. Excel ile açabilirsiniz.${phones ? ` Dosyada ${phones} satıcı numarası var: kişisel veridir, paylaşmayın ve işiniz bitince silin.` : ''}`);
+  }
+
   function renderStock() {
     const body = $('stock-body');
     body.replaceChildren();
@@ -188,27 +377,29 @@
     const body = $('comparable-body');
     body.replaceChildren();
     const query = core.key($('comparable-search').value);
-    const records = state.comparables.filter(item => core.key(labelFor(item)).includes(query));
+    const records = state.comparables.filter(item => core.key([labelFor(item), item.engine, item.city].join(' ')).includes(query));
     $('comparable-count').textContent = `${records.length} kayıt gösteriliyor`;
     if (!records.length) {
       const row = element('tr');
-      const td = cell(row, 'Henüz karşılaştırma kaydı yok. CSV yükleyin.');
-      td.colSpan = 4;
+      const td = cell(row, 'Henüz karşılaştırma kaydı yok. Eklentiyle ilan okuyun veya CSV yükleyin.');
+      td.colSpan = 5;
       body.append(row);
       return;
     }
-    for (const item of records) {
+    for (const item of records.slice(0, 1000)) {
       const row = element('tr');
-      cell(row, labelFor(item));
+      cell(row, [labelFor(item), item.engine].filter(Boolean).join(' · '));
       cell(row, `${item.year} · ${item.km.toLocaleString('tr-TR')} km`);
       cell(row, lira(item.price), 'money');
       cell(row, item.date || 'Tarih yok');
+      cell(row, item.source === 'sahibinden' ? 'İlan' : 'CSV');
       body.append(row);
     }
   }
 
   function render() {
     renderOverview();
+    renderMarket();
     renderStock();
     renderComparables();
     showView(activeView);
@@ -217,32 +408,78 @@
   function showDetail(vehicle) {
     selectedVehicle = vehicle;
     const result = core.estimate(vehicle, state.comparables);
-    $('detail-title').textContent = labelFor(vehicle);
+    const isListing = vehicle.type === 'comparable';
+    $('detail-title').textContent = [labelFor(vehicle), vehicle.engine].filter(Boolean).join(' · ');
+    $('edit-stock').hidden = isListing;
+    $('remove-stock').textContent = isListing ? 'Listeden çıkar' : 'Stoktan çıkar';
+    $('open-listing').hidden = !(isListing && vehicle.url);
+    $('watch-listing').hidden = !isListing;
+    $('whatsapp-listing').hidden = !(isListing && vehicle.sellerPhone);
+    $('forget-phone').hidden = !(isListing && vehicle.sellerPhone);
+    $('watch-listing').textContent = vehicle.watched ? '★ Takipten çıkar' : '☆ Takibe al';
     const content = $('detail-content');
     content.replaceChildren();
     const summary = element('div', 'detail-summary');
     for (const [label, value] of [
       ['İlan fiyatı', lira(vehicle.price)],
       ['Tahmini aralık', result.center ? `${lira(result.low)} – ${lira(result.high)}` : 'Veri yok'],
-      ['Brüt fark', vehicle.cost === null ? 'Maliyet yok' : lira(vehicle.price - vehicle.cost)]
+      isListing
+        ? ['Piyasaya göre', result.center ? percent(result.gap) : '—']
+        : ['Brüt fark', vehicle.cost === null ? 'Maliyet yok' : lira(vehicle.price - vehicle.cost)]
     ]) {
       const box = element('div'); box.append(element('span', '', label), element('strong', '', value)); summary.append(box);
     }
     content.append(summary);
+    const advice = core.advise(vehicle, result);
+    if (isListing && advice.flags.length) {
+      content.append(element('h3', '', 'Dikkat edilmesi gerekenler'));
+      const flagList = element('ul', 'detail-list flag-list');
+      advice.flags.forEach(flag => {
+        const li = element('li');
+        li.append(element('span', `badge ${flagKinds[flag.level]}`, flag.label), document.createTextNode(` ${flag.text}`));
+        flagList.append(li);
+      });
+      content.append(flagList);
+    }
+    if (isListing && advice.offer) {
+      content.append(element('h3', '', 'Pazarlık önerisi'));
+      content.append(element('p', 'detail-text', `Açılış teklifi ${lira(advice.offer.open)}, hedef ${lira(advice.offer.target)}. ${advice.offer.note} Kondisyon ve ekspertiz sonucuna göre değişir.`));
+    }
+    content.append(element('h3', '', 'Fiyat nasıl hesaplandı?'));
     content.append(element('p', 'detail-text', result.reason));
+    if (Number.isFinite(result.position)) {
+      const rank = result.position === 0 ? `Yıl/km farkı düzeltildiğinde bu ilan, karşılaştırılan ${result.count} ilanın en ucuzu.`
+        : result.position === 1 ? `Yıl/km farkı düzeltildiğinde bu ilan, karşılaştırılan ${result.count} ilanın en pahalısı.`
+        : `Yıl/km farkı düzeltildiğinde karşılaştırılan ${result.count} ilanın %${Math.round(result.position * 100)}'i bu ilandan ucuz.`;
+      content.append(element('p', 'detail-text', rank));
+    }
     if (result.center) {
       content.append(element('p', 'detail-text', `Merkez tahmin: ${lira(result.center)} · Durum: ${result.status} · Veri güveni: ${result.confidence}. ${result.excluded ? `${result.excluded} uç kayıt dışarıda bırakıldı.` : ''}`));
-      const heading = element('h3', '', 'Hesapta kullanılan yakın kayıtlar');
-      content.append(heading);
+      if (result.comparables.length) content.append(element('h3', '', 'Hesapta kullanılan yakın kayıtlar'));
       const list = element('ul', 'detail-list');
       result.comparables.slice(0, 8).forEach(({ item, adjustedPrice }) => {
         list.append(element('li', '', `${labelFor(item)} · ${item.year} · ${item.km.toLocaleString('tr-TR')} km · kayıt ${lira(item.price)} → düzeltilmiş ${lira(adjustedPrice)}${item.date ? ` · ${item.date}` : ''}`));
       });
-      content.append(list);
+      if (result.comparables.length) content.append(list);
+    }
+    if (isListing) {
+      const facts = [vehicle.title && `Başlık: ${vehicle.title}`, vehicle.city && `Şehir: ${vehicle.city}`,
+        vehicle.sellerPhone && `Satıcı: ${listingTools.formatPhone(vehicle.sellerPhone)}`,
+        vehicle.firstSeen && `İlk görülme: ${vehicle.firstSeen} (${core.daysSince(vehicle.firstSeen)} gün)`, vehicle.date && `Son görülme: ${vehicle.date}`];
+      content.append(element('p', 'detail-text', facts.filter(Boolean).join(' · ')));
+      if (vehicle.priceHistory?.length > 1) {
+        content.append(element('h3', '', 'Fiyat geçmişi'));
+        const historyChart = charts.priceHistoryChart(vehicle.priceHistory);
+        if (historyChart) content.append(historyChart);
+        const history = element('ul', 'detail-list');
+        vehicle.priceHistory.forEach(point => history.append(element('li', '', `${point.date} · ${lira(point.price)}`)));
+        content.append(history);
+      }
+      if (vehicle.condition) content.append(element('p', 'detail-text', `Satıcı beyanı: ${conditionLabels[vehicle.condition]} — “${vehicle.conditionNote}”. Bu ifade ilan metninden okunmuştur, ekspertiz doğrulaması değildir.`));
     }
     if (vehicle.note) content.append(element('p', 'detail-text', `Stok notu: ${vehicle.note}`));
     content.append(element('p', 'detail-text', 'Bu aralık araç kondisyonunu, ekspertizi, piyasa likiditesini ve pazarlık payını doğrulamaz. Karar desteği olarak kullanın.'));
-    $('detail-dialog').showModal();
+    if (!$('detail-dialog').open) $('detail-dialog').showModal();
   }
 
   function download(name, text, mime) {
@@ -257,32 +494,6 @@
   function exportBackup() {
     download(`oto-pusula-yedek-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(state, null, 2), 'application/json');
     notice('JSON yedeği indirildi. Dosya bu cihazda kalır.');
-  }
-
-  function sampleData() {
-    const stockInput = [
-      { id: 'S-001', brand: 'Toyota', model: 'Corolla', trim: 'Dream', year: 2021, km: 66000, price: 1195000, cost: 1030000, fuel: 'Benzin', transmission: 'Otomatik', date: '2026-09-12' },
-      { id: 'S-002', brand: 'Fiat', model: 'Egea', trim: 'Urban', year: 2020, km: 112000, price: 735000, cost: 650000, fuel: 'Dizel', transmission: 'Manuel', date: '2026-07-08' },
-      { id: 'S-003', brand: 'Renault', model: 'Clio', trim: 'Icon', year: 2022, km: 48000, price: 970000, cost: 850000, fuel: 'Benzin', transmission: 'Otomatik', date: '2026-09-29' }
-    ];
-    const comparableInput = [
-      ['Toyota', 'Corolla', 2021, 62000, 1160000, 'Benzin', 'Otomatik'],
-      ['Toyota', 'Corolla', 2021, 71000, 1210000, 'Benzin', 'Otomatik'],
-      ['Toyota', 'Corolla', 2020, 85000, 1090000, 'Benzin', 'Otomatik'],
-      ['Toyota', 'Corolla', 2022, 53000, 1280000, 'Benzin', 'Otomatik'],
-      ['Toyota', 'Corolla', 2021, 76000, 1175000, 'Benzin', 'Otomatik'],
-      ['Toyota', 'Corolla', 2022, 66000, 1250000, 'Benzin', 'Otomatik'],
-      ['Fiat', 'Egea', 2020, 102000, 750000, 'Dizel', 'Manuel'],
-      ['Fiat', 'Egea', 2019, 128000, 695000, 'Dizel', 'Manuel'],
-      ['Fiat', 'Egea', 2021, 90000, 815000, 'Dizel', 'Manuel'],
-      ['Fiat', 'Egea', 2020, 115000, 765000, 'Dizel', 'Manuel']
-    ];
-    return {
-      schema: 1, sample: true,
-      stock: stockInput.map((item, i) => core.normalizeRecord(item, 'stock', i + 2)),
-      comparables: comparableInput.map(([brand, model, year, km, price, fuel, transmission], i) =>
-        core.normalizeRecord({ id: `R-${i + 1}`, brand, model, year, km, price, fuel, transmission, date: '2026-09-20' }, 'comparable', i + 2))
-    };
   }
 
   document.querySelectorAll('.nav-button').forEach(button => button.addEventListener('click', () => showView(button.dataset.view)));
@@ -347,23 +558,68 @@
     $('add-dialog').showModal();
   });
   $('remove-stock').addEventListener('click', () => {
-    if (!selectedVehicle || !confirm(`${labelFor(selectedVehicle)} stoktan çıkarılsın mı? Bu işlem yalnızca yerel kaydı siler.`)) return;
-    if (save({ ...state, stock: state.stock.filter(vehicle => vehicle.id !== selectedVehicle.id), sample: false })) {
+    if (!selectedVehicle) return;
+    const isListing = selectedVehicle.type === 'comparable';
+    const where = isListing ? 'listeden' : 'stoktan';
+    if (!confirm(`${labelFor(selectedVehicle)} ${where} çıkarılsın mı? Bu işlem yalnızca bu cihazdaki kaydı siler.`)) return;
+    const id = selectedVehicle.id;
+    const next = isListing
+      ? { ...state, comparables: state.comparables.filter(item => item.id !== id) }
+      : { ...state, stock: state.stock.filter(vehicle => vehicle.id !== id), sample: false };
+    if (save(next)) {
       $('detail-dialog').close();
       selectedVehicle = null;
-      notice('Araç stoktan çıkarıldı.');
+      notice(isListing ? 'İlan listeden çıkarıldı. Aynı sayfayı tekrar analiz ederseniz yeniden eklenir.' : 'Araç stoktan çıkarıldı.');
     }
+  });
+  $('open-listing').addEventListener('click', () => {
+    const url = selectedVehicle && core.safeListingUrl(selectedVehicle.url);
+    if (url) window.open(url, '_blank', 'noopener');
+  });
+  $('go-market').addEventListener('click', () => showView('market'));
+  $('whatsapp-listing').addEventListener('click', () => {
+    const link = selectedVehicle && listingTools.whatsappLink(selectedVehicle.sellerPhone, selectedVehicle);
+    if (link) window.open(link, '_blank', 'noopener');
+  });
+  $('forget-phone').addEventListener('click', () => {
+    if (!selectedVehicle?.sellerPhone) return;
+    const id = selectedVehicle.id;
+    const next = listingTools.clearPhones(state, id);
+    if (save(next)) { showDetail(next.comparables.find(item => item.id === id)); notice('Satıcı numarası silindi.'); }
+  });
+  $('clear-phones').addEventListener('click', () => {
+    const count = state.comparables.filter(item => item.sellerPhone).length;
+    if (!count) { notice('Kayıtlı satıcı numarası yok.'); return; }
+    if (!confirm(`${count} kayıtlı satıcı numarası silinecek. İlanlar ve takip listesi korunur. Devam edilsin mi?`)) return;
+    if (save(listingTools.clearPhones(state))) notice(`${count} satıcı numarası silindi.`);
+  });
+  // Takip listesi yalnızca bu cihazda tutulur; ilan tekrar okununca işaret korunur.
+  $('watch-listing').addEventListener('click', () => {
+    if (!selectedVehicle || selectedVehicle.type !== 'comparable') return;
+    const id = selectedVehicle.id;
+    const comparables = state.comparables.map(item => {
+      if (item.id !== id) return item;
+      const { watched, ...rest } = item;
+      return watched ? rest : { ...rest, watched: true };
+    });
+    if (save({ ...state, comparables })) showDetail(comparables.find(item => item.id === id));
+  });
+  $('market-search').addEventListener('input', renderMarket);
+  $('market-filter').addEventListener('change', renderMarket);
+  $('market-sort').addEventListener('change', renderMarket);
+  $('export-market').addEventListener('click', exportMarket);
+  // Popup yeni ilan kaydettiğinde açık panel kendini günceller.
+  window.addEventListener('storage', event => {
+    if (event.key !== store.KEY) return;
+    state = store.load();
+    render();
   });
   $('print-report').addEventListener('click', () => { if (selectedVehicle) window.print(); });
   $('backup').addEventListener('click', exportBackup);
   $('export-json-method').addEventListener('click', exportBackup);
   $('download-template').addEventListener('click', () => showView('method'));
-  $('stock-template').addEventListener('click', () => download('stok-sablonu.csv', 'stok_no;marka;model;paket;yıl;km;fiyat;alış_fiyatı;yakıt;vites;stok_giriş_tarihi;not\nS-001;Toyota;Corolla;Dream;2021;66000;1195000;1030000;Benzin;Otomatik;2026-09-12;Örnek kayıt\n', 'text/csv;charset=utf-8'));
-  $('comparable-template').addEventListener('click', () => download('fiyat-sablonu.csv', 'id;marka;model;yıl;km;fiyat;yakıt;vites;gözlem_tarihi\nR-001;Toyota;Corolla;2021;71000;1210000;Benzin;Otomatik;2026-09-20\n', 'text/csv;charset=utf-8'));
-  $('load-sample').addEventListener('click', () => {
-    if ((state.stock.length || state.comparables.length) && !confirm('Örnek veri mevcut stok ve karşılaştırma kayıtlarınızın yerine geçecek. Önce yedek almak ister misiniz? Vazgeçmek için İptal seçin.')) return;
-    if (save(sampleData())) { notice('Örnek veriler yüklendi. Gerçek analiz için kendi izinli verilerinizi içe aktarın.'); showView('overview'); }
-  });
+  $('stock-template').addEventListener('click', () => download('stok-sablonu.csv', 'stok_no;marka;model;paket;motor;yıl;km;fiyat;alış_fiyatı;yakıt;vites;stok_giriş_tarihi;not\n', 'text/csv;charset=utf-8'));
+  $('comparable-template').addEventListener('click', () => download('fiyat-sablonu.csv', 'id;marka;model;paket;motor;yıl;km;fiyat;yakıt;vites;gözlem_tarihi\n', 'text/csv;charset=utf-8'));
   $('restore-backup').addEventListener('click', () => $('backup-file').click());
   $('backup-file').addEventListener('change', async event => {
     const file = event.currentTarget.files[0];
@@ -385,7 +641,7 @@
   });
   $('clear-data').addEventListener('click', () => {
     if (!confirm('Bu cihazdaki stok ve karşılaştırma kayıtları silinecek. Önce JSON yedek indirdiniz mi?')) return;
-    try { localStorage.removeItem(STORAGE_KEY); state = { schema: 1, stock: [], comparables: [], sample: false }; render(); notice('Yerel veriler temizlendi.'); }
+    try { localStorage.removeItem(store.KEY); state = store.empty(); render(); notice('Yerel veriler temizlendi.'); }
     catch { notice('Yerel veriler temizlenemedi.', true); }
   });
 

@@ -4,15 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
-  <title>Oto Pusula | Galeri Analiz Paneli</title>
+  <title>Oto Pusula | İlan ve Stok Analizi</title>
   <link rel="stylesheet" href="dashboard.css">
 </head>
 <body>
   <div class="app-shell">
     <aside class="sidebar">
-      <div class="brand"><span class="brand-mark">◈</span><div><strong>Oto Pusula</strong><small>GALERİ ANALİZ PANELİ</small></div></div>
+      <div class="brand"><span class="brand-mark">◈</span><div><strong>Oto Pusula</strong><small>İLAN VE STOK ANALİZİ</small></div></div>
       <nav aria-label="Ana menü">
         <button class="nav-button active" data-view="overview" type="button">Genel bakış</button>
+        <button class="nav-button" data-view="market" type="button">Piyasa ilanları</button>
         <button class="nav-button" data-view="stock" type="button">Araç stoğu</button>
         <button class="nav-button" data-view="comparables" type="button">Karşılaştırmalar</button>
         <button class="nav-button" data-view="method" type="button">Yöntem ve veri</button>
@@ -22,10 +23,9 @@
 
     <main class="main-content">
       <header class="topbar">
-        <div><div class="eyebrow">KARAR DESTEK / V3.0</div><h1 id="view-title">Genel bakış</h1><p id="view-subtitle">Stoğunuzdaki fırsatları ve fiyat risklerini tek yerde görün.</p></div>
+        <div><div class="eyebrow">KARAR DESTEK / V4.6</div><h1 id="view-title">Genel bakış</h1><p id="view-subtitle">İzlediğiniz ilanları ve varsa stoğunuzu tek yerde görün.</p></div>
         <div class="top-actions">
           <button class="button button-secondary" id="download-template" type="button">CSV şablonları</button>
-          <button class="button button-secondary" id="load-sample" type="button">Örnek veriyi göster</button>
           <button class="button button-secondary" id="backup" type="button">Yedek indir</button>
           <button class="button button-primary" id="import-open" type="button">Veri içe aktar</button>
         </div>
@@ -35,10 +35,12 @@
 
       <section id="overview-view" class="view">
         <div class="hero">
-          <div><span class="hero-kicker">GALERİ KARAR MASASI</span><h2>Verinizi karara dönüştürün.</h2><p>Stok maliyeti, ilandaki fiyat ve izinli karşılaştırma kayıtlarından açıklanabilir bir fiyat aralığı üretin.</p></div>
-          <div class="hero-stat"><span>VERİ KAYNAĞI</span><strong>Kendi CSV’niz</strong><small>Otomatik site taraması yok</small></div>
+          <div><span class="hero-kicker">KARAR MASASI</span><h2>İlanı fiyatıyla değil, piyasasıyla görün.</h2><p>Gezdiğiniz sahibinden sayfalarındaki ilanlar ve kendi stok kayıtlarınız, açıklanabilir bir fiyat aralığına dönüşür.</p></div>
+          <div class="hero-stat"><span>VERİ KAYNAĞI</span><strong id="hero-source">Henüz veri yok</strong><small>Yalnızca sizin açtığınız sayfalar</small></div>
         </div>
 
+        <section class="panel market-panel"><div class="panel-head"><div><span class="eyebrow">PİYASA TAKİBİ</span><h2>İzlenen ilanlar</h2></div><button class="button button-secondary" id="go-market" type="button">Tümünü gör →</button></div><div id="market-summary" class="insight-list"></div></section>
+        <div id="stock-overview">
         <div class="stat-grid">
           <article class="stat-card"><span>Stoktaki araç</span><strong id="stat-units">0</strong><small id="stat-units-note">Aktif kayıt</small></article>
           <article class="stat-card"><span>İstenen toplam</span><strong id="stat-ask">₺0</strong><small>Stok ilan fiyatları</small></article>
@@ -51,6 +53,16 @@
           <section class="panel"><div class="panel-head"><div><span class="eyebrow">VERİ KALİTESİ</span><h2>Analiz güveni</h2></div></div><div id="quality" class="quality-list"></div></section>
         </div>
         <section class="panel action-panel"><div class="panel-head"><div><span class="eyebrow">ÖNCELİKLİ İŞLER</span><h2>Bugün neye bakmalı?</h2></div><p>Uyarılar karar yerine geçmez; aracı açıp gerekçeyi kontrol edin.</p></div><div id="action-list" class="action-list"></div></section>
+        </div>
+        <p id="stock-hint" class="table-note" hidden>Galerici misiniz? <strong>Araç stoğu</strong> sekmesinden kendi araçlarınızı eklediğinizde maliyet, stok yaşı ve fiyat uyarıları burada görünür.</p>
+      </section>
+
+      <section id="market-view" class="view" hidden>
+        <div class="section-heading"><div><span class="eyebrow">PİYASA</span><h2>Piyasa ilanları</h2><p>Eklentiyle analiz ettiğiniz ilanlar. Her ilan, aynı model ve yakın yıldaki diğer ilanlarla karşılaştırılır.</p></div><button class="button button-secondary" id="export-market" type="button">Excel / CSV indir</button></div>
+        <div class="table-toolbar"><label class="search-label">İlan ara <input id="market-search" type="search" placeholder="Marka, model, şehir veya başlık"></label><label class="search-label">Göster <select id="market-filter"><option value="all">Tüm ilanlar</option><option value="deal">Fırsat adayları (uygun ve altı)</option><option value="warn">Uyarı olanlar</option><option value="watch">Takip listem</option><option value="drop">Fiyatı düşenler</option><option value="expensive">Pahalı görünenler</option></select></label><label class="search-label">Sırala <select id="market-sort"><option value="gap">Piyasaya göre en ucuz</option><option value="price">Fiyat (artan)</option><option value="recent">Son görülen</option><option value="age">En uzun süredir yayında</option></select></label><span id="market-count" class="count-label"></span></div>
+        <section class="panel chart-panel" id="market-chart-panel" hidden><div class="panel-head"><div><span class="eyebrow">PİYASA HARİTASI</span><h2>İlan fiyatı ve piyasa değeri</h2></div><p>Her nokta bir ilan. Çizginin altındakiler tahmini piyasa değerinden ucuz, gölgeli bant ±%10 aralığıdır. Noktaya tıklayınca ilan ayrıntısı açılır; tüm değerler aşağıdaki tabloda da var.</p></div><div class="chart-box" id="market-chart"></div><div class="chart-legend" id="market-legend"></div></section>
+        <div class="table-wrap"><table><thead><tr><th>İlan</th><th>Fiyat</th><th>Tahmini aralık</th><th>Fark</th><th>Takip</th><th>Hasar bilgisi</th><th>Durum</th></tr></thead><tbody id="market-body"></tbody></table></div>
+        <p class="table-note">Durum: düşük fiyat (piyasanın %10+ altı) · uygun (%5–10 altı) · aralıkta · biraz yüksek · yüksek fiyat. Hasar bilgisi satıcının ilandaki ifadesidir, ekspertiz doğrulaması değildir; ağır hasarlı ilanlar karşılaştırma havuzuna alınmaz. Uyarı rozetlerinin üzerine gelince açıklaması görünür.</p>
       </section>
 
       <section id="stock-view" class="view" hidden>
@@ -61,20 +73,22 @@
       </section>
 
       <section id="comparables-view" class="view" hidden>
-        <div class="section-heading"><div><span class="eyebrow">REFERANS HAVUZU</span><h2>Karşılaştırma kayıtları</h2><p>Kullanma hakkınız bulunan fiyat gözlemlerini CSV ile yükleyin.</p></div><button class="button button-primary" id="import-comparables" type="button">CSV yükle</button></div>
+        <div class="section-heading"><div><span class="eyebrow">REFERANS HAVUZU</span><h2>Karşılaştırma kayıtları</h2><p>Eklentiyle okunan ilanlar ve CSV ile yüklediğiniz fiyat gözlemleri birlikte kullanılır.</p></div><button class="button button-primary" id="import-comparables" type="button">CSV yükle</button></div>
         <div class="table-toolbar"><label class="search-label">Kayıt ara <input id="comparable-search" type="search" placeholder="Marka veya model"></label><span id="comparable-count" class="count-label"></span></div>
-        <div class="table-wrap"><table><thead><tr><th>Araç</th><th>Yıl / km</th><th>Fiyat</th><th>Gözlem tarihi</th></tr></thead><tbody id="comparable-body"></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>Araç</th><th>Yıl / km</th><th>Fiyat</th><th>Son görülme</th><th>Kaynak</th></tr></thead><tbody id="comparable-body"></tbody></table></div>
       </section>
 
       <section id="method-view" class="view" hidden>
         <div class="section-heading"><div><span class="eyebrow">ŞEFFAF HESAP</span><h2>Yöntem ve veri</h2><p>Bu sistemin neyi hesapladığını, neyi hesaplamadığını görün.</p></div></div>
         <div class="method-grid">
-          <article class="panel method-card"><h3>1 · Benzer araçları seçer</h3><p>Aynı marka ve model, yakın model yılı; yakıt, vites ve paket bilgisi varsa eşleşme aranır.</p></article>
-          <article class="panel method-card"><h3>2 · Farkları sınırlar</h3><p>Yıl için varsayılan %3,5/yıl, kilometre için %1,2/10.000 km düzeltmesi uygulanır. Her iki etki sınırlanır.</p></article>
+          <article class="panel method-card"><h3>0 · Veriyi siz toplarsınız</h3><p>Eklenti, yalnızca düğmeye bastığınızda açık sahibinden sekmesini bir kez okur. Arka planda tarama, otomatik gezinme veya sunucuya gönderim yoktur.</p></article>
+          <article class="panel method-card"><h3>1 · Benzer araçları seçer</h3><p>Aynı marka ve model, yakın model yılı; yakıt, vites, motor, kasa ve paket bilgisi varsa eşleşme aranır. Ağır hasar beyanlı ilanlar havuza girmez.</p></article>
+          <article class="panel method-card"><h3>2 · Değer kaybını veriden öğrenir</h3><p>Aynı modelden en az 12 ilan varsa, yıl ve kilometre başına değer kaybı ile motor/paket etkileri bu ilanlardan regresyonla öğrenilir. Veri azsa varsayılan %3,5/yıl ve %1,2/10.000 km kullanılır.</p></article>
           <article class="panel method-card"><h3>3 · Ortanca ve aralık üretir</h3><p>Uç fiyatları kontrol eder, düzeltilmiş fiyatların ortancasını alır. Dağılıma göre yaklaşık bir aralık gösterir.</p></article>
+          <article class="panel method-card"><h3>3b · Benzer ilan azsa modele geçer</h3><p>Aynı motor ve donanımda 4 benzer ilan yoksa önce paket, sonra kasa farkı gevşetilir; yine yetmezse öğrenilen fiyat modeli tahmin yapar ve bu açıkça yazılır.</p></article>
           <article class="panel method-card"><h3>4 · Belirsizliği açıklar</h3><p>Az örnek, geniş fiyat dağılımı ve eski tarihli kayıtlar güven düzeyini düşürür. Ekspertiz verisi bu hesapta yoktur.</p></article>
         </div>
-        <div class="panel policy-panel"><h3>Veri ve kullanım sınırı</h3><p>Uygulama yalnızca içe aktardığınız CSV/JSON ve kendi stok kayıtlarınızla çalışır. Sahibinden veya başka bir siteye bağlanmaz. Karşılaştırma verilerini kullanma hakkınızı kendiniz doğrulayın.</p><div class="policy-actions"><button class="button button-secondary" id="stock-template" type="button">Stok CSV şablonu</button><button class="button button-secondary" id="comparable-template" type="button">Fiyat CSV şablonu</button><button class="button button-secondary" id="export-json-method" type="button">JSON yedek indir</button><button class="button button-secondary" id="restore-backup" type="button">JSON yedeği yükle</button><button class="button button-danger" id="clear-data" type="button">Yerel verileri temizle</button></div><input id="backup-file" type="file" accept=".json,application/json" hidden></div>
+        <div class="panel policy-panel"><h3>Veri ve kullanım sınırı</h3><p>Veriler yalnızca bu tarayıcıda saklanır. Eklenti sahibinden.com’a kendisi istek atmaz; sadece sizin görüntülediğiniz sayfayı, sizin isteğinizle okur. Kişisel kullanım içindir; toplanan verileri yeniden yayınlamayın ve sitenin kullanım koşullarına uyun.</p><div class="policy-actions"><button class="button button-secondary" id="stock-template" type="button">Stok CSV şablonu</button><button class="button button-secondary" id="comparable-template" type="button">Fiyat CSV şablonu</button><button class="button button-secondary" id="export-json-method" type="button">JSON yedek indir</button><button class="button button-secondary" id="restore-backup" type="button">JSON yedeği yükle</button><button class="button button-danger" id="clear-phones" type="button">Kayıtlı satıcı numaralarını sil</button><button class="button button-danger" id="clear-data" type="button">Yerel verileri temizle</button></div><input id="backup-file" type="file" accept=".json,application/json" hidden></div>
       </section>
     </main>
   </div>
@@ -83,9 +97,12 @@
 
   <dialog id="add-dialog" class="dialog"><form id="add-form"><div class="dialog-head"><h2 id="add-title">Stok aracı ekle</h2><button class="icon-button" id="add-close" aria-label="Kapat" type="button">×</button></div><div class="form-grid"><label>Marka<input name="brand" required placeholder="Örn. Toyota"></label><label>Model<input name="model" required placeholder="Örn. Corolla"></label><label>Yıl<input name="year" type="number" min="1980" max="2100" required></label><label>Kilometre<input name="km" type="number" min="0" required></label><label>İlan fiyatı (₺)<input name="price" type="number" min="1000" required></label><label>Alış maliyeti (₺)<input name="cost" type="number" min="0"></label><label>Yakıt<input name="fuel" placeholder="Örn. Benzin"></label><label>Vites<input name="transmission" placeholder="Örn. Otomatik"></label><label>Stok giriş tarihi<input name="date" type="date"></label><label>Paket<input name="trim" placeholder="Örn. Dream"></label></div><label>Not<textarea name="note" maxlength="500" rows="3" placeholder="Kendi stok notunuz"></textarea></label><div class="dialog-actions"><button class="button button-secondary" id="add-cancel" type="button">Vazgeç</button><button class="button button-primary" type="submit">Kaydet</button></div></form></dialog>
 
-  <dialog id="detail-dialog" class="dialog detail-dialog"><div class="dialog-head"><div><span class="eyebrow">FİYAT GEREKÇESİ</span><h2 id="detail-title"></h2></div><button class="icon-button" id="detail-close" aria-label="Kapat" type="button">×</button></div><div id="detail-content"></div><div class="dialog-actions"><button class="button button-danger" id="remove-stock" type="button">Stoktan çıkar</button><button class="button button-secondary" id="edit-stock" type="button">Düzenle</button><button class="button button-secondary" id="print-report" type="button">Raporu yazdır / PDF</button><button class="button button-primary" id="detail-done" type="button">Kapat</button></div></dialog>
+  <dialog id="detail-dialog" class="dialog detail-dialog"><div class="dialog-head"><div><span class="eyebrow">FİYAT GEREKÇESİ</span><h2 id="detail-title"></h2></div><button class="icon-button" id="detail-close" aria-label="Kapat" type="button">×</button></div><div id="detail-content"></div><div class="dialog-actions"><button class="button button-secondary" id="whatsapp-listing" type="button" hidden>WhatsApp’tan yaz</button><button class="button button-secondary" id="forget-phone" type="button" hidden>Numarayı sil</button><button class="button button-secondary" id="watch-listing" type="button" hidden>☆ Takibe al</button><button class="button button-secondary" id="open-listing" type="button" hidden>İlana git ↗</button><button class="button button-danger" id="remove-stock" type="button">Stoktan çıkar</button><button class="button button-secondary" id="edit-stock" type="button">Düzenle</button><button class="button button-secondary" id="print-report" type="button">Raporu yazdır / PDF</button><button class="button button-primary" id="detail-done" type="button">Kapat</button></div></dialog>
 
   <script src="core.js"></script>
+  <script src="listing.js"></script>
+  <script src="charts.js"></script>
+  <script src="store.js"></script>
   <script src="dashboard.js"></script>
 </body>
 </html>

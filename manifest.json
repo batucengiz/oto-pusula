@@ -1,11 +1,21 @@
 {
   "manifest_version": 3,
-  "name": "Oto Pusula - Galeri Analiz Paneli",
-  "version": "3.0.0",
-  "description": "Galeri stoğunu ve izinli karşılaştırma verilerini yerel olarak analiz eder.",
-  "permissions": [],
+  "name": "Oto Pusula - İlan ve Stok Fiyat Analizi",
+  "version": "4.6.0",
+  "description": "Açtığınız sahibinden.com sayfalarındaki ilanları yerel olarak analiz eder; fiyat geçmişi ve galeri stok karşılaştırması sunar.",
+  "permissions": ["activeTab", "scripting"],
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
   },
   "options_page": "dashboard.html"
 }
