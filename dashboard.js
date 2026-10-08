@@ -291,7 +291,7 @@
 
   function deletionNotice(prefix, result) {
     const parts = [`${prefix}: ${result.removed} ilan silindi.`];
-    if (result.kept) parts.push(`${result.kept} ilan takip listende (★) olduğu için korundu; onları da silmek için tekrar “Gösterilenleri sil” deyip ikinci soruya Tamam deyin.`);
+    if (result.kept) parts.push(`${result.kept} ilan takip listende (★) olduğu için korundu; onları da silmek için silme işlemini tekrarlayıp ikinci soruya Tamam deyin.`);
     if (result.shared) parts.push(`${result.shared} ilan başka bir okunan sayfada da olduğu için kaldı.`);
     notice(parts.join(' '));
   }
@@ -305,7 +305,10 @@
 
   function deletePage(page) {
     if (!confirm(`“${page.title}” sayfasından gelen ilanlar silinsin mi?`)) return;
-    const result = core.removePage(state, page.id, { includeWatched: askIncludeWatched(page.listingIds) });
+    // Başka okunan sayfada da görünen ilanlar silinmeyeceği için soruda sayılmaz.
+    const elsewhere = new Set((state.pages || []).filter(item => item.id !== page.id).flatMap(item => item.listingIds));
+    const own = page.listingIds.filter(id => !elsewhere.has(id));
+    const result = core.removePage(state, page.id, { includeWatched: askIncludeWatched(own) });
     if (save(result.state)) deletionNotice('Sayfa silindi', result);
   }
 

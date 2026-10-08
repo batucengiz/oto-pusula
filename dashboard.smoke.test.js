@@ -262,3 +262,27 @@ test('popup: 1 dakika dolmadan yeni satıcıya WhatsApp açılmaz, bekleme süre
   assert.ok(children.some(child => /saniye sonra tekrar deneyin/.test(child.textContent)), 'bekleme süresi gösterilmeli');
   assert.equal(JSON.parse(storage.get('otoPusula_v1')).contacts.length, 1, 'engellenen deneme sayaca yazılmamalı');
 });
+
+test('popup: Excel’e aktar, popup kapansa da geçerli kalan data: adresiyle gerçek .xlsx indirir', async () => {
+  const core = require('./core.js');
+  const nodes = new Map();
+  const get = id => { if (!nodes.has(id)) nodes.set(id, new FakeNode(id)); return nodes.get(id); };
+  const anchors = [];
+  const comparables = [1, 2, 3].map(i => core.normalizeRecord({ id: `sh-12345678${i}0`, source: 'sahibinden', listingId: `12345678${i}0`,
+    brand: 'Fiat', model: 'Egea', year: 2021, km: 80000, price: 800000 + i * 1000, date: '2026-10-08' }, 'comparable'));
+  const storage = new Map([['otoPusula_v1', JSON.stringify({ schema: 1, stock: [], comparables, sample: false })]]);
+  const context = vm.createContext({
+    Node: FakeNode, console, URL, TextEncoder, btoa,
+    document: { getElementById: get, createElement: tag => { const node = new FakeNode(); if (tag === 'a') anchors.push(node); return node; } },
+    localStorage: { getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v), removeItem: k => storage.delete(k) },
+    window: { close() {} },
+    chrome: { tabs: { query: async () => [{ id: 1, url: 'https://www.google.com/' }], create() {} }, scripting: {}, runtime: { getURL: p => p } }
+  });
+  for (const file of ['core.js', 'listing.js', 'store.js', 'xlsx.js', 'popup.js']) vm.runInContext(fs.readFileSync(require.resolve(`./${file}`), 'utf8'), context);
+  get('export-excel').click();
+  const anchor = anchors.find(node => String(node.download || '').endsWith('.xlsx'));
+  assert.ok(anchor, 'xlsx indirme bağlantısı oluşmalı');
+  assert.match(anchor.href, /^data:application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet;base64,/);
+  const bytes = Buffer.from(anchor.href.split(',')[1], 'base64');
+  assert.equal(bytes.subarray(0, 2).toString(), 'PK', 'geçerli zip/xlsx olmalı');
+});

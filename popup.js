@@ -89,7 +89,7 @@
         note.className = 'warning-line';
         return;
       }
-      store.save(result.state);
+      try { store.save(result.state); } catch { /* sayaç yazılamasa da mesaj açılır */ }
       if (result.link.startsWith('https://wa.me/')) chrome.tabs.create({ url: result.link });
     });
     // Numara yalnızca bu düğmeye basılırsa, yalnızca bu ilana ve bu cihaza kaydedilir.
@@ -180,12 +180,15 @@
   $('export-excel').addEventListener('click', () => {
     const table = listing.marketTable(store.load());
     if (!table.rows.length) { showResult([element('p', '', 'Excel’e aktarılacak ilan yok. Önce bir sahibinden sayfasını analiz edin.')], true); return; }
-    const url = URL.createObjectURL(new Blob([globalThis.OtoXlsx.build(table)], { type: globalThis.OtoXlsx.MIME }));
+    // blob: adresi popup kapanınca geçersizleşir ("Nereye kaydedilsin?" penceresi popup'ı kapatır);
+    // data: adresi dosyayı kendi içinde taşıdığı için indirme yarıda kalmaz.
+    const bytes = globalThis.OtoXlsx.build(table);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
     const anchor = document.createElement('a');
-    anchor.href = url;
+    anchor.href = `data:${globalThis.OtoXlsx.MIME};base64,${btoa(binary)}`;
     anchor.download = `oto-pusula-ilanlar-${new Date().toISOString().slice(0, 10)}.xlsx`;
     anchor.click();
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
     showResult([element('p', 'stats', `${table.rows.length} ilan Excel’e aktarıldı.`),
       ...(table.phones ? [element('p', 'muted', `Dosyada ${table.phones} satıcı numarası var; paylaşmayın.`)] : [])]);
   });
