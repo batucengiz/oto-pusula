@@ -211,6 +211,7 @@
     }
     const dealCount = entries.filter(isDeal).length;
     for (const id of ['go-deals', 'deal-shortcut']) $(id).textContent = `Fırsat arabalar (${dealCount})`;
+    $('go-phones').textContent = `Görüştüklerim (WhatsApp) (${entries.filter(entry => entry.record.sellerPhone).length})`;
     for (const [title, value] of [
       ['İzlenen ilan', entries.length],
       ['Fırsat adayı (uygun ve altı)', dealCount],
@@ -329,6 +330,7 @@
         : filter === 'drop' ? entry.change && entry.change.amount < 0
         : filter === 'expensive' ? ['yüksek fiyat', 'biraz yüksek'].includes(entry.result.status)
         : filter === 'watch' ? entry.record.watched
+        : filter === 'phone' ? !!entry.record.sellerPhone
         : filter === 'warn' ? hasWarning(entry)
         : filter === 'stale' ? (core.daysSince(entry.record.date) ?? 0) >= 30 : true);
     const gapOf = entry => (entry.record.condition === 'riskli' ? 1e6 : entry.result.center ? entry.result.gap : 2e6);
@@ -361,6 +363,17 @@
         element('span', 'vehicle-meta', [record.year, `${record.km.toLocaleString('tr-TR')} km`, record.city].filter(Boolean).join(' · '))
       );
       if (advice.flags.length) nameCell.append(flagBadges(advice.flags));
+      // Numarası kullanıcı tarafından kaydedilmiş ilanlarda satırdan doğrudan WhatsApp açılır.
+      const waLink = record.sellerPhone && listingTools.whatsappLink(record.sellerPhone, record);
+      if (waLink) {
+        const wa = element('button', 'button whatsapp-row', `WhatsApp · ${listingTools.formatPhone(record.sellerPhone)}`);
+        wa.type = 'button';
+        wa.addEventListener('click', event => {
+          event.stopPropagation();
+          window.open(waLink, '_blank', 'noopener');
+        });
+        nameCell.append(wa);
+      }
       cell(row, nameCell);
       const priceCell = element('span');
       priceCell.append(element('span', '', lira(record.price)));
@@ -654,6 +667,14 @@
     showView('market');
   }
   $('go-deals').addEventListener('click', showDeals);
+  // Numarasını kaydettiğin ilanlar alt alta, her birinde WhatsApp düğmesiyle.
+  $('go-phones').addEventListener('click', () => {
+    $('market-filter').value = 'phone';
+    $('market-sort').value = 'recent';
+    $('market-search').value = '';
+    renderMarket();
+    showView('market');
+  });
   $('delete-shown').addEventListener('click', () => {
     if (!shownIds.length) return;
     const everything = shownIds.length === listings().length;

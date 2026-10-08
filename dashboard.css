@@ -159,3 +159,5 @@ tbody tr.clickable { cursor: pointer; }
 .page-actions { display: flex; gap: 6px; flex-shrink: 0; }
 .page-actions .button { padding: 6px 10px; }
 .button:disabled { opacity: .45; cursor: not-allowed; }
+.whatsapp-row { display: inline-block; margin-top: 6px; padding: 5px 10px; font-size: 11px; background: #25d366; color: #0b3d1f; }
+.whatsapp-row:hover { background: #2ee774; }

@@ -123,6 +123,8 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
   get('market-filter').listeners.change();
   get('delete-shown').click();
   assert.equal(JSON.parse(storage.get('otoPusula_v1')).comparables.length, 5, 'takipteki ilan korunmalı, diğeri silinmeli');
+  get('go-phones').click();
+  assert.equal(get('market-filter').value, 'phone');
   get('deal-shortcut').click();
   assert.equal(get('market-filter').value, 'deal');
   assert.equal(get('market-sort').value, 'price');
