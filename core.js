@@ -231,6 +231,22 @@
     return !a || !b || key(a) === key(b);
   }
 
+  // Yakıt: "BENZİN\LPG", "LPG & Benzin", "Benzin/LPG" aynıdır; sıra, işaret ve eş anlamlılar önemsiz.
+  // Ayraçsız yazımlar ("BENZİNLPG") da tanınsın diye yakıt adları metnin içinde aranır.
+  const FUEL_WORDS = [['benzin', /benzin/], ['lpg', /lpg/], ['dizel', /dizel|diesel|motorin/], ['hibrit', /hibrit|hybrid/], ['elektrik', /elektrik|electric/]];
+
+  function fuelSet(value) {
+    const text = key(value);
+    return FUEL_WORDS.filter(([, pattern]) => pattern.test(text)).map(([name]) => name).sort().join('+');
+  }
+
+  function fuelCompatible(a, b) {
+    if (!a || !b) return true;
+    const fa = fuelSet(a);
+    const fb = fuelSet(b);
+    return fa && fb ? fa === fb : compatible(a, b);
+  }
+
   // Motor: elle girilen "1.4" ile ilandan okunan "1.4 Fire" aynı motordur; biri diğerinin başıysa uyumlu.
   // "1.4" ile "1.6 Multijet" gibi farklı motorlar uyumsuz kalır.
   function engineCompatible(a, b) {
@@ -351,7 +367,7 @@
     let matched = [];
     let relaxed = [];
     for (const skip of RELAX_STEPS) {
-      const candidates = base.filter(item => MATCH_FIELDS.every(field => skip.includes(field) || (field === 'engine' ? engineCompatible : compatible)(vehicle[field], item[field])));
+      const candidates = base.filter(item => MATCH_FIELDS.every(field => skip.includes(field) || (field === 'engine' ? engineCompatible : field === 'fuel' ? fuelCompatible : compatible)(vehicle[field], item[field])));
       // Eşitlikte daha katı seviye korunur; gevşetme yalnızca gerçekten kayıt eklediğinde sayılır.
       if (candidates.length > matched.length) { matched = candidates; relaxed = skip; }
       if (matched.length >= MIN_MATCH) break;
@@ -631,7 +647,7 @@
     return { flags, offer };
   }
 
-  const api = { MAX_ROWS, listingUrl, watchedAmong, LIMITS, contactGate, recordEvent, phoneSaveGate, browsePace, normalizeLog, advise, normalizePages, recordPage, removeListings, removePage, safeSahibindenUrl, DEFAULTS, key, brandKey, number, date, safeListingUrl, parseCsv, importCsv, normalizeRecord, merge, mergeObservations, priceChange, median, daysSince, estimate, summary };
+  const api = { MAX_ROWS, fuelSet, listingUrl, watchedAmong, LIMITS, contactGate, recordEvent, phoneSaveGate, browsePace, normalizeLog, advise, normalizePages, recordPage, removeListings, removePage, safeSahibindenUrl, DEFAULTS, key, brandKey, number, date, safeListingUrl, parseCsv, importCsv, normalizeRecord, merge, mergeObservations, priceChange, median, daysSince, estimate, summary };
   root.OtoCore = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);

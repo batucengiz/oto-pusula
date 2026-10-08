@@ -212,3 +212,17 @@ test('elle girilen "1.4" motor, ilandan okunan "1.4 Fire" ile eşleşir; "1.6 Mu
   assert.ok(result.comparables.every(({ item }) => item.engine === '1.4 Fire'));
   assert.ok(['aralıkta', 'uygun', 'biraz yüksek', 'düşük fiyat', 'yüksek fiyat'].includes(result.status));
 });
+
+test('yakıt: yazılış sırası, işaret ve eş anlamlılar önemsiz', () => {
+  assert.equal(core.fuelSet(String.raw`BENZİN\LPG`), core.fuelSet('LPG & Benzin'));
+  assert.equal(core.fuelSet('BENZİNLPG'), 'benzin+lpg', 'ayraçsız yazım da tanınmalı');
+  assert.equal(core.fuelSet('Benzin/LPG'), 'benzin+lpg');
+  assert.equal(core.fuelSet('Motorin'), core.fuelSet('Dizel'));
+  assert.equal(core.fuelSet('Hybrid'), 'hibrit');
+  assert.notEqual(core.fuelSet('Benzin'), core.fuelSet('Benzin & LPG'), 'LPG\'li araç saf benzinliyle aynı sayılmaz');
+  const mine = core.normalizeRecord({ id: 'S-T', brand: 'FİAT', model: 'TİPO', engine: '1.4', fuel: String.raw`BENZİN\LPG`, year: 1997, km: 180000, price: 240000 }, 'stock');
+  const item = (i, fuel) => core.normalizeRecord({ id: `sh-12345678${i}0`, source: 'sahibinden', listingId: `12345678${i}0`, brand: 'Fiat', model: 'Tipo',
+    engine: '1.4 Fire', fuel, year: 1997, km: 175000, price: 230000 + i * 5000, date: '2026-10-05' }, 'comparable');
+  const result = core.estimate(mine, [item(1, 'LPG & Benzin'), item(2, 'LPG & Benzin'), item(3, 'Benzin & LPG'), item(4, 'LPG & Benzin'), item(5, 'Dizel')], core.DEFAULTS, new Date('2026-10-08'));
+  assert.equal(result.count, 4);
+});
