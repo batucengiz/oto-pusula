@@ -127,7 +127,7 @@
   }
 
   // Motor kodları ve çekiş/teknik ekler: hacimden hemen sonra gelir, paket adı değildir.
-  const ENGINE_WORDS = /^(HDI|E-HDI|BLUEHDI|THP|VTI|TDI|TSI|TFSI|FSI|BLUEMOTION|DCI|TCE|SCE|MPI|CRDI|CDTI|CDI|D|T|I|VTEC|I-VTEC|IVTEC|FIRE|MULTIJET|MULTIAIR|JTD|JTDM|PURETECH|ECOBOOST|TDCI|DURATEC|D-4D|D4D|VVT-I|VVTI|GDI|T-GDI|TGDI|CVVT|D-CVVT|SKYACTIV|SKYACTIV-G|SKYACTIV-D|HYBRID|HIBRIT|DIZEL|DIESEL|BENZIN|LPG|TURBO|ECOTEC|DUALJET|BOOSTERJET|EVO|16V|8V|4MOTION|QUATTRO|XDRIVE|AWD|4X4|4WD)$/;
+  const ENGINE_WORDS = /^(HDI|E-HDI|BLUEHDI|THP|VTI|TDI|TSI|TFSI|FSI|BLUEMOTION|DCI|TCE|SCE|MPI|CRDI|CDTI|CDI|D|T|I|VTEC|I-VTEC|IVTEC|FIRE|MULTIJET|MULTIAIR|JTD|JTDM|PURETECH|ECOBOOST|TDCI|DURATEC|D-4D|D4D|VVT-I|VVTI|GDI|T-GDI|TGDI|CVVT|D-CVVT|SKYACTIV|SKYACTIV-G|SKYACTIV-D|HYBRID|HIBRIT|DIZEL|DIESEL|BENZIN|LPG|TURBO|ECOTEC|DUALJET|BOOSTERJET|EVO|16V|8V|4MOTION|QUATTRO|XDRIVE|AWD|RWD|FWD|4X4|4WD|TID|TTID|E-TORQ|ETORQ)$/;
 
   // Teknik metinden ("1.4 HDi Trendy", "1.6 TDI BlueMotion Midline Plus") hacim+motor kodu ve paket ayrılır.
   // Katalogda motor ve paket adları olmayan bütün markalarda paket ayrımı böylece de çalışır.
@@ -154,16 +154,27 @@
     return found ? titleCase(found) : '';
   }
 
-  // Öncelik: model sütunu (en güvenilir) → ilan başlığı → sayfa başlığı.
-  function identifyVehicle({ context = '', title = '', pageTitle = '', brandHint = '', modelHint = '' }) {
+  // Öncelik: sayfada yapılandırılmış olarak yazan marka/seri (Marka/Seri sütunu, ilan bilgisi, gezinme yolu) →
+  // model sütunu → ilan başlığı → sayfa başlığı. Katalog yalnızca yapılandırılmış bilgi yoksa tahmin için kullanılır;
+  // sahibinden'deki her marka ve model katalogda olmasa da okunur.
+  function identifyVehicle({ context = '', title = '', pageTitle = '', brandHint = '', modelHint = '', version = '' }) {
     const sources = [context, title, pageTitle].map(norm);
-    let brand = findBrand(norm(brandHint)) || '';
+    const brandText = norm(brandHint);
+    const modelText = norm(modelHint);
+    let brand = findBrand(brandText) || '';
+    let labels = null;
+    // Sayfada marka yazıyorsa o kullanılır; katalogda yoksa olduğu gibi alınır. Başka bir markanın model adıyla
+    // çakışması (ör. Anadol "A1" / Audi "A1") markayı değiştirmez.
+    if (!brand && brandText) {
+      brand = brandText;
+      labels = { brand: String(brandHint).trim().slice(0, 40), model: '' };
+    }
     for (const text of sources) { if (!brand) brand = findBrand(text); }
 
     let model = '';
     if (brand) {
-      const hint = norm(modelHint);
-      model = hint ? (findModel(brand, hint) || hint) : '';
+      // Seri adı aynen alınır; katalog yalnızca birebir aynıysa kullanılır ("Tiggo 8 Pro", "Tiggo 8" sanılmaz).
+      if (modelText) model = (CATALOG[brand] || []).find(item => item === modelText) || modelText;
       for (const text of sources) { if (!model) model = findModel(brand, text); }
     } else {
       for (const text of sources.slice(0, 2)) {
@@ -175,29 +186,40 @@
         if (model) break;
       }
     }
-    // Katalogda olmayan marka (ör. Togg, Tofaş): sayfadaki Marka/Seri alanları doğrudan kullanılır ve
-    // Türkçe harfleriyle gösterilir ("Tofaş Şahin"). Eşleştirme anahtarı harf farkını yok saydığı için
-    // detay ve arama sayfasından gelen kayıtlar yine aynı model sayılır.
-    let labels = null;
-    if (!brand && norm(brandHint)) {
-      brand = norm(brandHint);
-      model = norm(modelHint) || sources[0].split(' ')[0];
-      labels = { brand: String(brandHint).trim().slice(0, 40), model: norm(modelHint) ? String(modelHint).trim().slice(0, 40) : '' };
+    // Seri bilgisi yoksa: model sütunundaki ilk kelime (marka adı atlanarak).
+    if (brand && !model && sources[0]) {
+      const brandWords = new Set(brand.split(' '));
+      model = sources[0].split(' ').find(word => word && !brandWords.has(word)) || '';
     }
-    if (brand && !model && sources[0]) model = sources[0].split(' ')[0];
     if (!brand || !model) return null;
+    if (labels && modelText) labels.model = String(modelHint).trim().slice(0, 40);
 
     const detailText = `${sources[0]} ${sources[1]}`;
-    const technical = technicalParts(context);
+    const engine = findEngine(brand, detailText);
+    const technical = technicalParts(version || context);
+    // Hacim yerine kodla yazılan motorlar: Mercedes "C 200 d", BMW "520d" / "320i".
+    let codeEngine = '';
+    if (!engine && !technical.engine && version) {
+      const match = String(version).match(/(?:^|\s)(\d{3}[a-zA-Z]{0,2}(?:\s(?:d|e|i|h|CDI|BlueTEC|4MATIC))?)(?=\s|$)/);
+      if (match) codeEngine = match[1];
+    }
+    let trim = findTrim(sources[0] || sources[1]) || technical.trim;
+    // Hacim yazmayan versiyonlar (elektrikli: "Long Range AWD", "V2 RWD Uzun Menzil"): model, kasa ve motor/çekiş
+    // kelimeleri çıkarıldıktan sonra kalan, versiyon/paket sayılır.
+    if (!trim && !technical.engine && version) {
+      const skip = new Set([...modelText.split(' '), ...norm(engine).split(' '), ...norm(codeEngine).split(' ')]);
+      const rest = String(version).replace(/\s+/g, ' ').trim().split(' ')
+        .filter(word => word && !skip.has(norm(word)) && !ENGINE_WORDS.test(norm(word)) && !BODIES.some(([, pattern]) => pattern.test(norm(word))));
+      if (rest.length && rest.length <= 4 && rest.every(word => word.length <= 15)) trim = rest.join(' ');
+    }
     return {
       brand: CATALOG[brand] ? brandName(brand) : labels?.brand || titleCase(brand),
-      // Sayfadaki seri adı katalogdakiyle aynıysa sahibinden'in yazdığı hâli gösterilir ("I20" değil "i20").
-      model: labels?.model || (norm(modelHint) === model ? String(modelHint).trim().slice(0, 40) : titleCase(model)),
-      // Katalogdaki motor/paket adı önce gelir; yoksa yapılandırılmış teknik metinden (model sütunu, ilandaki Model alanı)
-      // hacim+motor kodu ve paket ayrılır. Serbest başlık metninden paket çıkarılmaz.
-      engine: findEngine(brand, detailText) || technical.engine,
+      // Sayfadaki seri adı gösterilir ("I20" değil "i20", "Tiggo 8 Pro").
+      model: labels?.model || (modelText === model ? String(modelHint).trim().slice(0, 40) : titleCase(model)),
+      // Katalogdaki motor adı (kodu ilanda yazıyorsa) önce gelir; yoksa teknik metinden hacim + motor kodu.
+      engine: engine || technical.engine || codeEngine,
       body: findBody(detailText),
-      trim: findTrim(sources[0] || sources[1]) || technical.trim
+      trim
     };
   }
 
@@ -287,6 +309,7 @@
     const brandIndex = headerIndex(headers, /^MARKA$/);
     const seriesIndex = headerIndex(headers, /^SERI$/);
     const fromCrumbs = crumbVehicle(raw?.crumbs);
+    const modelIndex = headerIndex(headers, /^MODEL$/);
     const records = [];
     const skipped = [];
     for (const row of (raw?.rows || []).slice(0, MAX_PAGE_ROWS)) {
@@ -297,7 +320,7 @@
       const context = row.titleIndex > 1 ? cells.slice(1, row.titleIndex).join(' ') : '';
       const vehicle = identifyVehicle({ context, title, pageTitle: raw.pageTitle,
         brandHint: brandIndex >= 0 ? cells[brandIndex] : fromCrumbs.brand,
-        modelHint: seriesIndex >= 0 ? cells[seriesIndex] : fromCrumbs.series });
+        modelHint: seriesIndex >= 0 ? cells[seriesIndex] : fromCrumbs.series, version: modelIndex >= 0 ? cells[modelIndex] : '' });
       if (!vehicle) { skipped.push({ id: listingId, reason: 'marka/model tanınamadı' }); continue; }
       let year = yearIndex >= 0 ? digits(cells[yearIndex]) : NaN;
       if (!Number.isInteger(year) || year < 1980) year = Number(title.match(/\b(19[89]\d|20\d{2})\b/)?.[1]);
@@ -333,7 +356,8 @@
       context: get('MODEL') || (tabTitleUsable ? titleParts.slice(2).join(' ') : ''),
       title,
       brandHint: get('MARKA') || fromCrumbs.brand || (tabTitleUsable ? titleParts[0] : ''),
-      modelHint: get('SERI') || fromCrumbs.series || (tabTitleUsable ? titleParts[1] : '')
+      modelHint: get('SERI') || fromCrumbs.series || (tabTitleUsable ? titleParts[1] : ''),
+      version: get('MODEL')
     });
     if (!vehicle) throw new Error(info.size ? 'Marka ve model okunamadı.' : 'İlan bilgileri okunamadı; sahibinden sayfa yapısı farklı olabilir.');
     const fromDescription = assessCondition(raw.description);

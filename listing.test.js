@@ -344,3 +344,25 @@ test('model aramasında katalogda olmayan model (Peugeot 207) gezinme yolundan o
   const result = core.estimate(stock, records);
   assert.ok(result.center > 0, `stoktaki 207 için fiyat tahmini çıkmalı: ${result.reason}`);
 });
+
+// "Bütün markalar": katalogda olmayan, katalogdaki bir modelle çakışan ve uydurma markalar; elektrikli versiyonlar;
+// kodla yazılan motorlar. Sayfada yazan marka/seri her zaman önce gelir.
+test('her marka ve model sayfada yazdığı gibi okunur (katalog dışı, çakışan, uydurma, elektrikli)', () => {
+  const headers = ['', 'Marka', 'Seri', 'Model', 'İlan Başlığı', 'Yıl', 'KM', 'Fiyat', 'İlan Tarihi', 'İl / İlçe', ''];
+  const cars = [
+    ['Anadol', 'A1', '1.2 Deluxe', '1.2', 'Deluxe'], ['Xyzmobil', 'Q7', '1.6 HDi Süper Paket', '1.6 HDi', 'Süper Paket'],
+    ['Chery', 'Tiggo 8 Pro', '1.6 TGDI Luxury', '1.6 TGDI', 'Luxury'], ['Tesla', 'Model Y', 'Long Range AWD', '', 'Long Range'],
+    ['Togg', 'T10X', 'V2 RWD Uzun Menzil', '', 'V2 Uzun Menzil'], ['Mercedes-Benz', 'C Serisi', 'C 200 d AMG', '200 d', 'AMG'],
+    ['BMW', '5 Serisi', '520d M Sport', '520d', 'M Sport'], ['Lada', 'Niva', '1.7 4x4 Taiga', '1.7 4x4', 'Taiga'],
+    ['Audi', 'A3', 'A3 Sedan 35 TFSI', '35 TFSI', ''], ['Peugeot', '207', '1.4 HDi Trendy', '1.4 HDi', 'Trendy']
+  ];
+  const rows = cars.map(([brand, series, model], i) => ({ id: String(1360000000 + i), href: '', title: `${brand} ${series} TEMİZ`, titleIndex: 4,
+    cells: ['', brand, series, model, `${brand} ${series} TEMİZ`, '2018', '100.000', '900.000 TL', '10 Ekim 2026', 'Bursa', ''], price: '900.000 TL', location: 'Bursa' }));
+  const { records, skipped } = listing.parseSearchPage({ kind: 'search', pageTitle: '2.El Arabalar', headers, rows });
+  assert.deepEqual(skipped, []);
+  cars.forEach(([brand, series, , engine, trim], i) => {
+    assert.equal(`${records[i].brand} ${records[i].model}`, `${brand} ${series}`, `${brand} ${series} başka marka/model sanılmamalı`);
+    assert.equal(records[i].engine, engine, `${brand} ${series} motoru`);
+    assert.equal(records[i].trim, trim, `${brand} ${series} paketi`);
+  });
+});
