@@ -107,6 +107,8 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
   assert.equal(get('stat-units').textContent, '2');
   assert.equal(get('stock-body').children.length, 2);
   assert.equal(get('comparable-body').children.length, 6);
+  assert.equal(get('comparable-head').children.length, 6, 'stokta araç varsa Karşılaştırmalar otomatik olarak ilk araçla açılmalı');
+  assert.equal(get('compare-vehicle').value, 'stock-S-1');
   // Aracımla karşılaştır: seçili stok aracının hesabında kullanılan ilanlar, düzeltilmiş fiyat ve fark sütunlarıyla.
   get('compare-vehicle').value = 'stock-S-1';
   get('compare-vehicle').listeners.change();

@@ -465,7 +465,15 @@
     const years = sameModel.map(item => item.year);
     const minYear = Math.min(...years);
     const maxYear = Math.max(...years);
-    const nearYear = sameModel.filter(item => Math.abs(item.year - vehicle.year) <= 4);
+    const nearAll = sameModel.filter(item => Math.abs(item.year - vehicle.year) <= 4);
+    // Ağır hasar beyanlı ilanlar havuza girmez; yakın yılda yalnızca onlar varsa bunu açıkça söyle.
+    const nearYear = nearAll.filter(item => item.condition !== 'riskli' || vehicle.condition === 'riskli');
+    if (nearAll.length && !nearYear.length) {
+      return {
+        hint: 'yalnızca hasarlı ilan var',
+        reason: `${nearAll.length} yakın yıllı ${name} ilanı var ama hepsinde ağır hasar/pert beyanı bulunuyor; bunlar fiyatı aşağı çektiği için karşılaştırmaya alınmaz. Hasarsız ilanların olduğu birkaç sayfa daha analiz edin.`
+      };
+    }
     if (!nearYear.length) {
       return {
         hint: `${from}–${to} ilanı yok`,

@@ -469,9 +469,11 @@
   }
 
   // Seçili stok aracının seçenek listesini tazeler; silinmiş araç seçili kalmaz.
+  let compareChoice = null; // null: otomatik (ilk stok aracı), '': kullanıcı tüm kayıtları istedi
+
   function fillCompareOptions() {
     const select = $('compare-vehicle');
-    const current = select.value;
+    const current = compareChoice === null ? (state.stock[0]?.id || '') : compareChoice;
     const empty = element('option', '', 'Seçilmedi (tüm kayıtlar)');
     empty.value = '';
     select.replaceChildren(empty, ...state.stock.map(vehicle => {
@@ -479,7 +481,22 @@
       option.value = vehicle.id;
       return option;
     }));
-    select.value = state.stock.some(vehicle => vehicle.id === current) ? current : '';
+    // Seçili araç silindiyse kullanıcı "tüm kayıtlar" demedikçe kalan ilk araca geçilir.
+    select.value = state.stock.some(vehicle => vehicle.id === current) ? current
+      : compareChoice === '' ? '' : (state.stock[0]?.id || '');
+  }
+
+  // Bağlantısı olan satır tıklanabilir: ilanı sahibinden'de yeni sekmede açar.
+  function listingRow(url) {
+    const row = element('tr', url ? 'clickable' : undefined);
+    if (url) {
+      row.tabIndex = 0;
+      row.title = 'İlanı sahibinden.com’da aç';
+      const open = () => window.open(url, '_blank', 'noopener');
+      row.addEventListener('click', open);
+      row.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); open(); } });
+    }
+    return row;
   }
 
   function setHead(titles) {
@@ -516,12 +533,13 @@
       return;
     }
     for (const { item, adjustedPrice } of [...used].sort((a, b) => a.adjustedPrice - b.adjustedPrice)) {
-      const row = element('tr');
       const url = core.listingUrl(item);
+      const row = listingRow(url);
       const name = [labelFor(item), item.engine].filter(Boolean).join(' · ');
       if (url) {
         const link = element('a', 'vehicle-name listing-link', `${name} ↗`);
         link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer';
+        link.addEventListener('click', event => event.stopPropagation());
         cell(row, link);
       } else {
         cell(row, name);
@@ -556,9 +574,18 @@
       return;
     }
     for (const item of records.slice(0, 1000)) {
-      const row = element('tr');
-      cell(row, [labelFor(item), item.engine].filter(Boolean).join(' · '));
-      cell(row, `${item.year} · ${item.km.toLocaleString('tr-TR')} km`);
+      const url = item.source === 'sahibinden' ? core.listingUrl(item) : '';
+      const row = listingRow(url);
+      const name = [labelFor(item), item.engine].filter(Boolean).join(' · ');
+      if (url) {
+        const link = element('a', 'vehicle-name listing-link', `${name} ↗`);
+        link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer';
+        link.addEventListener('click', event => event.stopPropagation());
+        cell(row, link);
+      } else {
+        cell(row, name);
+      }
+      cell(row, `${item.year} · ${item.km.toLocaleString('tr-TR')} km${item.city ? ` · ${item.city}` : ''}`);
       cell(row, lira(item.price), 'money');
       cell(row, item.date || 'Tarih yok');
       cell(row, item.source === 'sahibinden' ? 'İlan' : 'CSV');
@@ -696,11 +723,11 @@
   document.querySelectorAll('.nav-button').forEach(button => button.addEventListener('click', () => showView(button.dataset.view)));
   $('stock-search').addEventListener('input', renderStock);
   $('comparable-search').addEventListener('input', renderComparables);
-  $('compare-vehicle').addEventListener('change', renderComparables);
+  $('compare-vehicle').addEventListener('change', () => { compareChoice = $('compare-vehicle').value; renderComparables(); });
   $('compare-stock').addEventListener('click', () => {
     if (!selectedVehicle || selectedVehicle.type !== 'stock') return;
     fillCompareOptions();
-    $('compare-vehicle').value = selectedVehicle.id;
+    compareChoice = selectedVehicle.id;
     $('detail-dialog').close();
     renderComparables();
     showView('comparables');

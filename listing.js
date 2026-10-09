@@ -248,7 +248,9 @@
   }
 
   function parseDetailPage(raw) {
-    const info = new Map((raw?.info || []).map(([label, value]) => [norm(label).replace(/:$/, ''), String(value ?? '').trim()]));
+    // Sayfa yapısı beklenmedik gelirse (dizi değil, eksik çift) çökmeden boş kabul edilir.
+    const pairs = Array.isArray(raw?.info) ? raw.info.filter(entry => Array.isArray(entry) && entry.length >= 2) : [];
+    const info = new Map(pairs.map(([label, value]) => [norm(label).replace(/:$/, ''), String(value ?? '').trim()]));
     const get = (...labels) => labels.map(label => info.get(label)).find(Boolean) || '';
     const listingId = String(raw?.listingId || get('ILAN NO')).replace(/\D/g, '');
     if (!/^\d{6,13}$/.test(listingId)) throw new Error('İlan numarası okunamadı.');
