@@ -1,6 +1,9 @@
 /* ===== Oto Pusula — profesyonel tema (v6) =====
    dashboard.css'in üzerine yüklenir. Yapı aynı; tasarım sistemi:
    tek marka rengi (teal), durum renkleri yalnızca anlam için, 8px ızgara, SVG simgeler, hizalı rakamlar. */
+/* "hidden" işareti, temadaki display değerlerinden (ör. .button inline-flex) her zaman üstündür. */
+[hidden] { display: none !important; }
+
 :root {
   --font: "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
   --bg: #f5f6f8; --surface: #ffffff; --surface-2: #f9fafb; --surface-3: #f3f4f6;

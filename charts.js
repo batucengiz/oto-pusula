@@ -80,7 +80,9 @@
     }));
     plot.append(svg('line', { x1: x(min), y1: y(min), x2: x(max), y2: y(max), class: 'fair' }));
     chart.append(plot);
-    chart.append(svg('text', { x: W - m.right - 4, y: y(max) + 16, class: 'note', 'text-anchor': 'end' }, 'adil fiyat çizgisi'));
+    // Etiket, çizginin altında ve sağ üst köşeden içeride durur; çizgiyle çakışmaz.
+    const labelValue = min + (max - min) * 0.8;
+    chart.append(svg('text', { x: x(labelValue) + 8, y: y(labelValue) + 22, class: 'note', 'text-anchor': 'start' }, 'adil fiyat çizgisi'));
     chart.append(svg('text', { x: (m.left + W - m.right) / 2, y: H - 6, class: 'axis-label', 'text-anchor': 'middle' }, 'Tahmini piyasa değeri'));
     chart.append(svg('text', { x: 14, y: (m.top + H - m.bottom) / 2, class: 'axis-label', 'text-anchor': 'middle', transform: `rotate(-90 14 ${(m.top + H - m.bottom) / 2})` }, 'İlan fiyatı'));
 

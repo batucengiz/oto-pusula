@@ -34,7 +34,7 @@ Projede örnek veya kurgusal veri yoktur: panel boş açılır ve yalnızca sizi
 
 ### Başkasına kurmak (arkadaş, galeri)
 
-1. GitHub’daki [Sürümler](https://github.com/batucengiz/oto-pusula/releases) sayfasından en son **oto-pusula-<sürüm>.zip** dosyasını indirin.
+1. GitHub’daki [Sürümler](https://github.com/batucengiz/oto-pusula/releases/latest) sayfasından en son **oto-pusula-<sürüm>.zip** dosyasını indirin.
 2. Zip’i bir klasöre çıkarın; içindeki **KURULUM.txt** adımlarını izleyin (chrome://extensions → Geliştirici modu → Paketlenmemiş öğe yükle).
 3. Her kullanıcının verisi kendi tarayıcısında ayrı tutulur. Paylaşmak için Excel’e aktar veya JSON yedek kullanılabilir.
 
@@ -103,7 +103,7 @@ Ticari kullanımda (galeri) satıcı numaralarının saklanması kişisel veri i
 ## Geliştirme
 
 ```bash
-npm test        # 60 test: fiyat motoru ve öğrenen model, ilan ayrıştırma, hasar beyanı, uyarılar, panel, popup/WhatsApp akışı, güvenlik ve ban kuralları
+npm test        # 61 test: fiyat motoru ve öğrenen model, ilan ayrıştırma, hasar beyanı, uyarılar, panel, popup/WhatsApp akışı, güvenlik ve ban kuralları
 npm run verify-page -- "fixtures/sayfa.html"   # kaydedilmiş gerçek sayfayı okuyucudan geçirir
 npm run dev     # paneli http://127.0.0.1:4173 adresinde önizler (popup için eklenti olarak yükleyin)
 ```

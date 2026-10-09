@@ -297,3 +297,11 @@ test('popup: Excel’e aktar, popup kapansa da geçerli kalan data: adresiyle ge
   const bytes = Buffer.from(anchor.href.split(',')[1], 'base64');
   assert.equal(bytes.subarray(0, 2).toString(), 'PK', 'geçerli zip/xlsx olmalı');
 });
+
+test('tema "hidden" işaretini ezmez (gizli düğmeler görünmez kalır)', () => {
+  for (const file of ['theme.css', 'popup-theme.css', 'dashboard.css', 'popup.css']) {
+    const css = fs.readFileSync(require.resolve(`./${file}`), 'utf8');
+    const overridesHidden = /\.button\s*\{[^}]*display\s*:/.test(css) || /\.compare-summary\s*\{[^}]*display\s*:/.test(css);
+    if (overridesHidden) assert.match(css, /\[hidden\]\s*\{\s*display:\s*none\s*!important;?\s*\}/, `${file}: display veren sınıflar varken [hidden] kuralı şart`);
+  }
+});
