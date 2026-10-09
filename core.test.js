@@ -226,3 +226,27 @@ test('yakıt: yazılış sırası, işaret ve eş anlamlılar önemsiz', () => {
   const result = core.estimate(mine, [item(1, 'LPG & Benzin'), item(2, 'LPG & Benzin'), item(3, 'Benzin & LPG'), item(4, 'LPG & Benzin'), item(5, 'Dizel')], core.DEFAULTS, new Date('2026-10-08'));
   assert.equal(result.count, 4);
 });
+
+test('"veri yok" nedenini ve ne yapılacağını söyler; model öğrendiği yılların çok dışına tahmin yapmaz', () => {
+  const today = new Date('2026-10-09');
+  const mine = core.normalizeRecord({ id: 'S-T', brand: 'FİAT', model: 'TİPO', engine: '1.4', year: 1997, km: 180000, price: 240000 }, 'stock');
+
+  const none = core.estimate(mine, [], core.DEFAULTS, today);
+  assert.equal(none.confidence, 'yok');
+  assert.match(none.reason, /hiç FİAT TİPO ilanı toplanmamış/);
+  assert.match(none.reason, /1993–2001/);
+
+  // 15 yeni Tipo (2016–2023): model öğrenilebilir ama 1997'ye uygulanmamalı.
+  const newTipos = Array.from({ length: 15 }, (_, i) => core.normalizeRecord({ id: `sh-12345679${String(i).padStart(2, '0')}`, source: 'sahibinden',
+    listingId: `12345679${String(i).padStart(2, '0')}`, brand: 'Fiat', model: 'Tipo', engine: i % 2 ? '1.4 Fire' : '1.6 Multijet',
+    year: 2016 + (i % 8), km: 150000 - i * 7000, price: Math.round(900000 * 0.95 ** (2023 - (2016 + (i % 8))) * (1 + (i % 3) * 0.01)), date: '2026-10-05' }, 'comparable'));
+  const onlyNew = core.estimate(mine, newTipos, core.DEFAULTS, today);
+  assert.notEqual(onlyNew.method, 'model', '27 yıl geriye model tahmini yapılmamalı');
+  assert.equal(onlyNew.confidence, 'yok');
+  assert.match(onlyNew.reason, /15 FİAT TİPO ilanı var ama yılları 2016–2023/);
+  assert.equal(onlyNew.hint, '1993–2001 ilanı yok');
+
+  // Aynı veriyle 2019 model bir Tipo için model kullanılabilir.
+  const recent = core.normalizeRecord({ id: 'S-N', brand: 'Fiat', model: 'Tipo', engine: '1.4 Fire', trim: 'Lounge', body: 'Hatchback', year: 2019, km: 90000, price: 700000 }, 'stock');
+  assert.ok(core.estimate(recent, newTipos, core.DEFAULTS, today).center, '2019 için tahmin üretilmeli');
+});

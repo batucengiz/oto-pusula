@@ -328,6 +328,7 @@
     if (!(yearRate >= 0 && yearRate <= 0.2 && kmRate >= 0 && kmRate <= 0.06 && sd <= 0.25)) return null;
     return {
       n: rows.length, sd, r2: 1 - sse / sst, yearRate, kmRate,
+      minYear: Math.min(...rows.map(r => r.year)), maxYear: refYear,
       predict: vehicle => Math.exp(predictLog(features(vehicle)))
     };
   }
@@ -373,8 +374,9 @@
       if (matched.length >= MIN_MATCH) break;
     }
     const model = marketModel(vehicle, comparables);
-    if (matched.length < MIN_MATCH && model) return modelEstimate(vehicle, model, matched.length);
-    if (!matched.length) return { count: 0, confidence: 'yok', relaxed: [], method: 'yok', reason: 'Aynı marka/model ve yakın yıl için karşılaştırma verisi yok.' };
+    const modelCovers = model && vehicle.year >= model.minYear - 2 && vehicle.year <= model.maxYear + 2;
+    if (matched.length < MIN_MATCH && modelCovers) return modelEstimate(vehicle, model, matched.length);
+    if (!matched.length) return { count: 0, confidence: 'yok', relaxed: [], method: 'yok', ...missingDataHint(vehicle, comparables) };
 
     // Model varsa yıl/km düzeltmesi sabit varsayım yerine verinin kendisinden gelir.
     const yearRate = model ? model.yearRate : clamp(Number(settings.yearRate) || DEFAULTS.yearRate, 0, 0.08);
@@ -412,6 +414,34 @@
       reason: `${used.length} benzer kayıt (${fresh} tanesi son 90 günde); ${model
         ? `yıl başına ${pct(yearRate)} ve 10.000 km başına ${pct(kmRate)} düzeltme (${model.n} ilandan öğrenildi)`
         : 'yıl ve kilometre farkı için varsayılan oranlarla sınırlı düzeltme'}; uç değer kontrolü.${relaxedLabels.length ? ` Aynı ${relaxedLabels.join(' ve ')} için yeterli kayıt olmadığından farklı ${relaxedLabels.join(' / ')} ilanları da kullanıldı.` : ''} Satış fiyatı garantisi değildir.`
+    };
+  }
+
+  function missingDataHint(vehicle, comparables) {
+    const name = [vehicle.brand, vehicle.model].filter(Boolean).join(' ');
+    const from = vehicle.year - 4;
+    const to = vehicle.year + 4;
+    const sameModel = comparables.filter(item => item.id !== vehicle.id &&
+      brandKey(item.brand) === brandKey(vehicle.brand) && key(item.model) === key(vehicle.model));
+    if (!sameModel.length) {
+      return {
+        hint: `${vehicle.model} ilanı yok`,
+        reason: `Henüz hiç ${name} ilanı toplanmamış; karşılaştıracak bir şey yok. sahibinden’de “${name}” araması yapıp (yıl filtresi ${from}–${to}) 2-3 sayfayı eklentiyle analiz edin.`
+      };
+    }
+    const years = sameModel.map(item => item.year);
+    const minYear = Math.min(...years);
+    const maxYear = Math.max(...years);
+    const nearYear = sameModel.filter(item => Math.abs(item.year - vehicle.year) <= 4);
+    if (!nearYear.length) {
+      return {
+        hint: `${from}–${to} ilanı yok`,
+        reason: `${sameModel.length} ${name} ilanı var ama yılları ${minYear === maxYear ? minYear : `${minYear}–${maxYear}`}. ${vehicle.year} model bir araç için ${from}–${to} arası ilan gerekiyor. sahibinden’de aramanın yıl filtresini ${from}–${to} yapıp sayfaları analiz edin.`
+      };
+    }
+    return {
+      hint: 'benzer ilan yok',
+      reason: `${nearYear.length} yakın yıllı ${name} ilanı var ama motor, yakıt veya vites bilgisi bu araçla uyuşmuyor. Aracı düzenleyip bu alanları boş bırakmayı ya da sahibinden’deki yazımla aynı yazmayı deneyin.`
     };
   }
 

@@ -455,7 +455,8 @@
       const days = core.daysSince(vehicle.date);
       cell(row, days === null ? 'Tarih yok' : `${days} gün`);
       cell(row, lira(vehicle.price), 'money');
-      cell(row, result.center ? `${lira(result.low)} – ${lira(result.high)}` : 'Veri yok');
+      const rangeCell = cell(row, result.center ? `${lira(result.low)} – ${lira(result.high)}` : `Veri yok${result.hint ? ` · ${result.hint}` : ''}`);
+      if (!result.center && result.reason) rangeCell.title = result.reason;
       cell(row, vehicle.cost === null ? '—' : lira(vehicle.price - vehicle.cost), 'money');
       cell(row, badge(result.status || 'veri yok'));
       row.addEventListener('click', () => showDetail(vehicle));
