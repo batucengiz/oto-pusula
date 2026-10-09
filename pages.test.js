@@ -145,3 +145,27 @@ test('gerçek sayfalarla uçtan uca yolculuk: okunan her şey tutarlı kalır', 
   store.save(core.removeListings(all, all.comparables.map(item => item.id), { includeWatched: true }).state, storage);
   assert.deepEqual(consistent('tümünü sil').pages, []);
 });
+
+test('eski sürümün modeli "1.4" diye yanlış kaydettiği ilanlar yüklenirken temizlenir; takiptekiler korunur', () => {
+  const core = require('./core.js');
+  const store = require('./store.js');
+  const make = (i, model, extra = {}) => core.normalizeRecord({ id: `sh-${8000000 + i}`, source: 'sahibinden', listingId: String(8000000 + i), brand: 'Peugeot', model, year: 2009, km: 180000, price: 450000, ...extra }, 'comparable');
+  const comparables = [make(1, '1.4'), make(2, '1.4', { watched: true }), make(3, '207'), make(4, '2008'), make(5, '1.6')];
+  const pages = [{ id: 'p-1', date: '2026-10-09', kind: 'search', title: 'Peugeot 207', url: '', listingIds: comparables.map(item => item.id) }];
+  const memory = new Map([[store.KEY, JSON.stringify({ schema: 1, stock: [], comparables, pages })]]);
+  const loaded = store.load({ getItem: key => memory.get(key) ?? null });
+  assert.deepEqual(loaded.comparables.map(item => item.model), ['1.4', '207', '2008'], 'yalnızca takipteki "1.4" kalmalı; 207 ve 2008 dokunulmadan');
+  assert.equal(loaded.pages[0].listingIds.length, 3);
+});
+
+test('paket ve motor kodu her markada ayrılır; katalog tahmini ilanda yazmayan motor kodunu uydurmaz', () => {
+  const listing = require('./listing.js');
+  const parts = (context, brand, model) => { const v = listing.identifyVehicle({ context, brandHint: brand, modelHint: model }); return `${v.engine} | ${v.trim}`; };
+  assert.equal(parts('1.4 HDi Trendy', 'Peugeot', '207'), '1.4 HDi | Trendy');
+  assert.equal(parts('1.6 HDi Sportium', 'Peugeot', '207'), '1.6 HDi | Sportium', 'katalogdaki "1.6 BlueHDi" tahmini kullanılmamalı');
+  assert.equal(parts('1.6 S', 'Fiat', 'Tipo'), '1.6 | S', 'benzinli eski Tipo "1.6 Multijet" sanılmamalı');
+  assert.equal(parts('1.4 Fire Urban', 'Fiat', 'Egea'), '1.4 Fire | Urban');
+  assert.equal(parts('1.6 TDI BlueMotion Midline Plus', 'Volkswagen', 'Golf'), '1.6 TDI | Midline Plus');
+  assert.equal(parts('2.0 TDI 4Motion Highline', 'Volkswagen', 'Passat'), '2.0 TDI | Highline');
+  assert.equal(parts('1.6 Dynamic', 'Mazda', '3'), '1.6 | Dynamic');
+});

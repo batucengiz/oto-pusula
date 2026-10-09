@@ -112,15 +112,36 @@
     const map = ENGINES[brand] || {};
     const keys = Object.keys(map).sort((a, b) => b.length - a.length);
     const found = keys.find(k => engineToken(k).test(text));
-    return found ? map[found] : '';
+    if (!found) return '';
+    // Katalog yalnızca hacme bakarak motor kodu tahmin eder ("1.6" → "1.6 Multijet"). Kod metinde gerçekten
+    // yazmıyorsa (ör. benzinli eski Tipo "1.6 S", Peugeot "1.6 HDi") tahmin kullanılmaz; ilanda yazan alınır.
+    const code = norm(map[found]).replace(norm(found), '').trim();
+    return !code || code.split(' ').every(word => token(word).test(text)) ? map[found] : '';
   }
 
   // Katalogda motor adı olmayan markalarda en azından motor hacmi okunur ("1.4 HDi Trendy" → "1.4").
   // Eşleştirme önek uyumlu olduğundan "1.4", elle girilen "1.4 HDi" ile eşleşir ama "1.6" ile eşleşmez.
   // Yalnızca model/teknik metne bakılır; başlıktaki "1.300.000" gibi fiyatlar motor sanılmaz.
   function displacement(text) {
-    const match = String(text ?? '').match(/(^|[^0-9.,])([0-6]\.[0-9])(?![0-9])(?![.,][0-9])/);
-    return match ? match[2] : '';
+    return technicalParts(text).engine;
+  }
+
+  // Motor kodları ve çekiş/teknik ekler: hacimden hemen sonra gelir, paket adı değildir.
+  const ENGINE_WORDS = /^(HDI|E-HDI|BLUEHDI|THP|VTI|TDI|TSI|TFSI|FSI|BLUEMOTION|DCI|TCE|SCE|MPI|CRDI|CDTI|CDI|D|T|I|VTEC|I-VTEC|IVTEC|FIRE|MULTIJET|MULTIAIR|JTD|JTDM|PURETECH|ECOBOOST|TDCI|DURATEC|D-4D|D4D|VVT-I|VVTI|GDI|T-GDI|TGDI|CVVT|D-CVVT|SKYACTIV|SKYACTIV-G|SKYACTIV-D|HYBRID|HIBRIT|DIZEL|DIESEL|BENZIN|LPG|TURBO|ECOTEC|DUALJET|BOOSTERJET|EVO|16V|8V|4MOTION|QUATTRO|XDRIVE|AWD|4X4|4WD)$/;
+
+  // Teknik metinden ("1.4 HDi Trendy", "1.6 TDI BlueMotion Midline Plus") hacim+motor kodu ve paket ayrılır.
+  // Katalogda motor ve paket adları olmayan bütün markalarda paket ayrımı böylece de çalışır.
+  // Yalnızca model/teknik metne bakılır; başlıktaki "1.300.000" gibi fiyatlar motor sanılmaz.
+  function technicalParts(text) {
+    const raw = String(text ?? '').replace(/\s+/g, ' ').trim();
+    const match = raw.match(/(^|[^0-9.,])([0-6]\.[0-9])(?![0-9])(?![.,][0-9])/);
+    if (!match) return { engine: '', trim: '' };
+    const after = raw.slice(match.index + match[0].length).trim().split(' ').filter(Boolean);
+    const engineWords = [];
+    while (after.length && ENGINE_WORDS.test(norm(after[0]))) engineWords.push(after.shift());
+    const words = after.slice(0, 3);
+    const trim = words.length && words.every(word => word.length <= 15 && !/\d{3,}/.test(word)) ? words.join(' ') : '';
+    return { engine: [match[2], ...engineWords].join(' '), trim };
   }
 
   function findBody(text) {
@@ -167,13 +188,16 @@
     if (!brand || !model) return null;
 
     const detailText = `${sources[0]} ${sources[1]}`;
+    const technical = technicalParts(context);
     return {
       brand: CATALOG[brand] ? brandName(brand) : labels?.brand || titleCase(brand),
       // Sayfadaki seri adı katalogdakiyle aynıysa sahibinden'in yazdığı hâli gösterilir ("I20" değil "i20").
       model: labels?.model || (norm(modelHint) === model ? String(modelHint).trim().slice(0, 40) : titleCase(model)),
-      engine: findEngine(brand, detailText) || displacement(sources[0]),
+      // Katalogdaki motor/paket adı önce gelir; yoksa yapılandırılmış teknik metinden (model sütunu, ilandaki Model alanı)
+      // hacim+motor kodu ve paket ayrılır. Serbest başlık metninden paket çıkarılmaz.
+      engine: findEngine(brand, detailText) || technical.engine,
       body: findBody(detailText),
-      trim: findTrim(sources[0] || sources[1])
+      trim: findTrim(sources[0] || sources[1]) || technical.trim
     };
   }
 

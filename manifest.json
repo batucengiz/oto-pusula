@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Oto Pusula - İlan ve Stok Fiyat Analizi",
-  "version": "6.8.1",
+  "version": "6.8.2",
   "description": "Açtığınız sahibinden.com sayfalarındaki ilanları yerel olarak analiz eder; fiyat geçmişi ve galeri stok karşılaştırması sunar.",
   "permissions": ["activeTab", "scripting"],
   "icons": {

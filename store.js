@@ -9,12 +9,18 @@
     return { schema: 1, stock: [], comparables: [], pages: [], contacts: [], phoneSaves: [], analyses: [], sample: false };
   }
 
+  // 6.8 öncesi sürüm, model seçilerek yapılan aramalarda (ör. Peugeot 207) modeli motor hacmi ("1.4") olarak
+  // kaydediyordu. Hiçbir araç modelinin adı "1.4" olmadığı için bu kayıtlar hiçbir şeyle eşleşmez; yüklenirken
+  // atılır. Takipteki ve numarası kaydedilmiş ilanlar korunur. Sayfa yeniden okunursa doğru modelle gelir.
+  const misread = item => item?.source === 'sahibinden' && /^[0-6][.,][0-9]$/.test(String(item.model ?? '').trim()) && !item.watched && !item.sellerPhone;
+
   function load(storage = root.localStorage) {
     try {
       const parsed = JSON.parse(storage.getItem(KEY));
       if (parsed?.schema === 1 && Array.isArray(parsed.stock) && Array.isArray(parsed.comparables)) {
-        return { schema: 1, stock: parsed.stock.slice(0, core.MAX_ROWS), comparables: parsed.comparables.slice(0, core.MAX_ROWS),
-          pages: core.prunePages(core.normalizePages(parsed.pages), parsed.comparables.slice(0, core.MAX_ROWS)),
+        const comparables = parsed.comparables.filter(item => !misread(item)).slice(0, core.MAX_ROWS);
+        return { schema: 1, stock: parsed.stock.slice(0, core.MAX_ROWS), comparables,
+          pages: core.prunePages(core.normalizePages(parsed.pages), comparables),
           contacts: core.normalizeLog(parsed.contacts), phoneSaves: core.normalizeLog(parsed.phoneSaves), analyses: core.normalizeLog(parsed.analyses, 50), sample: !!parsed.sample };
       }
     } catch { /* Bozuk kayıt yerine boş durum döner. */ }
