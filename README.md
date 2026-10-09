@@ -6,7 +6,7 @@
 
 **Kimler için:** Araç almak isteyen biri "bu ilan pahalı mı?" sorusuna cevap arar. Galerici ise stoğunu piyasayla karşılaştırıp hangi aracın fiyatını gözden geçireceğine karar verir.
 
-**Öne çıkanlar:** benzer araç eşleştirme ve öğrenen fiyat modeli · ilan sayfasındaki boya/değişen şemasından **parça bazlı kaporta puanı** (fiyattan ayrı) · çelişkili ve sonradan değişen satıcı beyanı uyarısı · fiyat geçmişi ve fırsat listesi · tek tıkla Excel · veri bilgisayardan çıkmaz.
+**Öne çıkanlar:** sahibinden.com'daki **bütün marka ve modeller** (marka ve seri sayfanın gezinme yolundan ve tablo sütunlarından okunur) · benzer araç eşleştirme ve öğrenen fiyat modeli · ilan sayfasındaki boya/değişen şemasından **parça bazlı kaporta puanı** (fiyattan ayrı) · çelişkili ve sonradan değişen satıcı beyanı uyarısı · fiyat geçmişi ve fırsat listesi · tek tıkla Excel · veri bilgisayardan çıkmaz.
 
 **[Son sürümü indir](https://github.com/batucengiz/oto-pusula/releases/latest)** · Chrome, Edge, Brave, Opera (masaüstü)
 
@@ -144,7 +144,7 @@ Ticari kullanımda (galeri) satıcı numaralarının saklanması kişisel veri i
 ## Geliştirme
 
 ```bash
-npm test        # 81 test: performans (5.000 ilan) ve depo dolması, kaporta şeması okuma, puanlama ve beyan değişikliği, dayanıklılık (bozuk/rastgele girdi), fiyat motoru ve öğrenen model, ilan ayrıştırma, hasar beyanı, uyarılar, panel, popup/WhatsApp akışı, güvenlik ve ban kuralları
+npm test        # 83 test: performans (5.000 ilan) ve depo dolması, kaporta şeması okuma, puanlama ve beyan değişikliği, dayanıklılık (bozuk/rastgele girdi), fiyat motoru ve öğrenen model, ilan ayrıştırma, hasar beyanı, uyarılar, panel, popup/WhatsApp akışı, güvenlik ve ban kuralları
 npm run verify-page -- "fixtures/sayfa.html"   # kaydedilmiş gerçek sayfayı okuyucudan geçirir
 npm run dev     # paneli http://127.0.0.1:4173 adresinde önizler (popup için eklenti olarak yükleyin)
 ```

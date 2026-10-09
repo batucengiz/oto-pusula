@@ -13,11 +13,21 @@
   };
   if (!/(^|\.)sahibinden\.com$/.test(location.hostname)) return { kind: 'unsupported' };
 
+  // Sayfanın üstündeki gezinme yolu: Vasıta › Otomobil › Marka › Seri › Motor › Paket. Her li'nin ilk
+  // bağlantısı seçili değerdir (yanındaki açılır liste diğer seçenekleri içerir, o okunmaz).
+  const crumbs = [...document.querySelectorAll('li.bc-item > a')].map(text).filter(Boolean).slice(0, 10);
+
   if (location.pathname.startsWith('/ilan/')) {
-    // 1) Bilinen yapı: <li><strong>Marka</strong><span>Volkswagen</span></li>
-    let info = [...document.querySelectorAll('.classifiedInfoList li')]
-      .map(item => [text(item.querySelector('strong')), text(item.querySelector('span'))])
+    // 1) Bilinen yapılar: <dl class="classifiedInfoList"><dt>Marka</dt><dd>Hyundai</dd> (2026) ve
+    //    eski <li><strong>Marka</strong><span>Volkswagen</span></li>.
+    let info = [...document.querySelectorAll('.classifiedInfoList dt')]
+      .map(label => [text(label), text(label.nextElementSibling)])
       .filter(([label, value]) => label && value);
+    if (info.length < 3) {
+      info = [...document.querySelectorAll('.classifiedInfoList li')]
+        .map(item => [text(item.querySelector('strong')), text(item.querySelector('span'))])
+        .filter(([label, value]) => label && value);
+    }
 
     // 2) Yedek: sayfa yapısı farklıysa, etiketi yazan yaprak öğe bulunur ve hemen yanındaki değer okunur.
     //    Aynı tarama, görünür hâldeki cep numarasını da yakalar. Hiçbir öğe değiştirilmez.
@@ -31,9 +41,11 @@
       const leaf = String(node.textContent || '').trim();
       if (PHONE.test(leaf)) phones.push(leaf);
       if (!LABEL.test(leaf) || scanned.some(([label]) => label === leaf.replace(/\s*:$/, ''))) continue;
+      // "Hasar sorgula" gibi pencere ve formlardaki seçim kutuları ilan bilgisi değildir ("Marka: Seçiniz").
+      if (node.closest('.modal, form, [role="dialog"], [class*="combo"]')) continue;
       const holder = node.nextElementSibling ? node : node.parentElement;
       const value = text(holder?.nextElementSibling);
-      if (!value || value.length > 120) continue;
+      if (!value || value.length > 120 || /^Seçiniz/i.test(value)) continue;
       scanned.push([leaf.replace(/\s*:$/, ''), value]);
       if (/^Marka/.test(leaf)) anchor = node;
     }
@@ -77,6 +89,7 @@
       kind: 'detail',
       url: location.href,
       pageTitle: document.title,
+      crumbs,
       listingId: (location.pathname.match(/\d{6,13}/g) || []).at(-1) || '',
       title: text(document.querySelector('.classifiedDetailTitle h1, h1')),
       priceText: text(document.querySelector('.classifiedInfo .classifiedPrice, .classifiedInfo h3, .classified-price-wrapper'))
@@ -100,6 +113,7 @@
     kind: 'search',
     url: location.href,
     pageTitle: document.title,
+    crumbs,
     headers: headerRow ? [...headerRow.querySelectorAll('th, td')].map(text) : [],
     rows: rows.map(row => {
       const cells = [...row.querySelectorAll('td')];

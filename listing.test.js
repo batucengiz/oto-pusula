@@ -301,3 +301,46 @@ test('yeni arama tablosu: Marka/Seri sütunlarından her marka okunur, ilan bağ
   assert.equal(records[1].year, 1995);
   assert.equal(records[0].city, 'Bursa');
 });
+
+// 2026 Ekim: ilan bilgileri <dl><dt>Marka</dt><dd>…</dd> yapısına geçti; yedek tarama "Hasar sorgula" penceresindeki
+// "Marka: Seçiniz" kutusunu ilanın markası sanıyordu ("Seçiniz i20").
+test('ilan sayfası: yeni dt/dd bilgi listesi okunur, penceredeki "Seçiniz" kutusu marka sanılmaz', () => {
+  const { extractFromHtml } = require('./tools/verify-page.js');
+  const html = `<html><head><title>Hyundai / i20 / 1.4 MPI / Jump / TEMİZ sahibinden.comda - 1344984475</title></head><body>
+    <ul><li class="bc-item"><a href="/kategori/vasita">Vasıta</a></li><li class="bc-item"><a href="/kategori/otomobil">Otomobil</a></li>
+      <li class="bc-item"><a href="/hyundai">Hyundai</a><div class="bc-tooltip">Abarth Acura Audi</div></li><li class="bc-item"><a href="/hyundai-i20">i20</a></li></ul>
+    <div class="modal-body"><div class="widget360-combo-box"><label>Marka</label><select><option>Seçiniz Bayon i20</option></select></div></div>
+    <h1>TEMİZ i20</h1>
+    <div class="classifiedInfo"><div class="classifiedPrice">1.259.000 TL</div><p class="classifiedLocation"><a>İstanbul</a> / <a>Esenyurt</a></p>
+      <dl class="classifiedInfoList">
+        <div class="classifiedInfoItem"><dt>İlan No</dt><dd>1344984475</dd></div><div class="classifiedInfoItem"><dt>Marka</dt><dd>Hyundai</dd></div>
+        <div class="classifiedInfoItem"><dt>Seri</dt><dd>i20</dd></div><div class="classifiedInfoItem"><dt>Model</dt><dd>1.4 MPI Jump</dd></div>
+        <div class="classifiedInfoItem"><dt>Yıl</dt><dd>2023</dd></div><div class="classifiedInfoItem"><dt>KM</dt><dd>68.000</dd></div>
+      </dl></div></body></html>`;
+  const raw = extractFromHtml(html, 'https://www.sahibinden.com/ilan/vasita-otomobil-hyundai-temiz-1344984475/detay');
+  const record = listing.parseDetailPage(raw);
+  assert.equal(`${record.brand} ${record.model}`, 'Hyundai I20');
+  assert.equal(record.engine, '1.4 MPI');
+  assert.equal(record.year, 2023);
+  assert.equal(record.price, 1259000);
+});
+
+test('model aramasında katalogda olmayan model (Peugeot 207) gezinme yolundan okunur ve stok aracıyla eşleşir', () => {
+  const { extractFromHtml } = require('./tools/verify-page.js');
+  const row = (id, model, year, km, price) => `<tr class="searchResultsItem" data-id="${id}"><td></td><td>${model}</td>
+    <td class="searchResultsTitleValue"><a class="classifiedTitle" href="/ilan/vasita-otomobil-peugeot-${id}/detay">TEMİZ 207</a></td>
+    <td>${year}</td><td>${km}</td><td>Beyaz</td><td class="searchResultsPriceValue">${price}</td><td>09 Ekim 2026</td><td class="searchResultsLocationValue">Bursa</td></tr>`;
+  const html = `<html><head><title>Peugeot 207 Fiyatları &amp; Modelleri sahibinden.com'da</title></head><body>
+    <ul><li class="bc-item"><a href="/">Anasayfa</a></li><li class="bc-item"><a href="/kategori/vasita">Vasıta</a></li><li class="bc-item"><a href="/kategori/otomobil">Otomobil</a></li>
+      <li class="bc-item"><a href="/peugeot">Peugeot</a><div class="bc-tooltip">Abarth Acura</div></li><li class="bc-item"><a href="/peugeot-207">207</a><div class="bc-tooltip">206 207 208</div></li></ul>
+    <table id="searchResultsTable"><thead><tr><td></td><td>Model</td><td>İlan Başlığı</td><td>Yıl</td><td>KM</td><td>Renk</td><td>Fiyat</td><td>İlan Tarihi</td><td>İl / İlçe</td></tr></thead><tbody>
+    ${[0, 1, 2, 3, 4].map(i => row(String(1350000000 + i), '1.4 HDi Trendy', 2009, `${170 + i * 5}.000`, `${600 + i * 10}.000 TL`)).join('')}
+    </tbody></table></body></html>`;
+  const raw = extractFromHtml(html, 'https://www.sahibinden.com/peugeot-207');
+  const { records, skipped } = listing.parseSearchPage(raw);
+  assert.deepEqual(skipped, []);
+  assert.ok(records.every(record => record.brand === 'Peugeot' && record.model === '207'), JSON.stringify(records.map(r => r.model)));
+  const stock = core.normalizeRecord({ id: 'S-207', brand: 'Peugeot', model: '207', engine: '1.4 HDİ', trim: 'Trendy', fuel: 'dizel', transmission: 'manuel', year: 2009, km: 180000, price: 625000, cost: 600000 }, 'stock');
+  const result = core.estimate(stock, records);
+  assert.ok(result.center > 0, `stoktaki 207 için fiyat tahmini çıkmalı: ${result.reason}`);
+});

@@ -115,6 +115,14 @@
     return found ? map[found] : '';
   }
 
+  // Katalogda motor adı olmayan markalarda en azından motor hacmi okunur ("1.4 HDi Trendy" → "1.4").
+  // Eşleştirme önek uyumlu olduğundan "1.4", elle girilen "1.4 HDi" ile eşleşir ama "1.6" ile eşleşmez.
+  // Yalnızca model/teknik metne bakılır; başlıktaki "1.300.000" gibi fiyatlar motor sanılmaz.
+  function displacement(text) {
+    const match = String(text ?? '').match(/(^|[^0-9.,])([0-6]\.[0-9])(?![0-9])(?![.,][0-9])/);
+    return match ? match[2] : '';
+  }
+
   function findBody(text) {
     return BODIES.find(([, pattern]) => pattern.test(text))?.[0] || '';
   }
@@ -162,7 +170,7 @@
     return {
       brand: CATALOG[brand] ? brandName(brand) : labels?.brand || titleCase(brand),
       model: labels?.model || titleCase(model),
-      engine: findEngine(brand, detailText),
+      engine: findEngine(brand, detailText) || displacement(sources[0]),
       body: findBody(detailText),
       trim: findTrim(sources[0] || sources[1])
     };
@@ -235,6 +243,16 @@
     return core.normalizeRecord({ ...fields, id: `sh-${fields.listingId}`, source: 'sahibinden' }, 'comparable');
   }
 
+  // Gezinme yolundan marka ve seri: "Vasıta › Otomobil › Peugeot › 207 › …". Katalogda olmayan her marka ve
+  // model böylece doğru okunur (ör. model seçilerek yapılan "Peugeot 207" aramasında model sütunu "1.4 HDi" olur).
+  function crumbVehicle(crumbs) {
+    const list = Array.isArray(crumbs) ? crumbs.map(item => String(item ?? '').trim()) : [];
+    const root = list.findIndex(item => norm(item) === 'VASITA');
+    if (root < 0) return { brand: '', series: '' };
+    const valid = value => value && value.length <= 40 && !/FIYAT|ILAN/.test(norm(value)) ? value : '';
+    return { brand: valid(list[root + 2]), series: valid(list[root + 3]) };
+  }
+
   function parseSearchPage(raw) {
     const headers = Array.isArray(raw?.headers) ? raw.headers : [];
     const yearIndex = headerIndex(headers, /^(YIL|MODEL YILI)$/);
@@ -243,6 +261,7 @@
     // doğrudan buradan alınır; böylece katalogda olmayan markalar (Citroen, Tofaş, Togg…) da okunur.
     const brandIndex = headerIndex(headers, /^MARKA$/);
     const seriesIndex = headerIndex(headers, /^SERI$/);
+    const fromCrumbs = crumbVehicle(raw?.crumbs);
     const records = [];
     const skipped = [];
     for (const row of (raw?.rows || []).slice(0, MAX_PAGE_ROWS)) {
@@ -252,7 +271,8 @@
       const title = String(row.title ?? '').trim();
       const context = row.titleIndex > 1 ? cells.slice(1, row.titleIndex).join(' ') : '';
       const vehicle = identifyVehicle({ context, title, pageTitle: raw.pageTitle,
-        brandHint: brandIndex >= 0 ? cells[brandIndex] : '', modelHint: brandIndex >= 0 && seriesIndex >= 0 ? cells[seriesIndex] : '' });
+        brandHint: brandIndex >= 0 ? cells[brandIndex] : fromCrumbs.brand,
+        modelHint: seriesIndex >= 0 ? cells[seriesIndex] : fromCrumbs.series });
       if (!vehicle) { skipped.push({ id: listingId, reason: 'marka/model tanınamadı' }); continue; }
       let year = yearIndex >= 0 ? digits(cells[yearIndex]) : NaN;
       if (!Number.isInteger(year) || year < 1980) year = Number(title.match(/\b(19[89]\d|20\d{2})\b/)?.[1]);
@@ -273,7 +293,8 @@
   function parseDetailPage(raw) {
     // Sayfa yapısı beklenmedik gelirse (dizi değil, eksik çift) çökmeden boş kabul edilir.
     const pairs = Array.isArray(raw?.info) ? raw.info.filter(entry => Array.isArray(entry) && entry.length >= 2) : [];
-    const info = new Map(pairs.map(([label, value]) => [norm(label).replace(/:$/, ''), String(value ?? '').trim()]));
+    // Formlardaki boş seçim kutuları ("Seçiniz") ilan bilgisi değildir.
+    const info = new Map(pairs.map(([label, value]) => [norm(label).replace(/:$/, ''), String(value ?? '').trim()]).filter(([, value]) => !/^SECINIZ/.test(norm(value))));
     const get = (...labels) => labels.map(label => info.get(label)).find(Boolean) || '';
     const listingId = String(raw?.listingId || get('ILAN NO')).replace(/\D/g, '');
     if (!/^\d{6,13}$/.test(listingId)) throw new Error('İlan numarası okunamadı.');
@@ -282,11 +303,12 @@
     // okunamazsa marka, seri ve model buradan alınır (en az üç parça varsa güvenilir sayılır).
     const titleParts = String(raw.pageTitle ?? '').replace(/\s*[-|–]\s*sahibinden.*$/i, '').split('/').map(part => part.trim()).filter(Boolean);
     const tabTitleUsable = titleParts.length >= 3;
+    const fromCrumbs = crumbVehicle(raw.crumbs);
     const vehicle = identifyVehicle({
       context: get('MODEL') || (tabTitleUsable ? titleParts.slice(2).join(' ') : ''),
       title,
-      brandHint: get('MARKA') || (tabTitleUsable ? titleParts[0] : ''),
-      modelHint: get('SERI') || (tabTitleUsable ? titleParts[1] : '')
+      brandHint: get('MARKA') || fromCrumbs.brand || (tabTitleUsable ? titleParts[0] : ''),
+      modelHint: get('SERI') || fromCrumbs.series || (tabTitleUsable ? titleParts[1] : '')
     });
     if (!vehicle) throw new Error(info.size ? 'Marka ve model okunamadı.' : 'İlan bilgileri okunamadı; sahibinden sayfa yapısı farklı olabilir.');
     const fromDescription = assessCondition(raw.description);
