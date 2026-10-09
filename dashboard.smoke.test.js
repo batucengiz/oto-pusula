@@ -158,6 +158,20 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
   get('market-filter').value = 'body-clean';
   get('market-filter').listeners.change();
   assert.equal(get('market-body').children.length, 1, 'eşleşme yoksa yalnızca bilgi satırı');
+  // "Kaportası okunmamış fırsatı aç": her basış en ucuz fırsatı yeni sekmede açar, sayaç düşer.
+  const dealState = JSON.parse(storage.get('otoPusula_v1'));
+  dealState.comparables = [...Array.from({ length: 8 }, (_, i) => listing(i + 1, 880000 + i * 5000)), listing(9, 700000)];
+  storage.set('otoPusula_v1', JSON.stringify(dealState));
+  windowListeners.storage({ key: 'otoPusula_v1' });
+  const opened = [];
+  context.window.open = url => opened.push(url);
+  const nextButton = get('open-next-deal');
+  assert.equal(nextButton.hidden, false, 'kaportası okunmamış fırsat varken düğme görünmeli');
+  const before = Number(nextButton.textContent.match(/\((\d+)\)/)[1]);
+  nextButton.click();
+  assert.equal(opened.length, 1);
+  assert.match(opened[0], /^https:\/\/www\.sahibinden\.com\/ilan\//);
+  assert.equal(nextButton.textContent.includes(`(${before - 1})`) || before === 1, true, 'sayaç bir azalmalı');
   get('market-filter').value = 'all';
   get('market-sort').value = 'body';
   get('market-filter').listeners.change();

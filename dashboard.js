@@ -425,6 +425,7 @@
       : sort === 'body' ? scoreOf(b) - scoreOf(a) || gapOf(a) - gapOf(b)
       : gapOf(a) - gapOf(b));
     $('market-count').textContent = `${entries.length}/${all.length} ilan gösteriliyor`;
+    updateNextDealButton();
     // Fiyatı hesaplanamayan ilan çoksa (ör. karışık arama) nedeni ve çözümü tablonun üstünde yazar.
     const coverage = core.dataCoverage(all);
     $('market-coverage').textContent = coverage.hint;
@@ -936,6 +937,43 @@
   });
   $('go-market').addEventListener('click', () => showView('market'));
   // Tek tuşla: piyasanın altındaki (ağır hasarsız) ilanlar, ucuzdan pahalıya.
+  // Kaportası okunmamış fırsatlar: kullanıcı her basışta en ucuz olanı yeni sekmede açar. Sayfa hızı
+  // kullanıcıda kalır (eklenti kendisi gezinmez); yine de dakikada en fazla 6 ilan açılır.
+  const openedForBody = new Set();
+  const bodyOpenTimes = [];
+
+  function pendingBodyDeals() {
+    return evaluateListings()
+      .filter(entry => isDeal(entry) && !core.bodyReport(entry.record).known && core.listingUrl(entry.record))
+      .sort((a, b) => a.result.gap - b.result.gap);
+  }
+
+  function updateNextDealButton() {
+    const pending = pendingBodyDeals();
+    const left = pending.filter(entry => !openedForBody.has(entry.record.id)).length;
+    const button = $('open-next-deal');
+    button.hidden = !pending.length;
+    button.disabled = !left;
+    button.textContent = left ? `Kaportası okunmamış fırsatı aç (${left})` : 'Açılmamış fırsat kalmadı';
+    button.title = 'Her basışta kaportası henüz okunmamış en ucuz fırsatı yeni sekmede açar. Açılan ilanda eklenti simgesine basıp “Bu sayfayı analiz et” deyin.';
+  }
+
+  function openNextDeal() {
+    const now = Date.now();
+    while (bodyOpenTimes.length && now - bodyOpenTimes[0] > 60000) bodyOpenTimes.shift();
+    if (bodyOpenTimes.length >= 6) {
+      notice('Biraz yavaşlayın: dakikada en fazla 6 ilan açılır. Açtığınız ilanlarda önce “Bu sayfayı analiz et” deyin.', true);
+      return;
+    }
+    const next = pendingBodyDeals().find(entry => !openedForBody.has(entry.record.id));
+    if (!next) return;
+    openedForBody.add(next.record.id);
+    bodyOpenTimes.push(now);
+    window.open(core.listingUrl(next.record), '_blank', 'noopener');
+    notice(`${labelFor(next.record)} (${lira(next.record.price)}) yeni sekmede açıldı. Orada eklenti simgesine basıp “Bu sayfayı analiz et” deyin; kaporta puanı buraya eklenir.`);
+    updateNextDealButton();
+  }
+
   function showDeals() {
     $('market-filter').value = 'deal';
     $('market-sort').value = 'price';
@@ -962,6 +1000,7 @@
     if (save(result.state)) deletionNotice('Silme tamamlandı', result);
   });
   $('deal-shortcut').addEventListener('click', showDeals);
+  $('open-next-deal').addEventListener('click', openNextDeal);
   $('whatsapp-listing').addEventListener('click', () => { if (selectedVehicle) openWhatsApp(selectedVehicle); });
   $('forget-phone').addEventListener('click', () => {
     if (!selectedVehicle?.sellerPhone) return;
