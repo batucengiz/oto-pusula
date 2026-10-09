@@ -23,6 +23,14 @@
 </tr>
 </table>
 
+**Aracımla karşılaştır:** satmak istediğiniz aracın her benzer ilanla farkı; satıra tıklayınca ilan açılır
+
+![Karşılaştırmalar](docs/screenshots/karsilastirmalar.png)
+
+**İlk açılış:** veri yokken adım adım başlangıç rehberi
+
+![Başlangıç](docs/screenshots/baslangic.png)
+
 <sub>Ekran görüntüleri yalnızca tanıtım için oluşturulmuş örnek kayıtlarla alınmıştır; eklentide örnek veri bulunmaz, panel kullanıcının kendi analiz ettiği ilanlarla dolar.</sub>
 
 ## Ne yapar?

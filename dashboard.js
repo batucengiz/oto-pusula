@@ -138,7 +138,7 @@
 
     renderMarketSummary();
     // Bireysel kullanıcıda (stok yok, ilan var) galeri kutuları gizlenir.
-    const buyerOnly = !state.stock.length && listings().length > 0;
+    const buyerOnly = !state.stock.length;
     $('stock-overview').hidden = buyerOnly;
     $('stock-hint').hidden = !buyerOnly;
     const insights = $('insights');
@@ -206,7 +206,20 @@
       ? `${entries.length} ilan${csvCount ? ` + ${csvCount} CSV kaydı` : ''}`
       : 'Henüz veri yok';
     if (!entries.length) {
-      box.append(element('div', 'empty-card', 'Eklenti simgesine tıklayıp bir sahibinden arama sayfasında “Bu sayfayı analiz et” deyin. İlanlar burada birikir.'));
+      const guide = element('div', 'onboarding');
+      guide.append(element('strong', 'onboarding-title', 'İlk analizinizi 1 dakikada yapın'));
+      const steps = element('ol', 'onboarding-steps');
+      for (const [title, text] of [
+        ['sahibinden’de arama yapın', 'Örneğin “Fiat Egea”. Yıl ve km filtrelerini dilediğiniz gibi seçin.'],
+        ['Eklentiye tıklayın', 'Sağ üstteki Oto Pusula simgesi → “Bu sayfayı analiz et”.'],
+        ['Sonuçları burada görün', 'Fırsatlar, piyasa aralığı, uyarılar ve Excel çıktısı. 2-3 sayfa okumak tahmini güçlendirir.']
+      ]) {
+        const li = element('li');
+        li.append(element('b', '', title), element('span', '', text));
+        steps.append(li);
+      }
+      guide.append(steps);
+      box.append(guide);
       return;
     }
     const dealCount = entries.filter(isDeal).length;
