@@ -90,11 +90,19 @@
       node.title = bodyTitle(body);
       box.append(node, element('span', 'vehicle-meta', `kaporta ${body.score}/100`));
     } else {
-      box.append(record.condition ? conditionBadge(record) : element('span', 'vehicle-meta', 'Şema okunmadı'));
-      // Fırsat görünen ama şeması okunmamış ilan: kullanıcı ilanı açıp analiz ederse kaporta bilgisi eklenir.
+      // Şema okunmadıysa kaporta "temiz" değil "bilinmiyor"dur; bu açıkça yazılır ki yanlış anlaşılmasın.
+      const howTo = 'Arama sayfasında boya/değişen bilgisi yoktur. İlanı sahibinden’de açıp eklentide “Bu sayfayı analiz et”e basın; satıcının şeması okunur ve kaporta puanı eklenir.';
+      if (record.condition) {
+        box.append(conditionBadge(record), element('span', 'vehicle-meta', 'ilan başlığından'));
+      } else {
+        const unknown = element('span', 'badge neutral', 'Bilinmiyor');
+        unknown.title = howTo;
+        box.append(unknown);
+      }
+      // Fırsat görünen ilanlarda ne yapılacağı da yazılır.
       if (deal) {
-        const hint = element('span', 'vehicle-meta', 'Şema: ilanı açınca okunur');
-        hint.title = 'Bu ilanı sahibinden’de açıp eklentide “Bu sayfayı analiz et”e basın; satıcının boya/değişen şeması okunur ve kaporta puanı eklenir.';
+        const hint = element('span', 'vehicle-meta', 'İlanı açıp analiz et');
+        hint.title = howTo;
         box.append(hint);
       }
     }
