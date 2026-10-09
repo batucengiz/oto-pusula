@@ -169,7 +169,8 @@
     const detailText = `${sources[0]} ${sources[1]}`;
     return {
       brand: CATALOG[brand] ? brandName(brand) : labels?.brand || titleCase(brand),
-      model: labels?.model || titleCase(model),
+      // Sayfadaki seri adı katalogdakiyle aynıysa sahibinden'in yazdığı hâli gösterilir ("I20" değil "i20").
+      model: labels?.model || (norm(modelHint) === model ? String(modelHint).trim().slice(0, 40) : titleCase(model)),
       engine: findEngine(brand, detailText) || displacement(sources[0]),
       body: findBody(detailText),
       trim: findTrim(sources[0] || sources[1])

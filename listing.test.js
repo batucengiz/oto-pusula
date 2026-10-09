@@ -319,7 +319,7 @@ test('ilan sayfası: yeni dt/dd bilgi listesi okunur, penceredeki "Seçiniz" kut
       </dl></div></body></html>`;
   const raw = extractFromHtml(html, 'https://www.sahibinden.com/ilan/vasita-otomobil-hyundai-temiz-1344984475/detay');
   const record = listing.parseDetailPage(raw);
-  assert.equal(`${record.brand} ${record.model}`, 'Hyundai I20');
+  assert.equal(`${record.brand} ${record.model}`, 'Hyundai i20');
   assert.equal(record.engine, '1.4 MPI');
   assert.equal(record.year, 2023);
   assert.equal(record.price, 1259000);

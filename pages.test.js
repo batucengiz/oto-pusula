@@ -107,3 +107,41 @@ test('ilanları silinen sayfa listeden kalkar; "0 ilan" gösteren boş sayfa bir
   assert.equal(removed.removed, 2);
   assert.deepEqual(removed.state.pages.map(page => page.title), ['Fiat Linea']);
 });
+
+// Gerçek kullanım yolculuğu: kayıtlı gerçek sayfalar popup'ın kullandığı kodla sırayla okunur; her adımdan sonra
+// çift kayıt, kopuk/boş sayfa, geçersiz marka ("Seçiniz"), bağlantısız ilan ve çöken hesap aranır.
+test('gerçek sayfalarla uçtan uca yolculuk: okunan her şey tutarlı kalır', { skip: files.length ? false : 'fixtures/ klasöründe kayıtlı sayfa yok' }, () => {
+  const core = require('./core.js');
+  const listing = require('./listing.js');
+  const store = require('./store.js');
+  const xlsx = require('./xlsx.js');
+  const { extractFromHtml } = require('./tools/verify-page.js');
+  const memory = new Map();
+  const storage = { getItem: key => memory.get(key) ?? null, setItem: (key, value) => memory.set(key, value) };
+  const consistent = step => {
+    const state = store.load(storage);
+    const ids = new Set(state.comparables.map(item => item.id));
+    assert.equal(ids.size, state.comparables.length, `${step}: çift kayıt`);
+    for (const page of state.pages) {
+      assert.ok(page.listingIds.length && page.listingIds.every(id => ids.has(id)), `${step}: "${page.title}" sayfası kopuk veya boş`);
+    }
+    for (const item of state.comparables) {
+      assert.ok(item.brand && item.model && !/seçiniz/i.test(`${item.brand} ${item.model}`), `${step}: geçersiz marka/model ${item.brand} ${item.model}`);
+      assert.match(core.listingUrl(item), /^https:\/\/www\.sahibinden\.com\/ilan\//, `${step}: bağlantısız ilan`);
+      core.advise(item, core.estimate(item, state.comparables));
+    }
+    assert.equal(xlsx.build(listing.marketTable(state))[0], 0x50, `${step}: Excel üretilemedi`);
+    return state;
+  };
+  // Önce arama sayfaları, sonra ilan sayfaları (kullanıcının doğal sırası); aynı sayfa iki kez okunur.
+  const ordered = [...files].sort((a, b) => Number(/^ilan|boyali|temiz/.test(a)) - Number(/^ilan|boyali|temiz/.test(b)));
+  for (const name of [...ordered, ordered[0]]) {
+    const outcome = listing.ingest(extractFromHtml(fs.readFileSync(path.join(dir, name), 'utf8')), store.load(storage), '2026-10-10');
+    store.saveMakingRoom(outcome.state, storage);
+    consistent(name);
+  }
+  // Tümünü silince sayfa da kalmaz.
+  const all = store.load(storage);
+  store.save(core.removeListings(all, all.comparables.map(item => item.id), { includeWatched: true }).state, storage);
+  assert.deepEqual(consistent('tümünü sil').pages, []);
+});
