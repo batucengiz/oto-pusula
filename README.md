@@ -16,6 +16,10 @@
 
 ![Piyasa ilanları](docs/screenshots/piyasa-ilanlari.png)
 
+**Kaporta durumu:** satıcının boya/değişen şemasından parça parça okunur; kaporta puanı fiyat durumundan ayrı gösterilir, çelişkili beyan ve tavan değişeni işaretlenir
+
+![Kaporta durumu](docs/screenshots/kaporta.png)
+
 <table>
 <tr>
 <td width="68%"><b>Fiyat gerekçesi:</b> kondisyon seçimi, hesabın nasıl yapıldığı, karşılaştırılan ilanlar ve fark<br><br><img src="docs/screenshots/arac-detayi.png" alt="Araç detayı ve fiyat gerekçesi"></td>
