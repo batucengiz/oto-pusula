@@ -4,6 +4,7 @@
   "private": true,
   "description": "sahibinden.com ilanları ve galeri stoğu için yerel fiyat analizi (Chrome eklentisi)",
   "author": "Batuhan Cengiz",
+  "license": "SEE LICENSE IN LICENSE",
   "repository": "github:batucengiz/oto-pusula",
   "scripts": {
     "dev": "node dev-server.js",

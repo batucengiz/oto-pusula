@@ -157,3 +157,7 @@ Sayfanın kendi betikleri çalıştırılmaz, ağ isteği yapılmaz. `fixtures/`
 ## Geliştirici
 
 **Batuhan Cengiz** · [github.com/batucengiz](https://github.com/batucengiz)
+
+## Lisans
+
+© 2026 Batuhan Cengiz. Tüm hakları saklıdır. Kod yalnızca incelenmek ve değerlendirilmek için açıktır; izinsiz kopyalanamaz, yeniden yayımlanamaz, satılamaz veya ticari amaçla kullanılamaz. Ayrıntılar: [LICENSE](LICENSE).
