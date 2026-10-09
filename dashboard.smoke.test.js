@@ -83,7 +83,9 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
     },
     confirm: () => true,
     window: { print() {}, open() {}, addEventListener: (name, fn) => { windowListeners[name] = fn; } },
-    setTimeout,
+    // Bildirim zamanlayıcıları testin bitmesini bekletmesin.
+    setTimeout: (fn, ms) => { const timer = setTimeout(fn, ms); timer.unref?.(); return timer; },
+    clearTimeout,
     console
   });
   for (const file of ['core.js', 'listing.js', 'charts.js', 'xlsx.js', 'store.js', 'dashboard.js']) {

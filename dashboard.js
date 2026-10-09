@@ -31,11 +31,15 @@
     }
   }
 
+  // Bildirim kendiliğinden kaybolur: bilgi 4 sn, hata (okunması daha önemli) 8 sn. Tıklayınca hemen kapanır.
+  let noticeTimer = null;
   function notice(message, error = false) {
     const box = $('notice');
     box.textContent = message;
     box.className = error ? 'notice error' : 'notice';
     box.hidden = false;
+    clearTimeout(noticeTimer);
+    noticeTimer = setTimeout(() => { box.hidden = true; }, error ? 8000 : 4000);
   }
 
   function element(tag, className, text) {
@@ -1001,6 +1005,7 @@
   });
   $('deal-shortcut').addEventListener('click', showDeals);
   $('open-next-deal').addEventListener('click', openNextDeal);
+  $('notice').addEventListener('click', () => { clearTimeout(noticeTimer); $('notice').hidden = true; });
   $('whatsapp-listing').addEventListener('click', () => { if (selectedVehicle) openWhatsApp(selectedVehicle); });
   $('forget-phone').addEventListener('click', () => {
     if (!selectedVehicle?.sellerPhone) return;
