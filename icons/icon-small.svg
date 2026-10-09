@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- 16/32 px için sadeleştirilmiş çizim: daha büyük araba, kalın pusula rozeti. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#14b8a6"/>
+      <stop offset="1" stop-color="#0f5e57"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="7" fill="url(#bg)"/>
+  <rect x="4.5" y="21.5" width="5" height="6" rx="1.5" fill="#0b2f2c"/>
+  <rect x="22.5" y="21.5" width="5" height="6" rx="1.5" fill="#0b2f2c"/>
+  <path d="M7.5 15 L10.2 8.2 Q10.8 7 12.2 7 L19.8 7 Q21.2 7 21.8 8.2 L24.5 15 Z" fill="#ffffff"/>
+  <path d="M10 14.5 L12.1 9.3 L19.9 9.3 L22 14.5 Z" fill="#0b2f2c"/>
+  <rect x="2.5" y="13.5" width="27" height="10.5" rx="3.5" fill="#ffffff"/>
+  <rect x="4" y="16" width="5.5" height="3.2" rx="1.6" fill="#fbbf24"/>
+  <rect x="22.5" y="16" width="5.5" height="3.2" rx="1.6" fill="#fbbf24"/>
+  <circle cx="16" cy="18.8" r="4.6" fill="#ffffff" stroke="#0b2f2c" stroke-width="1.6"/>
+  <path d="M16 14.6 L18 18.8 L14 18.8 Z" fill="#ef4444"/>
+  <path d="M16 23 L18 18.8 L14 18.8 Z" fill="#0b2f2c"/>
+</svg>

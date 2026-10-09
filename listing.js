@@ -238,7 +238,8 @@
     const before = mask(clause.slice(0, index));
     const after = mask(clause.slice(index));
     // Kesilen kenarda yarım kalan sayı parçası (numara kalıntısı) bırakılmaz.
-    const head = before.length > 20 ? before.slice(-20).replace(/^[\d\s]+/, '') : before;
+    // Öndeki bağlam: yarım kalan ilk kelime ve gizlenmiş numara kalıntıları ("TEL:***") atılır.
+    const head = (before.length > 20 ? before.slice(-20).replace(/^\S*\s?/, '') : before).replace(/\S*\*\*\*\S*/g, '').replace(/^\s+/, '');
     const tail = after.length > length + 70 ? after.slice(0, length + 70).replace(/[\d\s]+$/, '') : after;
     return `${before.length > 20 ? '…' : ''}${head}${tail}${after.length > length + 70 ? '…' : ''}`.trim();
   }
@@ -292,12 +293,34 @@
 
   // Gezinme yolundan marka ve seri: "Vasıta › Otomobil › Peugeot › 207 › …". Katalogda olmayan her marka ve
   // model böylece doğru okunur (ör. model seçilerek yapılan "Peugeot 207" aramasında model sütunu "1.4 HDi" olur).
+  // Vasıta altındaki kategori adları. Bazı kategorilerde (ör. Hasarlı Araçlar › Otomobil) birden fazla kategori
+  // basamağı olur; marka, son kategori basamağından sonra gelir ("Otomobil" marka sanılmaz).
+  const CATEGORIES = /^(OTOMOBIL|ARAZI,? SUV & PICKUP|ELEKTRIKLI ARACLAR|MOTOSIKLET|MINIVAN & PANELVAN|TICARI ARACLAR|KIRALIK ARACLAR|DENIZ ARACLARI|HASARLI ARACLAR|KARAVAN|KLASIK ARACLAR|HAVA ARACLARI|ATV|UTV|ENGELLI PLAKALI ARACLAR)$/;
+
   function crumbVehicle(crumbs) {
     const list = Array.isArray(crumbs) ? crumbs.map(item => String(item ?? '').trim()) : [];
     const root = list.findIndex(item => norm(item) === 'VASITA');
-    if (root < 0) return { brand: '', series: '' };
-    const valid = value => value && value.length <= 40 && !/FIYAT|ILAN/.test(norm(value)) ? value : '';
-    return { brand: valid(list[root + 2]), series: valid(list[root + 3]) };
+    if (root < 0) return { brand: '', series: '', categories: [] };
+    const categories = [];
+    let next = root + 1;
+    while (next < list.length && CATEGORIES.test(norm(list[next]))) categories.push(norm(list[next++]));
+    const valid = value => value && value.length <= 40 && !/FIYAT|ILAN/.test(norm(value)) && !CATEGORIES.test(norm(value)) ? value : '';
+    return { brand: valid(list[next]), series: valid(list[next + 1]), categories };
+  }
+
+  // Kiralık ilanın fiyatı satış fiyatı değildir; hasarlı araç kategorisindeki ilanlar normal piyasa havuzuna girmez.
+  function categoryRule(categories) {
+    if (categories.includes('KIRALIK ARACLAR')) return { skip: 'kiralık ilan (fiyatı satış fiyatı değil)' };
+    if (categories.includes('HASARLI ARACLAR')) return { condition: 'riskli', note: 'sahibinden "Hasarlı Araçlar" kategorisi' };
+    return {};
+  }
+
+  // Yalnızca TL fiyatlar karşılaştırılır; Euro/dolar ilan TL sanılırsa hem kendisi hem piyasa ortalaması bozulur.
+  function foreignCurrency(currency, priceText) {
+    const code = String(currency ?? '').trim().toUpperCase();
+    if (code && !/^(TL|TRY)$/.test(code)) return code;
+    const match = String(priceText ?? '').match(/€|\$|£|\b(EUR|USD|GBP|CHF)\b/i);
+    return match ? (match[1] || match[0]).toUpperCase() : '';
   }
 
   function parseSearchPage(raw) {
@@ -310,6 +333,7 @@
     const seriesIndex = headerIndex(headers, /^SERI$/);
     const fromCrumbs = crumbVehicle(raw?.crumbs);
     const modelIndex = headerIndex(headers, /^MODEL$/);
+    const rule = categoryRule(fromCrumbs.categories);
     const records = [];
     const skipped = [];
     for (const row of (raw?.rows || []).slice(0, MAX_PAGE_ROWS)) {
@@ -325,7 +349,11 @@
       let year = yearIndex >= 0 ? digits(cells[yearIndex]) : NaN;
       if (!Number.isInteger(year) || year < 1980) year = Number(title.match(/\b(19[89]\d|20\d{2})\b/)?.[1]);
       const km = kmIndex >= 0 ? digits(cells[kmIndex]) : NaN;
-      const { condition, note } = assessCondition(title);
+      if (rule.skip) { skipped.push({ id: listingId, reason: rule.skip }); continue; }
+      const currency = foreignCurrency(row.currency, row.price);
+      if (currency) { skipped.push({ id: listingId, reason: `TL dışı fiyat (${currency})` }); continue; }
+      const fromTitle = assessCondition(title);
+      const { condition, note } = rule.condition ? { condition: rule.condition, note: rule.note } : fromTitle;
       try {
         records.push(toRecord({
           ...vehicle, listingId, title, year, km, price: priceFrom(row.price),
@@ -364,8 +392,13 @@
     const fromTitle = assessCondition(title);
     // İlan bilgi listesindeki yapısal "Ağır Hasar Kayıtlı: Evet" alanı serbest metinden önce gelir.
     const heavyDamage = norm(get('AGIR HASAR KAYITLI', 'AGIR HASARLI', 'AGIR HASAR KAYDI'));
+    const rule = categoryRule(fromCrumbs.categories);
+    if (rule.skip) throw new Error(`Bu ilan okunmadı: ${rule.skip}.`);
+    const currency = foreignCurrency(raw.currency, raw.priceText);
+    if (currency) throw new Error(`Bu ilanın fiyatı TL değil (${currency}); yalnızca TL fiyatlı ilanlar karşılaştırılır.`);
     const condition = heavyDamage === 'EVET'
       ? { condition: 'riskli', note: 'İlan bilgisi: ağır hasar kayıtlı' }
+      : rule.condition ? { condition: rule.condition, note: rule.note }
       : fromDescription.condition ? fromDescription : fromTitle;
     const city = firstLine(String(raw.location ?? '').split('/')[0]);
     return toRecord({
@@ -506,7 +539,7 @@
   }
 
   // Popup akışı: ham sayfa → kayıtlar → mevcut veriyle birleştirme → bu sayfadaki öne çıkanlar.
-  function ingest(raw, state, today = new Date().toISOString().slice(0, 10)) {
+  function ingest(raw, state, today = core.localDate()) {
     let records;
     let skipped = [];
     if (raw?.kind === 'search') ({ records, skipped } = parseSearchPage(raw));

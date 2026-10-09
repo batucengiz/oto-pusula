@@ -366,3 +366,37 @@ test('her marka ve model sayfada yazdığı gibi okunur (katalog dışı, çakı
     assert.equal(records[i].trim, trim, `${brand} ${series} paketi`);
   });
 });
+
+test('TL dışı fiyat (Euro/dolar) karşılaştırmaya girmez; nedeni söylenir', () => {
+  const headers = ['', 'Marka', 'Seri', 'Model', 'İlan Başlığı', 'Yıl', 'KM', 'Fiyat', 'İlan Tarihi', 'İl / İlçe', ''];
+  const row = (id, price, currency) => ({ id, href: '', title: 'TEMİZ', titleIndex: 4, currency,
+    cells: ['', 'Porsche', 'Cayenne', '3.0 Platinum', 'TEMİZ', '2020', '50.000', price, '10 Ekim 2026', 'İstanbul', ''], price, location: 'İstanbul' });
+  const { records, skipped } = listing.parseSearchPage({ kind: 'search', pageTitle: 'x', headers, rows: [
+    row('1370000001', '4.500.000 TL', 'TL'), row('1370000002', '95.000 EUR', 'EUR'), row('1370000003', '€ 95.000', ''), row('1370000004', '110.000 $', 'USD')] });
+  assert.equal(records.length, 1);
+  assert.deepEqual(skipped.map(item => item.reason), ['TL dışı fiyat (EUR)', 'TL dışı fiyat (€)', 'TL dışı fiyat (USD)']);
+  assert.throws(() => listing.parseDetailPage({ listingId: '1370000005', title: 'X', priceText: '95.000 EUR',
+    info: [['Marka', 'Porsche'], ['Seri', 'Cayenne'], ['Yıl', '2020'], ['KM', '50.000']] }), /TL değil \(EUR\)/);
+});
+
+test('kategori: kiralık ilan okunmaz, "Hasarlı Araçlar" riskli sayılır, "Otomobil" basamağı marka sanılmaz', () => {
+  const headers = ['', 'Model', 'İlan Başlığı', 'Yıl', 'KM', 'Fiyat', 'İlan Tarihi', 'İl / İlçe'];
+  const rows = [{ id: '1370000010', href: '', title: 'KAZALI', titleIndex: 2, cells: ['', '1.4 Fire', 'KAZALI', '2019', '90.000', '300.000 TL', '10 Ekim', 'Bursa'], price: '300.000 TL', location: 'Bursa' }];
+  const damaged = listing.parseSearchPage({ kind: 'search', pageTitle: 'Hasarlı Fiat Egea', headers, rows,
+    crumbs: ['Anasayfa', 'Vasıta', 'Hasarlı Araçlar', 'Otomobil', 'Fiat', 'Egea'] });
+  assert.equal(`${damaged.records[0].brand} ${damaged.records[0].model}`, 'Fiat Egea');
+  assert.equal(damaged.records[0].condition, 'riskli', 'hasarlı kategorisi normal fiyat havuzuna girmemeli');
+  const rental = listing.parseSearchPage({ kind: 'search', pageTitle: 'Kiralık', headers, rows, crumbs: ['Anasayfa', 'Vasıta', 'Kiralık Araçlar', 'Fiat', 'Egea'] });
+  assert.equal(rental.records.length, 0);
+  assert.match(rental.skipped[0].reason, /kiralık/);
+});
+
+test('tarih Türkiye saatiyle yazılır (gece 00:00-03:00 bir önceki güne düşmez)', () => {
+  const previous = process.env.TZ;
+  process.env.TZ = 'Europe/Istanbul';
+  try {
+    assert.equal(core.localDate(new Date('2026-10-09T22:30:00Z')), '2026-10-10');
+  } finally {
+    if (previous === undefined) delete process.env.TZ; else process.env.TZ = previous;
+  }
+});

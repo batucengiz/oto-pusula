@@ -276,7 +276,10 @@
       return;
     }
     const dealCount = entries.filter(isDeal).length;
-    for (const id of ['go-deals', 'deal-shortcut']) $(id).textContent = `Fırsat arabalar (${dealCount})`;
+    for (const id of ['go-deals', 'deal-shortcut']) {
+      $(id).textContent = `Fırsat arabalar (${dealCount})`;
+      $(id).classList.toggle('has-deals', dealCount > 0);
+    }
     $('go-phones').textContent = `Görüştüklerim (WhatsApp) (${entries.filter(entry => entry.record.sellerPhone).length})`;
     for (const [title, value] of [
       ['İzlenen ilan', entries.length],
@@ -507,7 +510,7 @@
   function exportMarket() {
     const table = listingTools.marketTable(state);
     if (!table.rows.length) { notice('Excel’e aktarılacak ilan yok. Önce eklentiyle bir sahibinden sayfası analiz edin.', true); return; }
-    download(`oto-pusula-ilanlar-${new Date().toISOString().slice(0, 10)}.xlsx`, globalThis.OtoXlsx.build(table), globalThis.OtoXlsx.MIME);
+    download(`oto-pusula-ilanlar-${core.localDate()}.xlsx`, globalThis.OtoXlsx.build(table), globalThis.OtoXlsx.MIME);
     notice(`${table.rows.length} ilan Excel dosyası olarak indirildi.${table.phones ? ` Dosyada ${table.phones} satıcı numarası var: kişisel veridir, paylaşmayın ve işiniz bitince silin.` : ''}`);
   }
 
@@ -847,7 +850,7 @@
   }
 
   function exportBackup() {
-    download(`oto-pusula-yedek-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(state, null, 2), 'application/json');
+    download(`oto-pusula-yedek-${core.localDate()}.json`, JSON.stringify(state, null, 2), 'application/json');
     notice('JSON yedeği indirildi. Dosya bu cihazda kalır.');
   }
 

@@ -144,7 +144,7 @@ Ticari kullanımda (galeri) satıcı numaralarının saklanması kişisel veri i
 ## Geliştirme
 
 ```bash
-npm test        # 87 test: gerçek sayfalarla uçtan uca yolculuk, performans (5.000 ilan) ve depo dolması, kaporta şeması okuma, puanlama ve beyan değişikliği, dayanıklılık (bozuk/rastgele girdi), fiyat motoru ve öğrenen model, ilan ayrıştırma, hasar beyanı, uyarılar, panel, popup/WhatsApp akışı, güvenlik ve ban kuralları
+npm test        # 90 test: gerçek sayfalarla uçtan uca yolculuk, performans (5.000 ilan) ve depo dolması, kaporta şeması okuma, puanlama ve beyan değişikliği, dayanıklılık (bozuk/rastgele girdi), fiyat motoru ve öğrenen model, ilan ayrıştırma, hasar beyanı, uyarılar, panel, popup/WhatsApp akışı, güvenlik ve ban kuralları
 npm run verify-page -- "fixtures/sayfa.html"   # kaydedilmiş gerçek sayfayı okuyucudan geçirir
 npm run dev     # paneli http://127.0.0.1:4173 adresinde önizler (popup için eklenti olarak yükleyin)
 ```
@@ -170,7 +170,7 @@ Sayfanın kendi betikleri çalıştırılmaz, ağ isteği yapılmaz. `fixtures/`
 
 ## Geliştirici
 
-**Batuhan Cengiz** · [github.com/batucengiz](https://github.com/batucengiz)
+**Batuhan Cengiz** · [github.com/batucengiz](https://github.com/batucengiz) · [LinkedIn](https://www.linkedin.com/in/batuhan-cengiz-65199b417/)
 
 ## Lisans
 

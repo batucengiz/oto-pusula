@@ -129,6 +129,7 @@
         titleIndex: cells.indexOf(titleCell),
         cells: cells.map(text),
         price: text(row.querySelector('.searchResultsPriceValue')),
+        currency: row.getAttribute('data-currency') || '',
         location: lines(row.querySelector('.searchResultsLocationValue'))
       };
     })

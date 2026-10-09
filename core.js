@@ -25,6 +25,13 @@
     return result;
   }
 
+  // Kullanıcının yerel takvim günü (YYYY-AA-GG). toISOString UTC verir; Türkiye'de gece 00:00-03:00 arası
+  // okunan ilanlar bir önceki güne yazılıyordu.
+  function localDate(now = new Date()) {
+    const pad = n => String(n).padStart(2, '0');
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  }
+
   function number(value) {
     if (typeof value === 'number') return Number.isFinite(value) ? value : NaN;
     const raw = plain(value).replace(/[\s₺]/g, '');
@@ -698,7 +705,7 @@
   const CONDITION_RANK = { '': 0, 'temiz-iddia': 1, kusurlu: 2, riskli: 3 };
 
   // Sayfadan okunan ilanları mevcut kayıtlarla birleştirir; fiyat değişimlerini geçmişe yazar.
-  function mergeObservations(existing, incoming, today = new Date().toISOString().slice(0, 10)) {
+  function mergeObservations(existing, incoming, today = localDate()) {
     const map = new Map(existing.map(item => [item.id, item]));
     const stats = { added: 0, updated: 0, priceChanged: 0, dropped: 0 };
     for (const item of incoming) {
@@ -930,7 +937,7 @@
     return { flags, offer };
   }
 
-  const api = { prunePages, BODY_PARTS, bodyDamage, bodyReport, bodyConflict, sameDamage, dealEligible, dataCoverage, MAX_ROWS, fuelSet, listingUrl, watchedAmong, LIMITS, contactGate, recordEvent, phoneSaveGate, browsePace, normalizeLog, advise, normalizePages, recordPage, removeListings, removePage, safeSahibindenUrl, DEFAULTS, key, brandKey, number, date, safeListingUrl, parseCsv, importCsv, normalizeRecord, merge, mergeObservations, priceChange, median, daysSince, estimate, summary };
+  const api = { localDate, prunePages, BODY_PARTS, bodyDamage, bodyReport, bodyConflict, sameDamage, dealEligible, dataCoverage, MAX_ROWS, fuelSet, listingUrl, watchedAmong, LIMITS, contactGate, recordEvent, phoneSaveGate, browsePace, normalizeLog, advise, normalizePages, recordPage, removeListings, removePage, safeSahibindenUrl, DEFAULTS, key, brandKey, number, date, safeListingUrl, parseCsv, importCsv, normalizeRecord, merge, mergeObservations, priceChange, median, daysSince, estimate, summary };
   root.OtoCore = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);

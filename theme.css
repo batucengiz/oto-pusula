@@ -330,3 +330,45 @@ td .trend.down { background: var(--good-bg); }
 
 /* Bildirime tıklayınca kapanır */
 .notice { cursor: pointer; }
+
+/* Geliştirici kartı: GitHub ve LinkedIn yan yana */
+.sidebar-credit .credit-links { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* =====================================================================
+   v8 — yeni logo (önden araba, ızgarada pusula) ve küçük efektler
+   ===================================================================== */
+.brand-mark { background: url("icons/icon128.png") center / cover no-repeat; box-shadow: 0 6px 16px -6px rgba(20, 184, 166, .7);
+  transition: transform .35s cubic-bezier(.34, 1.56, .64, 1); animation: oto-park .7s cubic-bezier(.34, 1.56, .64, 1) backwards; }
+.brand-mark::before { display: none; }
+.brand:hover .brand-mark { transform: rotate(-8deg) scale(1.08); }
+/* Araba yerine "park eder": hafif soldan, dönerek gelir. */
+@keyframes oto-park { from { opacity: 0; transform: translateX(-16px) rotate(-14deg) scale(.9); } to { opacity: 1; transform: none; } }
+
+/* Kartlar ve düğmeler */
+.stat-card { transition: transform .18s ease, box-shadow .18s ease; }
+.stat-card:hover { transform: translateY(-2px); box-shadow: var(--sh-2); }
+.button { transition: transform .1s ease, filter .15s ease, background-color .15s ease, box-shadow .15s ease; }
+.button:active:not(:disabled) { transform: translateY(1px) scale(.98); }
+
+/* Fırsat varsa düğme açılışta iki kez hafif ışık halkası verir. */
+#deal-shortcut.has-deals, #go-deals.has-deals { animation: oto-pulse 1.6s ease-out .4s 2; }
+@keyframes oto-pulse { 0% { box-shadow: 0 0 0 0 rgba(20, 184, 166, .55); } 100% { box-shadow: 0 0 0 12px rgba(20, 184, 166, 0); } }
+
+/* Tablo satırları sırayla, yumuşakça belirir. */
+#market-body tr, #stock-body tr, #comparable-body tr { animation: oto-row-in .26s ease-out both; }
+#market-body tr:nth-child(2), #stock-body tr:nth-child(2), #comparable-body tr:nth-child(2) { animation-delay: .02s; }
+#market-body tr:nth-child(3), #stock-body tr:nth-child(3), #comparable-body tr:nth-child(3) { animation-delay: .04s; }
+#market-body tr:nth-child(4), #stock-body tr:nth-child(4), #comparable-body tr:nth-child(4) { animation-delay: .06s; }
+#market-body tr:nth-child(5), #stock-body tr:nth-child(5), #comparable-body tr:nth-child(5) { animation-delay: .08s; }
+#market-body tr:nth-child(n+6), #stock-body tr:nth-child(n+6), #comparable-body tr:nth-child(n+6) { animation-delay: .1s; }
+@keyframes oto-row-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+tbody tr.clickable:hover .badge { transform: scale(1.04); }
+.badge { transition: transform .15s ease; }
+
+/* Kaporta puanı yüksekse yeşil rozet hafif parlar (yalnızca üzerine gelince). */
+.body-cell .badge.good:hover { box-shadow: 0 0 0 3px rgba(16, 185, 129, .15); }
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-mark, #deal-shortcut.has-deals, #go-deals.has-deals, #market-body tr, #stock-body tr, #comparable-body tr { animation: none; }
+  .brand:hover .brand-mark, .stat-card:hover, .button:active:not(:disabled) { transform: none; }
+}

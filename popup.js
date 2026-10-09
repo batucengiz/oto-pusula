@@ -123,6 +123,7 @@
   async function analyze() {
     if (!activeTab) return;
     $('analyze').disabled = true;
+    $('analyze').classList.add('busy');
     try {
       const [injection] = await chrome.scripting.executeScript({ target: { tabId: activeTab.id }, files: ['extract.js'] });
       const outcome = listing.ingest(injection?.result, store.load());
@@ -135,6 +136,7 @@
       showResult([element('p', '', quota ? 'Yerel depolama dolu. Panelden JSON yedek alıp eski kayıtları temizleyin.' : error.message || 'Sayfa okunamadı.')], true);
     } finally {
       $('analyze').disabled = false;
+      $('analyze').classList.remove('busy');
     }
   }
 
@@ -200,7 +202,7 @@
     for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
     const anchor = document.createElement('a');
     anchor.href = `data:${globalThis.OtoXlsx.MIME};base64,${btoa(binary)}`;
-    anchor.download = `oto-pusula-ilanlar-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    anchor.download = `oto-pusula-ilanlar-${core.localDate()}.xlsx`;
     anchor.click();
     showResult([element('p', 'stats', `${table.rows.length} ilan Excel’e aktarıldı.`),
       ...(table.phones ? [element('p', 'muted', `Dosyada ${table.phones} satıcı numarası var; paylaşmayın.`)] : [])]);

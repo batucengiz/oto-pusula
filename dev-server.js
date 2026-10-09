@@ -16,7 +16,12 @@ const files = new Map([
   ['/store.js', ['store.js', 'text/javascript; charset=utf-8']],
   ['/listing.js', ['listing.js', 'text/javascript; charset=utf-8']],
   ['/charts.js', ['charts.js', 'text/javascript; charset=utf-8']],
-  ['/xlsx.js', ['xlsx.js', 'text/javascript; charset=utf-8']]
+  ['/xlsx.js', ['xlsx.js', 'text/javascript; charset=utf-8']],
+  ['/popup.js', ['popup.js', 'text/javascript; charset=utf-8']],
+  ['/icons/icon16.png', ['icons/icon16.png', 'image/png']],
+  ['/icons/icon32.png', ['icons/icon32.png', 'image/png']],
+  ['/icons/icon48.png', ['icons/icon48.png', 'image/png']],
+  ['/icons/icon128.png', ['icons/icon128.png', 'image/png']]
 ]);
 
 const server = http.createServer(async (request, response) => {
