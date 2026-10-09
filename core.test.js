@@ -250,3 +250,19 @@ test('"veri yok" nedenini ve ne yapılacağını söyler; model öğrendiği yı
   const recent = core.normalizeRecord({ id: 'S-N', brand: 'Fiat', model: 'Tipo', engine: '1.4 Fire', trim: 'Lounge', body: 'Hatchback', year: 2019, km: 90000, price: 700000 }, 'stock');
   assert.ok(core.estimate(recent, newTipos, core.DEFAULTS, today).center, '2019 için tahmin üretilmeli');
 });
+
+test('tahmini aralık: tipik sapma + az veri payı; ilan arttıkça daralır, gereksiz şişmez', () => {
+  const today = new Date('2026-10-09');
+  const target = core.normalizeRecord({ id: 'S-T', brand: 'Fiat', model: 'Tipo', year: 1997, km: 180000, price: 240000 }, 'stock');
+  // Ortası ~187 bin, tipik sapması ~%7 olan, aynı yıl/km'deki ilanlar.
+  const pool = n => Array.from({ length: n }, (_, i) => core.normalizeRecord({ id: `sh-1234560${String(i).padStart(3, '0')}`, source: 'sahibinden',
+    listingId: `1234560${String(i).padStart(3, '0')}`, brand: 'Fiat', model: 'Tipo', year: 1997, km: 180000,
+    price: Math.round(187500 * (1 + [-0.1, -0.07, -0.04, 0, 0.04, 0.07, 0.1, -0.02][i % 8])), date: '2026-10-05' }, 'comparable'));
+  const width = result => (result.high - result.low) / 2 / result.center;
+  const eight = core.estimate(target, pool(8), core.DEFAULTS, today);
+  const twenty = core.estimate(target, pool(24), core.DEFAULTS, today);
+  assert.ok(width(eight) < 0.13, `8 ilanda aralık ±%${(width(eight) * 100).toFixed(1)} olmamalı`);
+  assert.ok(width(twenty) < width(eight), 'daha çok ilanla aralık daralmalı');
+  assert.equal(eight.status, 'yüksek fiyat');
+  assert.match(eight.reason, /Aralık ±\d+%/);
+});

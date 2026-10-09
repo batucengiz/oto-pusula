@@ -394,7 +394,9 @@
     const center = Math.round(median(used.map(item => item.adjustedPrice)));
     const mad = median(used.map(item => Math.abs(item.adjustedPrice - center))) || 0;
     const spread = mad / center;
-    const band = clamp(0.08 + spread * 1.5, 0.08, 0.22);
+    // Aralık = ilanların tipik sapması (MAD: benzer ilanların yaklaşık yarısı bu bantta) + az veriden gelen
+    // belirsizlik (ilan sayısı arttıkça küçülür). Eski formül (%8 + 1,5×sapma) aralığı gereksiz genişletiyordu.
+    const band = clamp(spread + 0.1 / Math.sqrt(used.length), 0.05, 0.2);
     const fresh = used.filter(({ item }) => daysSince(item.date, today) !== null && daysSince(item.date, today) <= 90).length;
     const exactTrim = !vehicle.trim || used.filter(({ item }) => item.trim && key(item.trim) === key(vehicle.trim)).length / used.length >= 0.75;
     let confidence = 'düşük';
@@ -413,7 +415,7 @@
       comparables: used.sort((a, b) => Math.abs(a.adjustedPrice - center) - Math.abs(b.adjustedPrice - center)),
       reason: `${used.length} benzer kayıt (${fresh} tanesi son 90 günde); ${model
         ? `yıl başına ${pct(yearRate)} ve 10.000 km başına ${pct(kmRate)} düzeltme (${model.n} ilandan öğrenildi)`
-        : 'yıl ve kilometre farkı için varsayılan oranlarla sınırlı düzeltme'}; uç değer kontrolü.${relaxedLabels.length ? ` Aynı ${relaxedLabels.join(' ve ')} için yeterli kayıt olmadığından farklı ${relaxedLabels.join(' / ')} ilanları da kullanıldı.` : ''} Satış fiyatı garantisi değildir.`
+        : 'yıl ve kilometre farkı için varsayılan oranlarla sınırlı düzeltme'}; uç değer kontrolü. Aralık ±${Math.round(band * 100)}%: ilanların tipik fiyat farkı ve ilan sayısına göre belirsizlik.${relaxedLabels.length ? ` Aynı ${relaxedLabels.join(' ve ')} için yeterli kayıt olmadığından farklı ${relaxedLabels.join(' / ')} ilanları da kullanıldı.` : ''} Satış fiyatı garantisi değildir.`
     };
   }
 
@@ -447,7 +449,8 @@
 
   function modelEstimate(vehicle, model, nearCount) {
     const center = Math.round(model.predict(vehicle));
-    const band = clamp(model.sd * 1.3, 0.08, 0.25);
+    // Model hatasının bir standart sapması (ilanların ~%68'i) + öğrenilen ilan sayısına göre belirsizlik.
+    const band = clamp(model.sd + 0.1 / Math.sqrt(model.n), 0.05, 0.2);
     const confidence = model.n >= 15 && model.sd <= 0.15 ? 'orta' : 'düşük';
     const gap = (vehicle.price - center) / center;
     return {

@@ -24,7 +24,7 @@
 
     <main class="main-content">
       <header class="topbar">
-        <div><div class="eyebrow">KARAR DESTEK / V5.2</div><h1 id="view-title">Genel bakış</h1><p id="view-subtitle">İzlediğiniz ilanları ve varsa stoğunuzu tek yerde görün.</p></div>
+        <div><div class="eyebrow">KARAR DESTEK / V5.2.1</div><h1 id="view-title">Genel bakış</h1><p id="view-subtitle">İzlediğiniz ilanları ve varsa stoğunuzu tek yerde görün.</p></div>
         <div class="top-actions">
           <button class="button button-secondary" id="download-template" type="button">CSV şablonları</button>
           <button class="button button-secondary" id="backup" type="button">Yedek indir</button>
@@ -87,7 +87,7 @@
           <article class="panel method-card"><h3>0 · Veriyi siz toplarsınız</h3><p>Eklenti, yalnızca düğmeye bastığınızda açık sahibinden sekmesini bir kez okur. Arka planda tarama, otomatik gezinme veya sunucuya gönderim yoktur.</p></article>
           <article class="panel method-card"><h3>1 · Benzer araçları seçer</h3><p>Aynı marka ve model, yakın model yılı; yakıt, vites, motor, kasa ve paket bilgisi varsa eşleşme aranır. Ağır hasar beyanlı ilanlar havuza girmez.</p></article>
           <article class="panel method-card"><h3>2 · Değer kaybını veriden öğrenir</h3><p>Aynı modelden en az 12 ilan varsa, yıl ve kilometre başına değer kaybı ile motor/paket etkileri bu ilanlardan regresyonla öğrenilir. Veri azsa varsayılan %3,5/yıl ve %1,2/10.000 km kullanılır.</p></article>
-          <article class="panel method-card"><h3>3 · Ortanca ve aralık üretir</h3><p>Uç fiyatları kontrol eder, düzeltilmiş fiyatların ortancasını alır. Dağılıma göre yaklaşık bir aralık gösterir.</p></article>
+          <article class="panel method-card"><h3>3 · Ortanca ve aralık üretir</h3><p>Uç fiyatları ayıklar, düzeltilmiş fiyatların ortancasını alır. Aralık, ilanların tipik fiyat farkı ile az veriden gelen belirsizliğin toplamıdır; ilan arttıkça daralır.</p></article>
           <article class="panel method-card"><h3>3b · Benzer ilan azsa modele geçer</h3><p>Aynı motor ve donanımda 4 benzer ilan yoksa önce paket, sonra kasa farkı gevşetilir; yine yetmezse öğrenilen fiyat modeli tahmin yapar ve bu açıkça yazılır.</p></article>
           <article class="panel method-card"><h3>4 · Belirsizliği açıklar</h3><p>Az örnek, geniş fiyat dağılımı ve eski tarihli kayıtlar güven düzeyini düşürür. Ekspertiz verisi bu hesapta yoktur.</p></article>
         </div>
