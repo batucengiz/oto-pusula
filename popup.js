@@ -38,6 +38,7 @@
     if (outcome.clearedSample) nodes.push(element('p', 'muted', 'Örnek veriler temizlendi; artık yalnızca gerçek ilanlar kullanılıyor.'));
     if (outcome.drops) nodes.push(element('p', 'muted', `Bu sayfada daha önce gördüğünüz ${outcome.drops} ilanın fiyatı düşmüş.`));
     if (outcome.pace?.fast) nodes.push(element('p', 'warning-line', `⚠ ${outcome.pace.message}`));
+    if (outcome.roomDropped) nodes.push(element('p', 'warning-line', `⚠ Tarayıcı deposu dolduğu için en uzun süredir görülmeyen ${outcome.roomDropped} ilan silindi (takiptekiler ve numarası kayıtlılar korundu). Önemli verileriniz için panelden JSON yedek alın.`));
 
     if (outcome.evaluated.length === 1) {
       const { record, result } = outcome.evaluated[0];
@@ -122,10 +123,12 @@
     try {
       const [injection] = await chrome.scripting.executeScript({ target: { tabId: activeTab.id }, files: ['extract.js'] });
       const outcome = listing.ingest(injection?.result, store.load());
-      store.save(outcome.state);
+      const saved = store.saveMakingRoom(outcome.state);
+      outcome.state = saved.state;
+      outcome.roomDropped = saved.dropped;
       showResult(describe(outcome, injection?.result));
     } catch (error) {
-      const quota = error?.name === 'QuotaExceededError';
+      const quota = store.isQuota(error);
       showResult([element('p', '', quota ? 'Yerel depolama dolu. Panelden JSON yedek alıp eski kayıtları temizleyin.' : error.message || 'Sayfa okunamadı.')], true);
     } finally {
       $('analyze').disabled = false;

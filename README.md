@@ -137,12 +137,13 @@ Ticari kullanımda (galeri) satıcı numaralarının saklanması kişisel veri i
 - Sonuçlar ekspertiz, resmi değerleme veya satış fiyatı garantisi değildir. Hasar bilgisi satıcının beyanıdır.
 - Kişisel kullanım içindir. Toplanan verileri yeniden yayınlamayın ve sitenin kullanım koşullarına uyun.
 - Seçiciler sahibinden.com'un sayfa yapısına bağlıdır. Site değişirse `extract.js` güncellenmelidir.
+- **Kapasite:** En fazla 5.000 ilan saklanır; panel 5.000 ilanla yaklaşık 1 saniyede açılır. Her tahmin, yıl ve km olarak en yakın 120 benzer ilanla yapılır. Tarayıcı deposu (~5 milyon karakter) dolarsa takipte olmayan ve numarası kaydedilmemiş, en uzun süredir görülmeyen ilanlar silinerek yeni analize yer açılır ve bu açıkça bildirilir.
 - Ayrıntılı gizlilik politikası: [docs/GIZLILIK.md](docs/GIZLILIK.md)
 
 ## Geliştirme
 
 ```bash
-npm test        # 75 test: kaporta şeması okuma, puanlama ve beyan değişikliği, dayanıklılık (bozuk/rastgele girdi), fiyat motoru ve öğrenen model, ilan ayrıştırma, hasar beyanı, uyarılar, panel, popup/WhatsApp akışı, güvenlik ve ban kuralları
+npm test        # 78 test: performans (5.000 ilan) ve depo dolması, kaporta şeması okuma, puanlama ve beyan değişikliği, dayanıklılık (bozuk/rastgele girdi), fiyat motoru ve öğrenen model, ilan ayrıştırma, hasar beyanı, uyarılar, panel, popup/WhatsApp akışı, güvenlik ve ban kuralları
 npm run verify-page -- "fixtures/sayfa.html"   # kaydedilmiş gerçek sayfayı okuyucudan geçirir
 npm run dev     # paneli http://127.0.0.1:4173 adresinde önizler (popup için eklenti olarak yükleyin)
 ```

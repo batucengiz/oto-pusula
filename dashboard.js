@@ -92,7 +92,11 @@
     } else {
       box.append(record.condition ? conditionBadge(record) : element('span', 'vehicle-meta', 'Şema okunmadı'));
       // Fırsat görünen ama şeması okunmamış ilan: kullanıcı ilanı açıp analiz ederse kaporta bilgisi eklenir.
-      if (deal) box.append(element('span', 'vehicle-meta', 'Kaporta için ilanı açıp analiz et'));
+      if (deal) {
+        const hint = element('span', 'vehicle-meta', 'Şema: ilanı açınca okunur');
+        hint.title = 'Bu ilanı sahibinden’de açıp eklentide “Bu sayfayı analiz et”e basın; satıcının boya/değişen şeması okunur ve kaporta puanı eklenir.';
+        box.append(hint);
+      }
     }
     return box;
   }
@@ -404,10 +408,13 @@
         : filter === 'warn' ? hasWarning(entry)
         : filter === 'stale' ? (core.daysSince(entry.record.date) ?? 0) >= 30 : true);
     const gapOf = entry => (entry.record.condition === 'riskli' ? 1e6 : entry.result.center ? entry.result.gap : 2e6);
+    // Kaporta puanı sıralamadan önce bir kez hesaplanır (karşılaştırma başına değil).
+    const scores = sort === 'body' ? new Map(entries.map(entry => [entry, bodyScore(entry)])) : null;
+    const scoreOf = entry => scores.get(entry);
     entries.sort((a, b) => sort === 'price' ? a.record.price - b.record.price
       : sort === 'recent' ? String(b.record.date).localeCompare(String(a.record.date))
       : sort === 'age' ? (b.age ?? -1) - (a.age ?? -1)
-      : sort === 'body' ? bodyScore(b) - bodyScore(a) || gapOf(a) - gapOf(b)
+      : sort === 'body' ? scoreOf(b) - scoreOf(a) || gapOf(a) - gapOf(b)
       : gapOf(a) - gapOf(b));
     $('market-count').textContent = `${entries.length}/${all.length} ilan gösteriliyor`;
     shownIds = entries.map(entry => entry.record.id);

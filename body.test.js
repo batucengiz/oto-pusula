@@ -167,3 +167,26 @@ test('yaygın paket adları tanınır (Active Plus, Mirror, Premio)', () => {
 test('parça adı olarak betik veya Excel formülü saklanmaz; bilinmeyen ama düzgün ad kabul edilir', () => {
   assert.deepEqual(core.bodyDamage({ painted: ['Sol Ön Kapı', '<script>x</script>', '=1+1', 'Sağ Marşpiyel', {}, 5] }).painted, ['Sol Ön Kapı', 'Sağ Marşpiyel']);
 });
+
+test('depo dolarsa analiz kaybolmaz: en eski, takipte olmayan ilanlar silinip yeniden kaydedilir', () => {
+  const store = require('./store.js');
+  // ~5 milyon karakter sınırlı sahte depo.
+  const limit = 60000;
+  const memory = new Map();
+  const storage = {
+    getItem: k => memory.get(k) ?? null,
+    setItem: (k, v) => { if (v.length > limit) { const error = new Error('quota'); error.name = 'QuotaExceededError'; throw error; } memory.set(k, v); }
+  };
+  const make = (i, date, extra = {}) => core.normalizeRecord({ id: `sh-${5000000 + i}`, source: 'sahibinden', listingId: String(5000000 + i), brand: 'Fiat', model: 'Egea',
+    year: 2020, km: 1000 + i, price: 900000, date, title: 'EGEA 1.4 FIRE URBAN PLUS HATASIZ BOYASIZ', ...extra }, 'comparable');
+  const old = Array.from({ length: 150 }, (_, i) => make(i, '2026-01-01', i === 0 ? { watched: true } : i === 1 ? { sellerPhone: '905000000001' } : {}));
+  const fresh = Array.from({ length: 20 }, (_, i) => make(1000 + i, '2026-10-09'));
+  const result = store.saveMakingRoom({ ...store.empty(), comparables: [...old, ...fresh] }, storage);
+  assert.ok(result.dropped > 0, 'yer açılmalı');
+  const kept = new Set(store.load(storage).comparables.map(item => item.listingId));
+  assert.ok(fresh.every(item => kept.has(item.listingId)), 'yeni okunan ilanlar korunmalı');
+  assert.ok(kept.has('5000000') && kept.has('5000001'), 'takipteki ve numarası kayıtlı ilan korunmalı');
+  assert.ok(memory.get(store.KEY).length <= limit);
+  // Kota dışı hata yutulmaz.
+  assert.throws(() => store.saveMakingRoom({ ...store.empty() }, { setItem: () => { throw new Error('disk bozuk'); } }), /disk bozuk/);
+});

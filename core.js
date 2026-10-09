@@ -8,11 +8,21 @@
     return String(value ?? '').trim();
   }
 
+  // Eşleştirme anahtarı. Tahmin her ilan için tüm havuzu taradığından aynı birkaç metin
+  // ("Fiat", "Egea", "1.4 Fire") binlerce kez çevrilir; yerel ayarlı küçültme yavaş olduğu için sonuç önbelleğe alınır.
+  const keyCache = new Map();
   function key(value) {
-    return plain(value).toLocaleLowerCase('tr-TR')
+    const text = plain(value);
+    let result = keyCache.get(text);
+    if (result !== undefined) return result;
+    result = text.toLocaleLowerCase('tr-TR')
       .replace(/[ıİ]/g, 'i').replace(/[ğĞ]/g, 'g').replace(/[üÜ]/g, 'u')
       .replace(/[şŞ]/g, 's').replace(/[öÖ]/g, 'o').replace(/[çÇ]/g, 'c')
       .replace(/[^a-z0-9]+/g, '');
+    // Serbest metin (başlık, not) önbelleği şişirmesin: sınır aşılınca baştan başlanır.
+    if (keyCache.size >= 20000) keyCache.clear();
+    keyCache.set(text, result);
+    return result;
   }
 
   function number(value) {
@@ -289,10 +299,17 @@
 
   function clamp(value, min, max) { return Math.min(max, Math.max(min, value)); }
 
+  // Kayıt tarihleri az çeşittir (gün bazında); her tahminde yeniden çözümlenmesin diye önbelleğe alınır.
+  const dayCache = new Map();
   function daysSince(value, today = new Date()) {
     if (!value) return null;
-    const start = new Date(`${value}T12:00:00Z`);
-    if (Number.isNaN(start.valueOf())) return null;
+    let start = dayCache.get(value);
+    if (start === undefined) {
+      start = new Date(`${value}T12:00:00Z`).valueOf();
+      if (dayCache.size >= 5000) dayCache.clear();
+      dayCache.set(value, start);
+    }
+    if (Number.isNaN(start)) return null;
     return Math.max(0, Math.floor((today - start) / 86400000));
   }
 
@@ -312,9 +329,17 @@
   // Ayraçsız yazımlar ("BENZİNLPG") da tanınsın diye yakıt adları metnin içinde aranır.
   const FUEL_WORDS = [['benzin', /benzin/], ['lpg', /lpg/], ['dizel', /dizel|diesel|motorin/], ['hibrit', /hibrit|hybrid/], ['elektrik', /elektrik|electric/]];
 
+  // Yakıt yazımları birkaç çeşittir; eşleştirme sırasında binlerce kez sorulduğu için sonuç önbelleğe alınır.
+  const fuelCache = new Map();
   function fuelSet(value) {
     const text = key(value);
-    return FUEL_WORDS.filter(([, pattern]) => pattern.test(text)).map(([name]) => name).sort().join('+');
+    let result = fuelCache.get(text);
+    if (result === undefined) {
+      result = FUEL_WORDS.filter(([, pattern]) => pattern.test(text)).map(([name]) => name).sort().join('+');
+      if (fuelCache.size >= 1000) fuelCache.clear();
+      fuelCache.set(text, result);
+    }
+    return result;
   }
 
   function fuelCompatible(a, b) {
@@ -465,17 +490,79 @@
     return vehicle.type === 'stock' && vehicle.grade ? applyGrade(result, vehicle) : result;
   }
 
+  // Aynı kayıt dizisi için ilanlar bir kez marka/model → yıl → km sırasıyla düzenlenir. Böylece her tahmin
+  // binlerce ilanı taramak yerine aracın km'sinden iki yöne yürüyerek en yakın ilanları bulur.
+  // Kayıt değişince dizi yenilendiği için önbellek kendiliğinden düşer.
+  const poolCache = new WeakMap();
+  function modelYears(vehicle, comparables) {
+    let groups = poolCache.get(comparables);
+    if (!groups) {
+      groups = new Map();
+      for (const item of comparables) {
+        const id = `${brandKey(item.brand)}|${key(item.model)}`;
+        let years = groups.get(id);
+        if (!years) groups.set(id, years = new Map());
+        if (!years.has(item.year)) years.set(item.year, []);
+        years.get(item.year).push(item);
+      }
+      for (const years of groups.values()) for (const list of years.values()) list.sort((a, b) => a.km - b.km);
+      poolCache.set(comparables, groups);
+    }
+    return groups.get(`${brandKey(vehicle.brand)}|${key(vehicle.model)}`) || new Map();
+  }
+
+  // Çok sayıda eşleşmede yalnızca en yakın ilanlar kullanılır: 120 ilan ortanca ve aralık için fazlasıyla yeterli,
+  // uzak yıl/km'deki ilanlar sonucu bulandırır ve aynı modelden binlerce ilan birikince panel donmaz.
+  const MAX_COMPARE = 120;
+
+  // km'ye göre sıralı listede, km'si aracınkine eşit veya büyük ilk kaydın sırası.
+  function lowerBound(list, km) {
+    let low = 0;
+    let high = list.length;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (list[middle].km < km) low = middle + 1; else high = middle;
+    }
+    return low;
+  }
+
+  // Kabul edilen ilanları önce aynı yıldan, sonra ±1, ±2… yıldan, her yıl halkasında km'si en yakından
+  // başlayarak toplar; en fazla `limit` tane. Eşleşme sınırın altındaysa sonuç, ±4 yıl içindeki bütün eşleşmelerdir.
+  function collectNearest(vehicle, years, accept, limit) {
+    const picked = [];
+    for (let distance = 0; distance <= 4 && picked.length < limit; distance++) {
+      const walkers = (distance ? [vehicle.year - distance, vehicle.year + distance] : [vehicle.year])
+        .map(year => years.get(year)).filter(Boolean)
+        .map(list => { const start = lowerBound(list, vehicle.km); return { list, low: start - 1, high: start }; });
+      while (picked.length < limit) {
+        let best = null;
+        let bestGap = Infinity;
+        let fromLow = false;
+        for (const walker of walkers) {
+          while (walker.low >= 0 && !accept(walker.list[walker.low])) walker.low--;
+          while (walker.high < walker.list.length && !accept(walker.list[walker.high])) walker.high++;
+          if (walker.low >= 0 && vehicle.km - walker.list[walker.low].km < bestGap) {
+            best = walker; bestGap = vehicle.km - walker.list[walker.low].km; fromLow = true;
+          }
+          if (walker.high < walker.list.length && walker.list[walker.high].km - vehicle.km < bestGap) {
+            best = walker; bestGap = walker.list[walker.high].km - vehicle.km; fromLow = false;
+          }
+        }
+        if (!best) break;
+        picked.push(fromLow ? best.list[best.low--] : best.list[best.high++]);
+      }
+    }
+    return picked;
+  }
+
   function estimateBase(vehicle, comparables, settings = DEFAULTS, today = new Date()) {
-    const base = comparables.filter(item =>
-      item.id !== vehicle.id &&
-      (item.condition !== 'riskli' || vehicle.condition === 'riskli') &&
-      brandKey(item.brand) === brandKey(vehicle.brand) && key(item.model) === key(vehicle.model) &&
-      Math.abs(item.year - vehicle.year) <= 4
-    );
+    const years = modelYears(vehicle, comparables);
+    const eligible = item => item.id !== vehicle.id && (item.condition !== 'riskli' || vehicle.condition === 'riskli');
     let matched = [];
     let relaxed = [];
     for (const skip of RELAX_STEPS) {
-      const candidates = base.filter(item => MATCH_FIELDS.every(field => skip.includes(field) || (field === 'engine' ? engineCompatible : field === 'fuel' ? fuelCompatible : compatible)(vehicle[field], item[field])));
+      const candidates = collectNearest(vehicle, years, item => eligible(item) && MATCH_FIELDS.every(field => skip.includes(field)
+        || (field === 'engine' ? engineCompatible : field === 'fuel' ? fuelCompatible : compatible)(vehicle[field], item[field])), MAX_COMPARE);
       // Eşitlikte daha katı seviye korunur; gevşetme yalnızca gerçekten kayıt eklediğinde sayılır.
       if (candidates.length > matched.length) { matched = candidates; relaxed = skip; }
       if (matched.length >= MIN_MATCH) break;
@@ -504,7 +591,7 @@
     // Aralık = ilanların tipik sapması (MAD: benzer ilanların yaklaşık yarısı bu bantta) + az veriden gelen
     // belirsizlik (ilan sayısı arttıkça küçülür). Eski formül (%8 + 1,5×sapma) aralığı gereksiz genişletiyordu.
     const band = clamp(spread + 0.1 / Math.sqrt(used.length), 0.05, 0.2);
-    const fresh = used.filter(({ item }) => daysSince(item.date, today) !== null && daysSince(item.date, today) <= 90).length;
+    const fresh = used.filter(({ item }) => { const age = daysSince(item.date, today); return age !== null && age <= 90; }).length;
     const exactTrim = !vehicle.trim || used.filter(({ item }) => item.trim && key(item.trim) === key(vehicle.trim)).length / used.length >= 0.75;
     let confidence = 'düşük';
     if (used.length >= MIN_MATCH && spread <= 0.25 && fresh / used.length >= 0.5) confidence = 'orta';
@@ -520,7 +607,7 @@
       position: used.length ? cheaper / used.length : null,
       learned: model ? { yearRate, kmRate, n: model.n } : null,
       comparables: used.sort((a, b) => Math.abs(a.adjustedPrice - center) - Math.abs(b.adjustedPrice - center)),
-      reason: `${used.length} benzer kayıt (${fresh} tanesi son 90 günde); ${model
+      reason: `${used.length} benzer kayıt (${fresh} tanesi son 90 günde${matched.length >= MAX_COMPARE ? `; yıl ve km olarak en yakın ${MAX_COMPARE} ilan` : ''}); ${model
         ? `yıl başına ${pct(yearRate)} ve 10.000 km başına ${pct(kmRate)} düzeltme (${model.n} ilandan öğrenildi)`
         : 'yıl ve kilometre farkı için varsayılan oranlarla sınırlı düzeltme'}; uç değer kontrolü. Aralık ±${Math.round(band * 100)}%: ilanların tipik fiyat farkı ve ilan sayısına göre belirsizlik.${relaxedLabels.length ? ` Aynı ${relaxedLabels.join(' ve ')} için yeterli kayıt olmadığından farklı ${relaxedLabels.join(' / ')} ilanları da kullanıldı.` : ''} Satış fiyatı garantisi değildir.`
     };

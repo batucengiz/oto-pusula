@@ -59,3 +59,31 @@ test('rastgele piyasa havuzları: tahmin aralığı her zaman pozitif ve sıral�
     assert.equal(xlsx.build(listing.marketTable({ comparables: pool }, today))[0], 0x50);
   }
 });
+
+// Performans: panel her kayıtta bütün ilanları yeniden değerlendirir. Eşleştirme anahtarları önbelleğe
+// alınmadan 1.000 ilan 26 saniye sürüyordu; aynı modelden 1.000 ilan birkaç saniyenin altında kalmalı.
+test('1.000 ilan (aynı model) panel için makul sürede değerlendirilir', () => {
+  const pool = Array.from({ length: 1000 }, (_, i) => core.normalizeRecord({ id: `sh-${2000000 + i}`, source: 'sahibinden', listingId: String(2000000 + i),
+    brand: 'Fiat', model: 'Egea', engine: ['1.4 Fire', '1.3 Multijet', '1.6 Multijet'][i % 3], fuel: i % 2 ? 'Dizel' : 'Benzin', trim: ['Easy', 'Urban'][i % 2],
+    year: 2014 + (i % 11), km: (i * 997) % 240000, price: 500000 + ((i * 7919) % 900000), date: '2026-10-01' }, 'comparable'));
+  const today = new Date('2026-10-09');
+  const started = Date.now();
+  for (const record of pool) core.estimate(record, pool, core.DEFAULTS, today);
+  assert.ok(Date.now() - started < 3000, `${Date.now() - started} ms sürdü`);
+});
+
+test('aynı model ve yıldan binlerce ilan: tahmin en yakın 120 ilanla, hızlı ve önce aynı yıldan yapılır', () => {
+  const make = (i, year) => core.normalizeRecord({ id: `sh-${4000000 + i}`, source: 'sahibinden', listingId: String(4000000 + i), brand: 'Fiat', model: 'Egea',
+    engine: '1.4 Fire', year, km: 10000 + i * 37, price: 800000 + (i % 50) * 1000, date: '2026-10-01' }, 'comparable');
+  const pool = [...Array.from({ length: 3000 }, (_, i) => make(i, 2020)), ...Array.from({ length: 50 }, (_, i) => make(5000 + i, 2016))];
+  const today = new Date('2026-10-09');
+  const started = Date.now();
+  const results = pool.map(record => core.estimate(record, pool, core.DEFAULTS, today));
+  assert.ok(Date.now() - started < 3000, `${Date.now() - started} ms sürdü`);
+  const target = results[1500];
+  assert.equal(target.count <= 120, true);
+  assert.ok(target.comparables.every(({ item }) => item.year === 2020), 'aynı yıl yeterliyse 4 yıl uzaktaki ilanlar alınmaz');
+  const kms = target.comparables.map(({ item }) => Math.abs(item.km - pool[1500].km));
+  assert.ok(Math.max(...kms) <= 61 * 37, 'km olarak en yakınlar seçilmeli');
+  assert.match(target.reason, /en yakın 120 ilan/);
+});
