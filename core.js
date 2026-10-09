@@ -132,8 +132,63 @@
       .filter(entry => entry.date && Number.isFinite(entry.price) && entry.price >= 1000 && entry.price <= 100000000);
   }
 
+  // sahibinden boya/değişen şemasındaki standart parçalar. Puan düşümü: lokal boya / boya / değişen.
+  // Tamponlar çoğunlukla plastik ve sık boyandığı için hafif; tavan değişimi yapısal işlem sayılır.
+  const BODY_PARTS = {
+    'Motor Kaputu': [2, 4, 8], 'Tavan': [3, 8, 30], 'Bagaj Kapağı': [2, 3, 6],
+    'Ön Tampon': [1, 1, 2], 'Arka Tampon': [1, 1, 2],
+    'Sağ Ön Çamurluk': [2, 4, 8], 'Sağ Ön Kapı': [2, 4, 8], 'Sağ Arka Kapı': [2, 4, 8], 'Sağ Arka Çamurluk': [2, 5, 10],
+    'Sol Ön Çamurluk': [2, 4, 8], 'Sol Ön Kapı': [2, 4, 8], 'Sol Arka Kapı': [2, 4, 8], 'Sol Arka Çamurluk': [2, 5, 10]
+  };
+  const BODY_PART_BY_KEY = new Map(Object.keys(BODY_PARTS).map(name => [key(name), name]));
+  const DAMAGE_GROUPS = ['local', 'painted', 'changed'];
+
+  // Satıcının şemada işaretlediği parçalar. Şema okunmadıysa null döner (bilinmiyor);
+  // okunup hiçbir parça işaretlenmemişse boş listeler döner (satıcı beyanı: orijinal).
+  function bodyDamage(input) {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) return null;
+    const result = {};
+    const used = new Set();
+    // Aynı parça birden çok grupta görünürse en ağır olan (değişen > boyalı > lokal) geçerlidir.
+    for (const group of [...DAMAGE_GROUPS].reverse()) {
+      const parts = Array.isArray(input[group]) ? input[group] : [];
+      result[group] = [];
+      for (const part of parts.slice(0, 20)) {
+        const name = BODY_PART_BY_KEY.get(key(part)) || plain(part).slice(0, 40);
+        if (!name || used.has(name)) continue;
+        used.add(name);
+        result[group].push(name);
+      }
+    }
+    return { local: result.local, painted: result.painted, changed: result.changed };
+  }
+
+  // Gövde özeti: 100 üzerinden puan, kısa etiket ve dikkat seviyesi. Ekspertiz değil, satıcı beyanıdır.
+  function bodyReport(record) {
+    const damage = bodyDamage(record?.damage);
+    if (!damage) return { known: false, label: 'Gövde bilgisi yok', level: 'info' };
+    let penalty = 0;
+    DAMAGE_GROUPS.forEach((group, index) => damage[group].forEach(part => { penalty += (BODY_PARTS[part] || [2, 4, 8])[index]; }));
+    const severe = damage.changed.includes('Tavan');
+    const counts = [damage.changed.length && `${damage.changed.length} değişen`, damage.painted.length && `${damage.painted.length} boyalı`, damage.local.length && `${damage.local.length} lokal boyalı`].filter(Boolean);
+    const total = damage.changed.length + damage.painted.length + damage.local.length;
+    const level = severe ? 'bad' : damage.changed.length || damage.painted.length >= 4 ? 'warn' : total ? 'neutral' : 'good';
+    return { known: true, ...damage, total, severe, score: Math.max(0, 100 - penalty), label: total ? counts.join(' · ') : 'Orijinal (beyan)', level };
+  }
+
+  // Şema ile ilan metni birbirini tutmuyorsa açıklama döner.
+  function bodyConflict(record) {
+    const body = bodyReport(record);
+    if (!body.known) return '';
+    if (!body.total && record.condition === 'riskli') return 'Şemada bütün parçalar orijinal, ama ilanda ağır hasar bilgisi var.';
+    if (!body.total && record.condition === 'kusurlu') return `Şemada bütün parçalar orijinal, ama ilan metninde boya/değişen/tramer geçiyor${record.conditionNote ? ` (“${record.conditionNote}”)` : ''}.`;
+    if (body.total && record.condition === 'temiz-iddia') return `İlan metni hatasız diyor${record.conditionNote ? ` (“${record.conditionNote}”)` : ''}, ama şemada ${body.label} parça işaretli.`;
+    return '';
+  }
+
   // İlan kaynaklı kayıtların ek alanları; CSV kayıtlarında boş kalır.
   function listingFields(input) {
+    const damage = bodyDamage(input.damage);
     const listingId = /^\d{6,13}$/.test(plain(input.listingId)) ? plain(input.listingId) : '';
     return {
       source: plain(input.source) === 'sahibinden' && listingId ? 'sahibinden' : 'csv',
@@ -145,6 +200,8 @@
       priceHistory: priceHistory(input.priceHistory),
       condition: CONDITIONS.includes(input.condition) ? input.condition : '',
       conditionNote: plain(input.conditionNote).slice(0, 200),
+      // Boya/değişen şeması yalnızca ilan sayfasından gelir; arama listesindeki kayıtta bulunmaz.
+      ...(damage ? { damage } : {}),
       // Yalnızca true iken yazılır; böylece yeniden okunan ilan takip işaretini silmez.
       ...(input.watched === true ? { watched: true } : {}),
       // Satıcı numarası yalnızca kullanıcı popup'ta "kaydet" dediğinde gelir; otomatik toplanmaz.
@@ -698,6 +755,18 @@
     } else if (result?.center && result.confidence !== 'düşük' && result.gap <= -0.2) {
       flags.push({ level: 'bad', label: 'Şüpheli ucuz', text: `Fiyat piyasanın %${Math.round(-result.gap * 100)} altında. Gizli hasar veya dolandırıcılık olabilir: aracı görmeden kapora ya da ödeme göndermeyin.` });
     }
+    const body = bodyReport(record);
+    const conflict = bodyConflict(record);
+    if (conflict) {
+      flags.push({ level: 'bad', label: 'Beyan çelişkili', text: `${conflict} Satıcıdan ekspertiz raporu ve tramer kaydı isteyin.` });
+    }
+    if (body.severe) {
+      flags.push({ level: 'bad', label: 'Tavan değişen', text: 'Satıcı tavanı değişen olarak işaretlemiş; bu genelde ağır bir kazanın işaretidir. Ekspertizsiz almayın.' });
+    } else if (body.known && body.changed.length) {
+      flags.push({ level: 'warn', label: `Değişen parça (${body.changed.length})`, text: `Satıcı beyanına göre değişen: ${body.changed.join(', ')}. Değişen parça fiyatı belirgin düşürür; ekspertizle doğrulayın.` });
+    } else if (body.known && body.painted.length >= 4) {
+      flags.push({ level: 'warn', label: `Çok boyalı (${body.painted.length})`, text: `Satıcı beyanına göre boyalı: ${body.painted.join(', ')}.` });
+    }
     const change = priceChange(record);
     if (change && change.amount < 0) {
       flags.push({ level: 'good', label: 'Fiyat düştü', text: `Takip süresince fiyat ${tl(-change.amount)} düşmüş; satıcı pazarlığa açık olabilir.` });
@@ -719,7 +788,7 @@
     return { flags, offer };
   }
 
-  const api = { MAX_ROWS, fuelSet, listingUrl, watchedAmong, LIMITS, contactGate, recordEvent, phoneSaveGate, browsePace, normalizeLog, advise, normalizePages, recordPage, removeListings, removePage, safeSahibindenUrl, DEFAULTS, key, brandKey, number, date, safeListingUrl, parseCsv, importCsv, normalizeRecord, merge, mergeObservations, priceChange, median, daysSince, estimate, summary };
+  const api = { BODY_PARTS, bodyDamage, bodyReport, bodyConflict, MAX_ROWS, fuelSet, listingUrl, watchedAmong, LIMITS, contactGate, recordEvent, phoneSaveGate, browsePace, normalizeLog, advise, normalizePages, recordPage, removeListings, removePage, safeSahibindenUrl, DEFAULTS, key, brandKey, number, date, safeListingUrl, parseCsv, importCsv, normalizeRecord, merge, mergeObservations, priceChange, median, daysSince, estimate, summary };
   root.OtoCore = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);

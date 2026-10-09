@@ -63,6 +63,8 @@ function analyze(html, url) {
       report.ok = true;
       report.records = [record];
       say(`  okunan kayıt: ${record.brand} ${record.model} ${record.engine} ${record.trim} · ${record.year} · ${record.km} km · ₺${record.price.toLocaleString('tr-TR')} · yakıt ${record.fuel || '-'} · vites ${record.transmission || '-'}`);
+      const body = core.bodyReport(record);
+      say(`  gövde (şema): ${body.known ? `${body.label} · puan ${body.score}/100${body.changed.length ? ` · değişen: ${body.changed.join(', ')}` : ''}${body.painted.length ? ` · boyalı: ${body.painted.join(', ')}` : ''}${body.local.length ? ` · lokal: ${body.local.join(', ')}` : ''}` : 'şema bulunamadı'}`);
       say(`  hasar bilgisi: ${record.condition || 'yok'}${record.conditionNote ? ` (“${record.conditionNote}”)` : ''}`);
     } catch (error) {
       say(`  HATA: ${error.message}`);

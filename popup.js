@@ -46,6 +46,10 @@
         ? `Tahmini aralık ${lira(result.low)} – ${lira(result.high)} · ${result.status} (güven: ${result.confidence}, ${result.count} benzer ilan)`
         : 'Henüz yeterli benzer ilan yok. Aynı modelin arama sonuçlarını da analiz edin.'));
       if (record.condition) nodes.push(element('p', 'muted', `Beyan: ${record.condition} — “${record.conditionNote}”. Ekspertiz yerine geçmez.`));
+      const body = core.bodyReport(record);
+      if (raw?.kind === 'detail') nodes.push(element('p', body.known ? '' : 'muted', body.known
+        ? `Kaporta (satıcı şeması): ${body.label} · ${body.score}/100${body.changed.length ? ` · değişen: ${body.changed.join(', ')}` : ''}`
+        : 'Kaporta: bu sayfada boya/değişen şeması bulunamadı (satıcı doldurmamış olabilir).'));
       const advice = core.advise(record, result);
       advice.flags.forEach(flag => nodes.push(element('p', 'muted', `⚠ ${flag.label}: ${flag.text}`)));
       if (advice.offer) nodes.push(element('p', 'muted', `Pazarlık: açılış ${lira(advice.offer.open)}, hedef ${lira(advice.offer.target)}.`));

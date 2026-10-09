@@ -74,6 +74,29 @@
     return node;
   }
 
+  // Kaporta (satıcının boya/değişen şeması) fiyat değerlendirmesinden ayrı gösterilir.
+  const bodyKinds = { good: 'good', neutral: 'neutral', warn: 'warn', bad: 'bad' };
+
+  function bodyTitle(body) {
+    return [body.changed.length && `Değişen: ${body.changed.join(', ')}`, body.painted.length && `Boyalı: ${body.painted.join(', ')}`,
+      body.local.length && `Lokal boyalı: ${body.local.join(', ')}`].filter(Boolean).join('\n') || 'Satıcı bütün parçaları orijinal işaretlemiş.';
+  }
+
+  function bodyCell(record, deal = false) {
+    const body = core.bodyReport(record);
+    const box = element('span', 'body-cell');
+    if (body.known) {
+      const node = element('span', `badge ${bodyKinds[body.level]}`, body.label);
+      node.title = bodyTitle(body);
+      box.append(node, element('span', 'vehicle-meta', `kaporta ${body.score}/100`));
+    } else {
+      box.append(record.condition ? conditionBadge(record) : element('span', 'vehicle-meta', 'Şema okunmadı'));
+      // Fırsat görünen ama şeması okunmamış ilan: kullanıcı ilanı açıp analiz ederse kaporta bilgisi eklenir.
+      if (deal) box.append(element('span', 'vehicle-meta', 'Kaporta için ilanı açıp analiz et'));
+    }
+    return box;
+  }
+
   function percent(ratio) {
     return `${ratio > 0 ? '+' : ''}${Math.round(ratio * 100)}%`;
   }
@@ -96,7 +119,7 @@
   }
 
   function isDeal(entry) {
-    return ['düşük fiyat', 'uygun'].includes(entry.result.status) && entry.record.condition !== 'riskli';
+    return ['düşük fiyat', 'uygun'].includes(entry.result.status) && entry.record.condition !== 'riskli' && !core.bodyReport(entry.record).severe;
   }
 
   function hasWarning(entry) {
@@ -424,7 +447,7 @@
       cell(row, result.center ? `${lira(result.low)} – ${lira(result.high)}` : 'Veri yok');
       cell(row, result.center ? percent(result.gap) : '—', 'money');
       cell(row, age === null ? '—' : age === 0 ? 'bugün' : `${age} gün`);
-      cell(row, conditionBadge(record));
+      cell(row, bodyCell(record, isDeal(entry)));
       cell(row, badge(result.status || 'veri yok'));
       row.addEventListener('click', () => showDetail(record));
       row.addEventListener('keydown', event => {
@@ -696,6 +719,25 @@
     }
     content.append(summary);
     if (!isListing) content.append(gradeControl(vehicle));
+    // Kaporta, fiyat değerlendirmesinden ayrı: satıcının boya/değişen şeması, 100 üzerinden.
+    if (isListing) {
+      const body = core.bodyReport(vehicle);
+      content.append(element('h3', '', 'Kaporta durumu (satıcı beyanı)'));
+      if (body.known) {
+        const head = element('p', 'detail-text');
+        head.append(element('span', `badge ${bodyKinds[body.level]}`, body.label), document.createTextNode(` Kaporta puanı ${body.score}/100. Fiyat durumu bundan ayrı hesaplanır.`));
+        content.append(head);
+        const parts = element('ul', 'detail-list');
+        for (const [title, list] of [['Değişen', body.changed], ['Boyalı', body.painted], ['Lokal boyalı', body.local]]) {
+          if (list.length) parts.append(element('li', '', `${title}: ${list.join(', ')}`));
+        }
+        if (!body.total) parts.append(element('li', '', 'Satıcı bütün parçaları orijinal işaretlemiş.'));
+        content.append(parts);
+        content.append(element('p', 'detail-text', 'Bu bilgi satıcının ilandaki şemasından okunmuştur; ekspertiz raporu değildir. Almadan önce ekspertiz ve tramer kaydını doğrulayın.'));
+      } else {
+        content.append(element('p', 'detail-text', 'Bu ilanın boya/değişen şeması henüz okunmadı. İlanı sahibinden’de açıp eklentide “Bu sayfayı analiz et”e basın; parça bilgisi bu kayda eklenir.'));
+      }
+    }
     const advice = core.advise(vehicle, result);
     if (isListing && advice.flags.length) {
       content.append(element('h3', '', 'Dikkat edilmesi gerekenler'));

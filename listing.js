@@ -170,6 +170,17 @@
   const NEGATION = /\b(YOK|YOKTUR|DEGIL|DEGILDIR|BULUNMUYOR|BULUNMAMAKTADIR|ACMAMIS|ACILMAMIS|YAPILMAMIS|SIFIR)\b/;
   const SEVERITY = { riskli: 3, kusurlu: 2, 'temiz-iddia': 1 };
 
+  // Not, yalnızca bulunan ifadenin çevresidir; satıcı açıklamasındaki telefon ve uzun sayılar saklanmaz.
+  function conditionSnippet(clause, index, length) {
+    const mask = text => text.replace(/(?:\+?90|0)?[\s(]*5\d{2}[\s).-]*\d{3}[\s.-]*\d{2}[\s.-]*\d{2}/g, '***').replace(/\d{7,}/g, '***');
+    const before = mask(clause.slice(0, index));
+    const after = mask(clause.slice(index));
+    // Kesilen kenarda yarım kalan sayı parçası (numara kalıntısı) bırakılmaz.
+    const head = before.length > 20 ? before.slice(-20).replace(/^[\d\s]+/, '') : before;
+    const tail = after.length > length + 70 ? after.slice(0, length + 70).replace(/[\d\s]+$/, '') : after;
+    return `${before.length > 20 ? '…' : ''}${head}${tail}${after.length > length + 70 ? '…' : ''}`.trim();
+  }
+
   // İlan başlığı ve satıcı açıklamasındaki beyanı sınıflandırır; ekspertiz doğrulaması değildir.
   // Olumsuzluk yalnızca anahtar kelimeden hemen sonraki birkaç kelimede aranır:
   // "2 parça boyalı değişen yok" → boyalı geçerli, değişen olumsuzlanmış.
@@ -185,7 +196,7 @@
           const next = after.search(ANY_CONDITION);
           if (next >= 0) after = after.slice(0, next);
           if (NEGATION.test(after.trim().split(' ').slice(0, 3).join(' '))) continue;
-          if (!best || SEVERITY[condition] > SEVERITY[best.condition]) best = { condition, note: clause.slice(0, 140) };
+          if (!best || SEVERITY[condition] > SEVERITY[best.condition]) best = { condition, note: conditionSnippet(clause, match.index, match[0].length) };
         }
       }
     }
@@ -279,7 +290,7 @@
       body: vehicle.body || titleCase(norm(get('KASA TIPI'))),
       year: digits(get('YIL')), km: digits(get('KM')), price: priceFrom(raw.priceText),
       fuel: get('YAKIT / MOTOR TIPI', 'YAKIT TIPI', 'YAKIT'), transmission: get('VITES TIPI', 'VITES'),
-      url: raw.url, city, condition: condition.condition, conditionNote: condition.note
+      url: raw.url, city, condition: condition.condition, conditionNote: condition.note, damage: raw.damage
     });
   }
 
@@ -376,7 +387,9 @@
       { title: 'Fiyat (TL)', width: 13, type: 'money' }, { title: 'Piyasa değeri (TL)', width: 17, type: 'money' },
       { title: 'Piyasaya göre %', width: 15 }, { title: 'Tahmini alt (TL)', width: 15, type: 'money' }, { title: 'Tahmini üst (TL)', width: 15, type: 'money' },
       { title: 'Pazarlık hedefi (TL)', width: 18, type: 'money' }, { title: 'İlk fiyat (TL)', width: 13, type: 'money' },
-      { title: 'Uyarılar', width: 26 }, { title: 'Hasar bilgisi', width: 18 }, { title: 'Hasar ifadesi', width: 30 },
+      { title: 'Uyarılar', width: 26 }, { title: 'Kaporta (satıcı şeması)', width: 20 }, { title: 'Kaporta puanı', width: 13 },
+      { title: 'Değişen parçalar', width: 28 }, { title: 'Boyalı parçalar', width: 34 }, { title: 'Lokal boyalı', width: 22 },
+      { title: 'Hasar bilgisi', width: 18 }, { title: 'Hasar ifadesi', width: 30 },
       { title: 'Güven', width: 8 }, { title: 'Yöntem', width: 14 }, { title: 'Satıcı tel', width: 15 }, { title: 'Takipte', width: 8 },
       { title: 'İlk görülme', width: 12 }, { title: 'Son görülme', width: 12 }, { title: 'İlan no', width: 12 }, { title: 'Başlık', width: 40 }
     ];
@@ -385,6 +398,7 @@
       return { record, result, advice: core.advise(record, result, today), change: core.priceChange(record) };
     }).sort((a, b) => (STATUS_ORDER[a.result.status] ?? 9) - (STATUS_ORDER[b.result.status] ?? 9) || a.record.price - b.record.price);
     const rows = entries.map(({ record, result, advice, change }) => {
+      const body = core.bodyReport(record);
       // Excel HYPERLINK formülü 255 karakterle sınırlı; uzun başlıklı adreslerde kısa adres kullanılır.
       const fullUrl = core.listingUrl(record);
       const url = fullUrl.length > 240 && record.listingId ? `https://www.sahibinden.com/ilan/${record.listingId}/detay` : fullUrl;
@@ -392,7 +406,10 @@
         url ? { link: url, text: 'İlana git' } : '', result.status || 'veri yok', record.brand, record.model, record.engine, record.trim, record.year, record.km, record.city,
         record.price, result.center ?? '', result.center ? Math.round(result.gap * 100) : '', result.low ?? '', result.high ?? '',
         advice.offer ? advice.offer.target : '', change ? change.first : record.price,
-        advice.flags.map(flag => flag.label).join(', '), CONDITION_TEXT[record.condition] || '', record.conditionNote,
+        advice.flags.map(flag => flag.label).join(', '),
+        body.known ? body.label : 'bilinmiyor', body.known ? body.score : '',
+        body.known ? body.changed.join(', ') : '', body.known ? body.painted.join(', ') : '', body.known ? body.local.join(', ') : '',
+        CONDITION_TEXT[record.condition] || '', record.conditionNote,
         result.confidence, result.method === 'model' ? 'fiyat modeli' : result.method === 'benzer' ? 'benzer ilanlar' : '',
         formatPhone(record.sellerPhone), record.watched ? 'evet' : '', record.firstSeen, record.date, record.listingId,
         url ? { link: url, text: record.title || [record.brand, record.model].join(' ') } : record.title

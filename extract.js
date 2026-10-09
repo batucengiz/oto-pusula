@@ -45,7 +45,34 @@
       if (/\d{1,3}(\.\d{3})+\s*TL/.test(node.textContent || '')) box = node;
     }
     const boxLines = text(box).split('\n').map(line => line.trim()).filter(Boolean);
-    const description = document.querySelector('#classifiedDescription, [id*="classifiedDescription"], .classifiedDescription, [class*="description"]');
+    // Seçici listesi belge sırasıyla eşleştiği için önce kesin kimlik denenir; sayfada başka "description" kutuları da var.
+    const description = document.querySelector('#classifiedDescription')
+      || document.querySelector('[id*="classifiedDescription"], .classifiedDescription, [class*="description"]');
+
+    // Satıcının işaretlediği boya/değişen şeması: sayfada zaten görünen parça listesi okunur.
+    // Liste yoksa ve şemadaki bütün parçalar "orijinal" işaretliyse beyan "orijinal" sayılır; aksi hâlde bilinmiyor.
+    let damage = null;
+    const damageList = document.querySelector('.car-damage-info-list');
+    if (damageList) {
+      damage = { local: [], painted: [], changed: [] };
+      let group = '';
+      for (const item of damageList.querySelectorAll('li')) {
+        const kind = String(item.getAttribute('class') || '');
+        const label = text(item);
+        if (/pair-title/.test(kind)) {
+          group = /local/.test(kind) || /lokal/i.test(label) ? 'local'
+            : /changed/.test(kind) || /değişen/i.test(label) ? 'changed'
+            : /paint/.test(kind) || /boyal/i.test(label) ? 'painted' : '';
+        } else if (group && label && label.length <= 40) {
+          damage[group].push(label);
+        }
+      }
+    } else {
+      const parts = [...document.querySelectorAll('.car-parts > *')];
+      if (parts.length && parts.every(part => /original/.test(String(part.getAttribute('class') || '')))) {
+        damage = { local: [], painted: [], changed: [] };
+      }
+    }
     return {
       kind: 'detail',
       url: location.href,
@@ -54,10 +81,11 @@
       title: text(document.querySelector('.classifiedDetailTitle h1, h1')),
       priceText: text(document.querySelector('.classifiedInfo h3, .classified-price-wrapper'))
         || boxLines.find(line => /^\d{1,3}(\.\d{3})+\s*TL/.test(line)) || '',
-      location: text(document.querySelector('.classifiedInfo h2'))
-        || boxLines.find(line => / \/ /.test(line) && !/\d/.test(line)) || '',
+      location: text(document.querySelector('.classifiedInfo .classifiedLocation, .classifiedInfo h2'))
+        || boxLines.find(line => / \/ /.test(line) && !/\d/.test(line) && !LABEL.test(line)) || '',
       info: info.slice(0, 60),
       description: text(description).slice(0, 12000),
+      damage,
       // Yalnızca kullanıcı "Telefonu göster"e bastıktan sonra ekranda görünen metin okunur;
       // eklenti numarayı göstermek için hiçbir şeye tıklamaz.
       phoneText: [...document.querySelectorAll('[class*="phone"], [id*="phone"], [class*="Phone"], [id*="Phone"]')]

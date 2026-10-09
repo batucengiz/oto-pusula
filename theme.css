@@ -320,3 +320,7 @@ td .trend.down { background: var(--good-bg); }
 /* Tekrarlanan Excel düğmesi kaldırıldı (üst çubukta var); takip süresi tek satırda */
 #market-view .section-heading #export-market { display: none; }
 #market-body td:nth-child(5), #market-body td:nth-child(4) { white-space: nowrap; }
+
+/* Kaporta (satıcı şeması) hücresi: etiket + puan alt alta */
+.body-cell { display: grid; gap: 4px; justify-items: start; }
+.body-cell .vehicle-meta { font-size: 11.5px; }

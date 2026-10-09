@@ -19,7 +19,7 @@
         <button class="nav-button" data-view="comparables" type="button">Karşılaştırmalar</button>
         <button class="nav-button" data-view="method" type="button">Yöntem ve veri</button>
       </nav>
-      <div class="sidebar-foot"><span class="online-dot"></span><span class="foot-text">Yerel · veri gönderilmez</span><span class="app-version">v6.3</span></div>
+      <div class="sidebar-foot"><span class="online-dot"></span><span class="foot-text">Yerel · veri gönderilmez</span><span class="app-version">v6.4</span></div>
       <div class="sidebar-credit"><span class="avatar" aria-hidden="true">BC</span><span class="credit-text"><small>Geliştiren</small><strong>Batuhan Cengiz</strong><a href="https://github.com/batucengiz/oto-pusula" target="_blank" rel="noopener noreferrer">GitHub ↗</a></span></div>
     </aside>
 
@@ -65,7 +65,7 @@
         <details class="panel pages-panel" id="pages-panel" hidden><summary><span class="eyebrow">VERİ YÖNETİMİ</span> <strong id="pages-summary">Okunan sayfalar</strong> <small>— açıp istediğiniz sayfanın ilanlarını silebilirsiniz</small></summary><div id="pages-list" class="pages-list"></div></details>
         <div class="table-toolbar"><label class="search-label">İlan ara <input id="market-search" type="search" placeholder="Marka, model, şehir veya başlık"></label><label class="search-label">Göster <select id="market-filter"><option value="all">Tüm ilanlar</option><option value="deal">Fırsat adayları (uygun ve altı)</option><option value="warn">Uyarı olanlar</option><option value="watch">Takip listem</option><option value="phone">Numarası kayıtlı (WhatsApp)</option><option value="stale">30+ gündür görülmeyen</option><option value="drop">Fiyatı düşenler</option><option value="expensive">Pahalı görünenler</option></select></label><label class="search-label">Sırala <select id="market-sort"><option value="gap">Piyasaya göre en ucuz</option><option value="price">Fiyat (artan)</option><option value="recent">Son görülen</option><option value="age">En uzun süredir yayında</option></select></label><button class="button button-danger" id="delete-shown" type="button">Gösterilenleri sil</button><span id="market-count" class="count-label"></span></div>
         <section class="panel chart-panel" id="market-chart-panel" hidden><div class="panel-head"><div><span class="eyebrow">PİYASA HARİTASI</span><h2>İlan fiyatı ve piyasa değeri</h2></div><p>Her nokta bir ilan. Çizginin altındakiler tahmini piyasa değerinden ucuz, gölgeli bant ±%10 aralığıdır. Noktaya tıklayınca ilan ayrıntısı açılır; tüm değerler aşağıdaki tabloda da var.</p></div><div class="chart-box" id="market-chart"></div><div class="chart-legend" id="market-legend"></div></section>
-        <div class="table-wrap"><table><thead><tr><th>İlan</th><th>Fiyat</th><th>Tahmini aralık</th><th>Fark</th><th>Takip</th><th>Hasar bilgisi</th><th>Durum</th></tr></thead><tbody id="market-body"></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>İlan</th><th>Fiyat</th><th>Tahmini aralık</th><th>Fark</th><th>Takip</th><th>Kaporta (beyan)</th><th>Fiyat durumu</th></tr></thead><tbody id="market-body"></tbody></table></div>
         <p class="table-note">Durum: düşük fiyat (piyasanın %10+ altı) · uygun (%5–10 altı) · aralıkta · biraz yüksek · yüksek fiyat. Hasar bilgisi satıcının ilandaki ifadesidir, ekspertiz doğrulaması değildir; ağır hasarlı ilanlar karşılaştırma havuzuna alınmaz. Uyarı rozetlerinin üzerine gelince açıklaması görünür.</p>
       </section>
 
