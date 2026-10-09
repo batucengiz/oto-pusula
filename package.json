@@ -1,8 +1,10 @@
 {
   "name": "oto-pusula",
-  "version": "5.3.0",
+  "version": "6.0.0",
   "private": true,
   "description": "sahibinden.com ilanları ve galeri stoğu için yerel fiyat analizi (Chrome eklentisi)",
+  "author": "Batuhan Cengiz",
+  "repository": "github:batucengiz/oto-pusula",
   "scripts": {
     "dev": "node dev-server.js",
     "test": "node --test core.test.js listing.test.js xlsx.test.js dashboard.smoke.test.js pages.test.js",

@@ -14,3 +14,4 @@ header p { color: #7dd3fc; }
 .deal:hover { background: rgba(16, 185, 129, .2); }
 .deal span { color: #6ee7b7; }
 html { background: #0b1220; }
+.credit { margin-top: 6px; color: #64748b; }

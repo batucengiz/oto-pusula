@@ -113,3 +113,7 @@ Sayfanın kendi betikleri çalıştırılmaz, ağ isteği yapılmaz. `fixtures/`
 
 - Mobil uyumlu popup ve koyu tema
 - arabam.com gibi başka ilan siteleri için okuyucu (aynı fiyat motoru ile)
+
+## Geliştirici
+
+**Batuhan Cengiz** · [github.com/batucengiz](https://github.com/batucengiz)
