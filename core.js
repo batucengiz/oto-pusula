@@ -176,6 +176,7 @@
       date: date(input.date), note: plain(input.note).slice(0, 500),
       type
     };
+    if (type === 'stock' && GRADES[plain(input.grade)]) record.grade = plain(input.grade);
     return type === 'comparable' ? { ...record, ...listingFields(input) } : record;
   }
 
@@ -358,7 +359,37 @@
 
   const pct = value => `%${(value * 100).toLocaleString('tr-TR', { maximumFractionDigits: 1 })}`;
 
+  // --- Kondisyon (yalnızca kullanıcı seçerse) ---
+  // Piyasa ortası "ortalama kondisyonlu" aracı temsil eder. Kullanıcı aracını "çok iyi" ya da "bakım ister"
+  // olarak işaretlerse hedef, benzer ilanların fiyat dağılımında ilgili dilime kaydırılır
+  // (çok iyi ≈ %75–%90'lık dilim, bakım ister ≈ %10–%25'lik dilim; normal dağılım varsayımıyla).
+  const GRADES = {
+    iyi: { label: 'çok iyi kondisyon', z: [0.67, 1.28], text: 'çok temiz araçlar genelde benzerlerin en pahalı dörtte birinde (yaklaşık %75–%90\'lık dilim) yer alır' },
+    kotu: { label: 'bakım isteyen', z: [-1.28, -0.67], text: 'bakım isteyen araçlar genelde benzerlerin en ucuz dörtte birinde (yaklaşık %10–%25\'lik dilim) yer alır' }
+  };
+
+  function applyGrade(result, vehicle) {
+    const grade = GRADES[vehicle.grade];
+    if (!grade || !result.center) return result;
+    // Benzer ilan yönteminde yayılım MAD'dir (σ ≈ 1,48 × MAD); modelde doğrudan hata sapmasıdır.
+    const sigma = Math.max(0.05, result.method === 'model' ? result.spread : result.spread * 1.4826);
+    const low = Math.round(result.center * (1 + grade.z[0] * sigma));
+    const high = Math.round(result.center * (1 + grade.z[1] * sigma));
+    const center = Math.round((low + high) / 2);
+    const gap = (vehicle.price - center) / center;
+    return {
+      ...result, low, high, center, gap, baseCenter: result.center, grade: grade.label,
+      status: statusFor(vehicle, result.confidence, gap),
+      reason: `${result.reason} Kondisyon “${grade.label}” seçildi: ${grade.text}; hedef bu banda göre gösterildi (ortalama araç için piyasa ortası ${Math.round(result.center).toLocaleString('tr-TR')} TL).`
+    };
+  }
+
   function estimate(vehicle, comparables, settings = DEFAULTS, today = new Date()) {
+    const result = estimateBase(vehicle, comparables, settings, today);
+    return vehicle.type === 'stock' && vehicle.grade ? applyGrade(result, vehicle) : result;
+  }
+
+  function estimateBase(vehicle, comparables, settings = DEFAULTS, today = new Date()) {
     const base = comparables.filter(item =>
       item.id !== vehicle.id &&
       (item.condition !== 'riskli' || vehicle.condition === 'riskli') &&

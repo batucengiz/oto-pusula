@@ -266,3 +266,26 @@ test('tahmini aralık: tipik sapma + az veri payı; ilan arttıkça daralır, ge
   assert.equal(eight.status, 'yüksek fiyat');
   assert.match(eight.reason, /Aralık ±\d+%/);
 });
+
+test('kondisyon: seçilmezse hesap aynı; "çok iyi" hedefi üst dilime, "bakım ister" alt dilime taşır', () => {
+  const today = new Date('2026-10-09');
+  const pool = Array.from({ length: 8 }, (_, i) => core.normalizeRecord({ id: `sh-1234561${String(i).padStart(3, '0')}`, source: 'sahibinden',
+    listingId: `1234561${String(i).padStart(3, '0')}`, brand: 'Fiat', model: 'Tipo', year: 1997, km: 180000,
+    price: Math.round(187500 * (1 + [-0.1, -0.07, -0.04, 0, 0.04, 0.07, 0.1, -0.02][i])), date: '2026-10-05' }, 'comparable'));
+  const base = { id: 'S-T', brand: 'Fiat', model: 'Tipo', year: 1997, km: 180000, price: 205000 };
+  const plain = core.estimate(core.normalizeRecord(base, 'stock'), pool, core.DEFAULTS, today);
+  const good = core.estimate(core.normalizeRecord({ ...base, grade: 'iyi' }, 'stock'), pool, core.DEFAULTS, today);
+  const poor = core.estimate(core.normalizeRecord({ ...base, grade: 'kotu' }, 'stock'), pool, core.DEFAULTS, today);
+  assert.equal(plain.grade, undefined, 'seçim yoksa kondisyon uygulanmaz');
+  assert.ok(good.center > plain.center && good.low > plain.center, 'çok iyi: hedef piyasa ortasının üstünde');
+  assert.ok(poor.center < plain.center && poor.high < plain.center, 'bakım ister: hedef ortanın altında');
+  assert.equal(good.baseCenter, plain.center);
+  assert.match(good.reason, /çok iyi kondisyon/);
+  assert.equal(good.status, 'aralıkta', '205 bin, çok iyi bir Tipo için piyasa bandında');
+  assert.ok(['yüksek fiyat', 'biraz yüksek'].includes(plain.status), 'ortalama kondisyonda aynı fiyat yüksek sayılır');
+  // Çok iyi kondisyon bile her fiyatı haklı çıkarmaz.
+  assert.equal(core.estimate(core.normalizeRecord({ ...base, price: 240000, grade: 'iyi' }, 'stock'), pool, core.DEFAULTS, today).status, 'yüksek fiyat');
+  // Geçersiz değer ve ilan kayıtları kondisyon almaz.
+  assert.equal(core.normalizeRecord({ ...base, grade: 'harika' }, 'stock').grade, undefined);
+  assert.equal(core.normalizeRecord({ ...base, grade: 'iyi' }, 'comparable').grade, undefined);
+});

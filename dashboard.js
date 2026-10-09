@@ -451,6 +451,7 @@
       const name = element('span', 'vehicle-name', labelFor(vehicle));
       const meta = element('span', 'vehicle-meta', `${vehicle.year} · ${vehicle.km.toLocaleString('tr-TR')} km`);
       const nameCell = element('span'); nameCell.append(name, meta);
+      if (gradeBadges[vehicle.grade]) nameCell.append(element('span', `badge ${gradeBadges[vehicle.grade][0]} grade-badge`, gradeBadges[vehicle.grade][1]));
       cell(row, nameCell);
       const days = core.daysSince(vehicle.date);
       cell(row, days === null ? 'Tarih yok' : `${days} gün`);
@@ -499,6 +500,31 @@
     showView(activeView);
   }
 
+  // Stok aracı için isteğe bağlı kondisyon seçimi; seçilmezse hesap ortalama kondisyona göredir.
+  const gradeBadges = { iyi: ['good', 'çok iyi kondisyon'], kotu: ['warn', 'bakım isteyen'] };
+
+  function gradeControl(vehicle) {
+    const box = element('div', 'grade-control');
+    box.append(element('span', 'grade-label', 'Kondisyon:'));
+    for (const [value, text] of [['', 'Ortalama'], ['iyi', 'Çok iyi'], ['kotu', 'Bakım ister']]) {
+      const option = element('button', `grade-option${(vehicle.grade || '') === value ? ' active' : ''}`, text);
+      option.type = 'button';
+      option.addEventListener('click', () => setGrade(vehicle.id, value));
+      box.append(option);
+    }
+    box.append(element('small', 'grade-help', 'Seçmezseniz ortalama kondisyona göre hesaplanır. “Çok iyi” hedefi benzer ilanların en pahalı dilimine, “Bakım ister” en ucuz dilimine taşır.'));
+    return box;
+  }
+
+  function setGrade(id, grade) {
+    const stock = state.stock.map(vehicle => {
+      if (vehicle.id !== id) return vehicle;
+      const { grade: previous, ...rest } = vehicle;
+      return grade ? { ...rest, grade } : rest;
+    });
+    if (save({ ...state, stock })) showDetail(stock.find(vehicle => vehicle.id === id));
+  }
+
   function showDetail(vehicle) {
     selectedVehicle = vehicle;
     const result = core.estimate(vehicle, state.comparables);
@@ -516,7 +542,7 @@
     const summary = element('div', 'detail-summary');
     for (const [label, value] of [
       ['İlan fiyatı', lira(vehicle.price)],
-      ['Tahmini aralık', result.center ? `${lira(result.low)} – ${lira(result.high)}` : 'Veri yok'],
+      [result.grade ? `Hedef aralık (${result.grade})` : 'Tahmini aralık', result.center ? `${lira(result.low)} – ${lira(result.high)}` : 'Veri yok'],
       isListing
         ? ['Piyasaya göre', result.center ? percent(result.gap) : '—']
         : ['Brüt fark', vehicle.cost === null ? 'Maliyet yok' : lira(vehicle.price - vehicle.cost)]
@@ -524,6 +550,7 @@
       const box = element('div'); box.append(element('span', '', label), element('strong', '', value)); summary.append(box);
     }
     content.append(summary);
+    if (!isListing) content.append(gradeControl(vehicle));
     const advice = core.advise(vehicle, result);
     if (isListing && advice.flags.length) {
       content.append(element('h3', '', 'Dikkat edilmesi gerekenler'));
@@ -628,7 +655,7 @@
       const input = Object.fromEntries(new FormData(event.currentTarget));
       input.id = editingId ? editingId.replace(/^stock-/, '') : `manuel-${Date.now()}`;
       const previous = editingId ? state.stock.find(vehicle => vehicle.id === editingId) : null;
-      const item = core.normalizeRecord(previous ? { body: previous.body, ...input } : input, 'stock', state.stock.length + 2);
+      const item = core.normalizeRecord(previous ? { body: previous.body, grade: previous.grade, ...input } : input, 'stock', state.stock.length + 2);
       if (!editingId && state.stock.length >= core.MAX_ROWS) throw new Error(`Stok sınırı ${core.MAX_ROWS} araç.`);
       const updated = editingId ? state.stock.map(vehicle => vehicle.id === editingId ? item : vehicle) : [...state.stock, item];
       if (save({ ...state, stock: updated, sample: false })) {

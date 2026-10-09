@@ -119,3 +119,12 @@ tbody tr.clickable:hover { background: #f0fdfa; }
 .market-panel .insight:nth-child(6) strong { color: #334155; }
 .market-panel .panel-head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; }
 @media (max-width: 900px) { .market-panel .insight-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Kondisyon seçimi (stok aracı) */
+.grade-control { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 12px 0 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 14px; background: #f8fafc; }
+.grade-label { font-size: 12px; font-weight: 800; color: #334155; margin-right: 4px; }
+.grade-option { border: 1px solid var(--line); background: white; color: #334155; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 700; }
+.grade-option:hover { border-color: #a5b4fc; }
+.grade-option.active { background: var(--grad); color: white; border-color: transparent; box-shadow: 0 6px 14px -8px rgba(6, 182, 212, .9); }
+.grade-help { flex-basis: 100%; color: var(--muted); font-size: 11px; }
+.grade-badge { display: inline-block; margin-top: 5px; }

@@ -19,6 +19,7 @@
 - **Piyasa haritası ve fiyat grafiği:** Her ilan, fiyatı ile tahmini piyasa değerini karşılaştıran bir grafikte nokta olarak görünür (adil fiyat çizgisi ve ±%10 bandıyla). İlan detayında fiyatın zaman içindeki değişimi çizilir. Grafikler bağımlılıksız SVG'dir.
 - **Fiyat geçmişi:** Aynı ilanı sonraki günlerde tekrar gördüğünüzde fiyat değişimi kaydedilir. "Fiyatı düşenler" ve "en uzun süredir yayında" filtreleri pazarlıkta işe yarar.
 - **Hasar bilgisi:** İlan detayındaki yapısal "Ağır Hasar Kayıtlı" alanı ile başlık ve satıcı açıklamasındaki "boyalı", "tramer", "ağır hasar kayıtlı" gibi ifadeler sınıflandırılır. "Değişen yok" gibi olumsuz ifadeler ayırt edilir. Ağır hasar beyanlı ilanlar karşılaştırma havuzuna alınmaz, böylece piyasa fiyatını aşağı çekmez.
+- **Kondisyon seçimi (isteğe bağlı):** Stok aracının detayında “Ortalama / Çok iyi / Bakım ister” seçilebilir. Seçilmezse hesap değişmez; “Çok iyi” hedefi benzer ilanların fiyat dağılımındaki üst dilime (yaklaşık %75–%90), “Bakım ister” alt dilime taşır.
 - **Galeri modu:** Stok CSV'si (alış maliyeti, stoğa giriş tarihi) yüklenir. Maliyet altı ilanlar, 60 günü geçen araçlar ve piyasaya göre pahalı kalan araçlar önceliklendirilir.
 - **Tek tıkla Excel:** Popup veya panelden “Excel’e aktar” gerçek bir .xlsx indirir: kalın başlıklar, sayı biçimli fiyatlar, filtre, fırsatlar üstte; ilk sütunda ve başlıkta her ilan için tıklanabilir sahibinden bağlantısı. Dosya bağımlılıksız üretilir (xlsx.js). Tüm veri JSON yedek olarak alınıp geri yüklenebilir.
 
@@ -91,7 +92,7 @@ Ticari kullanımda (galeri) satıcı numaralarının saklanması kişisel veri i
 ## Geliştirme
 
 ```bash
-npm test        # 58 test: fiyat motoru ve öğrenen model, ilan ayrıştırma, hasar beyanı, uyarılar, panel, popup/WhatsApp akışı, güvenlik ve ban kuralları
+npm test        # 59 test: fiyat motoru ve öğrenen model, ilan ayrıştırma, hasar beyanı, uyarılar, panel, popup/WhatsApp akışı, güvenlik ve ban kuralları
 npm run verify-page -- "fixtures/sayfa.html"   # kaydedilmiş gerçek sayfayı okuyucudan geçirir
 npm run dev     # paneli http://127.0.0.1:4173 adresinde önizler (popup için eklenti olarak yükleyin)
 ```
