@@ -146,18 +146,22 @@
         if (model) break;
       }
     }
-    // Katalogda olmayan marka (ör. Togg): ilan detayındaki Marka/Seri alanları doğrudan kullanılır.
+    // Katalogda olmayan marka (ör. Togg, Tofaş): sayfadaki Marka/Seri alanları doğrudan kullanılır ve
+    // Türkçe harfleriyle gösterilir ("Tofaş Şahin"). Eşleştirme anahtarı harf farkını yok saydığı için
+    // detay ve arama sayfasından gelen kayıtlar yine aynı model sayılır.
+    let labels = null;
     if (!brand && norm(brandHint)) {
       brand = norm(brandHint);
       model = norm(modelHint) || sources[0].split(' ')[0];
+      labels = { brand: String(brandHint).trim().slice(0, 40), model: norm(modelHint) ? String(modelHint).trim().slice(0, 40) : '' };
     }
     if (brand && !model && sources[0]) model = sources[0].split(' ')[0];
     if (!brand || !model) return null;
 
     const detailText = `${sources[0]} ${sources[1]}`;
     return {
-      brand: CATALOG[brand] ? brandName(brand) : titleCase(brand),
-      model: titleCase(model),
+      brand: CATALOG[brand] ? brandName(brand) : labels?.brand || titleCase(brand),
+      model: labels?.model || titleCase(model),
       engine: findEngine(brand, detailText),
       body: findBody(detailText),
       trim: findTrim(sources[0] || sources[1])
@@ -235,6 +239,10 @@
     const headers = Array.isArray(raw?.headers) ? raw.headers : [];
     const yearIndex = headerIndex(headers, /^(YIL|MODEL YILI)$/);
     const kmIndex = headerIndex(headers, /^(KM|KILOMETRE)$/);
+    // Genel aramalarda (ör. /otomobil) tabloda ayrı Marka ve Seri sütunları bulunur. Bunlar varsa marka ve model
+    // doğrudan buradan alınır; böylece katalogda olmayan markalar (Citroen, Tofaş, Togg…) da okunur.
+    const brandIndex = headerIndex(headers, /^MARKA$/);
+    const seriesIndex = headerIndex(headers, /^SERI$/);
     const records = [];
     const skipped = [];
     for (const row of (raw?.rows || []).slice(0, MAX_PAGE_ROWS)) {
@@ -243,7 +251,8 @@
       const cells = Array.isArray(row.cells) ? row.cells.map(cell => String(cell ?? '')) : [];
       const title = String(row.title ?? '').trim();
       const context = row.titleIndex > 1 ? cells.slice(1, row.titleIndex).join(' ') : '';
-      const vehicle = identifyVehicle({ context, title, pageTitle: raw.pageTitle });
+      const vehicle = identifyVehicle({ context, title, pageTitle: raw.pageTitle,
+        brandHint: brandIndex >= 0 ? cells[brandIndex] : '', modelHint: brandIndex >= 0 && seriesIndex >= 0 ? cells[seriesIndex] : '' });
       if (!vehicle) { skipped.push({ id: listingId, reason: 'marka/model tanınamadı' }); continue; }
       let year = yearIndex >= 0 ? digits(cells[yearIndex]) : NaN;
       if (!Number.isInteger(year) || year < 1980) year = Number(title.match(/\b(19[89]\d|20\d{2})\b/)?.[1]);

@@ -104,7 +104,8 @@
     rows: rows.map(row => {
       const cells = [...row.querySelectorAll('td')];
       const titleCell = row.querySelector('.searchResultsTitleValue') || row.querySelector('a.classifiedTitle')?.closest('td');
-      const link = row.querySelector('a.classifiedTitle[href], .searchResultsTitleValue a[href]');
+      // Başlık hücresinde "Favoriye ekle" gibi href="#" bağlantıları da var; yalnızca ilan adresine giden alınır.
+      const link = [...row.querySelectorAll('a[href]')].find(anchor => /\/ilan\//.test(anchor.getAttribute('href') || ''));
       let href = '';
       try { href = link ? new URL(link.getAttribute('href'), location.href).href : ''; } catch { /* bağlantısız satır */ }
       return {

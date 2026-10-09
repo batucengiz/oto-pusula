@@ -274,3 +274,30 @@ test('numara kaydetme günde 30 ile sınırlı; aynı numarayı yeniden kaydetme
   assert.equal(second.link, undefined, 'engellenince bağlantı verilmemeli');
   assert.doesNotMatch(JSON.stringify(first.state.contacts), /905/, 'yazışma kaydında numara tutulmaz');
 });
+
+// 2026 Ekim: genel aramada (ör. /otomobil) tabloya ayrı Marka/Seri/Model sütunları geldi ve başlık hücresine
+// href="#" olan "Favoriye ekle" bağlantıları eklendi. Katalogda olmayan markaların tamamı atlanıyordu.
+test('yeni arama tablosu: Marka/Seri sütunlarından her marka okunur, ilan bağlantısı "#" değil gerçek adres olur', () => {
+  const { extractFromHtml } = require('./tools/verify-page.js');
+  const row = (id, brand, series, model, title, year, km, price) => `<tr class="searchResultsItem" data-id="${id}">
+    <td></td><td>${brand}</td><td>${series}</td><td>${model}</td>
+    <td class="searchResultsTitleValue"><a href="#" class="action classifiedAddFavorite">Favoriye Ekle</a>
+      <a class="classifiedTitle" href="/ilan/vasita-otomobil-${id}/detay">${title}</a></td>
+    <td>${year}</td><td>${km}</td><td class="searchResultsPriceValue">${price}</td><td>09 Ekim 2026</td>
+    <td class="searchResultsLocationValue"><span>Bursa</span><br><span>Nilüfer</span></td><td></td></tr>`;
+  const html = `<html><head><title>2.El Arabalar ve Satılık Sıfır Km Otomobil Fiyatları sahibinden.com'da</title></head><body>
+    <table id="searchResultsTable"><thead><tr><td></td><td>Marka</td><td>Seri</td><td>Model</td><td>İlan Başlığı</td><td>Yıl</td><td>KM</td><td>Fiyat</td><td>İlan Tarihi</td><td>İl / İlçe</td><td></td></tr></thead><tbody>
+    ${row('1341150042', 'Citroen', 'C-Elysee', '1.6 HDi Feel', 'BAKIMLI C-ELYSEE', '2017', '117.000', '797.500 TL')}
+    ${row('1341150044', 'Tofaş', 'Şahin', '1.6', 'TEMİZ ŞAHİN', '1995', '300.000', '210.000 TL')}
+    ${row('1341150043', 'Fiat', 'Egea', '1.4 Fire Urban', 'TEMİZ EGEA', '2020', '80.000', '800.000 TL')}
+    </tbody></table></body></html>`;
+  const raw = extractFromHtml(html, 'https://www.sahibinden.com/otomobil');
+  assert.equal(raw.rows[0].href, 'https://www.sahibinden.com/ilan/vasita-otomobil-1341150042/detay', 'favori bağlantısı (#) ilan adresi sanılmamalı');
+  const { records, skipped } = listing.parseSearchPage(raw);
+  assert.deepEqual(skipped, []);
+  assert.deepEqual(records.map(r => `${r.brand} ${r.model}`), ['Citroen C-Elysee', 'Tofaş Şahin', 'Fiat Egea']);
+  assert.equal(records[2].engine, '1.4 Fire');
+  assert.equal(records[2].trim, 'Urban');
+  assert.equal(records[1].year, 1995);
+  assert.equal(records[0].city, 'Bursa');
+});
