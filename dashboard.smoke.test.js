@@ -107,6 +107,17 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
   assert.equal(get('stat-units').textContent, '2');
   assert.equal(get('stock-body').children.length, 2);
   assert.equal(get('comparable-body').children.length, 6);
+  // Aracımla karşılaştır: seçili stok aracının hesabında kullanılan ilanlar, düzeltilmiş fiyat ve fark sütunlarıyla.
+  get('compare-vehicle').value = 'stock-S-1';
+  get('compare-vehicle').listeners.change();
+  assert.equal(get('comparable-head').children.length, 6, 'düzeltilmiş fiyat ve fark sütunları eklenmeli');
+  assert.equal(get('compare-summary').hidden, false);
+  assert.ok(get('comparable-body').children.length >= 4, 'hesapta kullanılan ilanlar listelenmeli');
+  assert.match(get('comparable-count').textContent, /hesapta kullanıldı/);
+  get('compare-vehicle').value = '';
+  get('compare-vehicle').listeners.change();
+  assert.equal(get('comparable-head').children.length, 5, 'seçim kalkınca eski görünüme dönmeli');
+  assert.equal(get('comparable-body').children.length, 6);
   assert.equal(get('market-body').children.length, 6);
   assert.equal(get('market-summary').children.length, 6);
   assert.equal(get('market-chart-panel').hidden, false, 'yeterli ilan varken piyasa haritası görünmeli');

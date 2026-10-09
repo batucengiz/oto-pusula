@@ -468,9 +468,83 @@
     }
   }
 
+  // Seçili stok aracının seçenek listesini tazeler; silinmiş araç seçili kalmaz.
+  function fillCompareOptions() {
+    const select = $('compare-vehicle');
+    const current = select.value;
+    const empty = element('option', '', 'Seçilmedi (tüm kayıtlar)');
+    empty.value = '';
+    select.replaceChildren(empty, ...state.stock.map(vehicle => {
+      const option = element('option', '', `${labelFor(vehicle)} · ${vehicle.year} · ${lira(vehicle.price)}`);
+      option.value = vehicle.id;
+      return option;
+    }));
+    select.value = state.stock.some(vehicle => vehicle.id === current) ? current : '';
+  }
+
+  function setHead(titles) {
+    $('comparable-head').replaceChildren(...titles.map(title => element('th', '', title)));
+  }
+
+  // Seçili aracın hesabında kullanılan ilanlar: aracın yılına/km'sine çevrilmiş fiyat ve aradaki fark.
+  function renderVehicleComparison(vehicle) {
+    const body = $('comparable-body');
+    const summary = $('compare-summary');
+    const result = core.estimate(vehicle, state.comparables);
+    setHead(['Araç', 'Yıl / km', 'İlan fiyatı', 'Aracına göre düzeltilmiş', 'Senin fiyatınla fark', 'Son görülme']);
+    summary.hidden = false;
+    summary.replaceChildren();
+    if (!result.center) {
+      summary.append(element('strong', '', `${labelFor(vehicle)} · ${vehicle.year}`), element('span', '', result.reason));
+      $('comparable-count').textContent = '0 kayıt';
+      const row = element('tr');
+      cell(row, 'Bu araç için karşılaştırılabilir ilan yok.').colSpan = 6;
+      body.append(row);
+      return;
+    }
+    const used = result.comparables || [];
+    summary.append(
+      element('strong', '', `${labelFor(vehicle)} · ${vehicle.year} · ${vehicle.km.toLocaleString('tr-TR')} km`),
+      element('span', '', `${result.method === 'model' ? `${result.count} ilandan öğrenilen fiyat modeli` : `${used.length} benzer ilan`} · ${result.grade ? 'hedef (' + result.grade + ')' : 'piyasa ortası'} ${lira(result.center)} · senin fiyatın ${lira(vehicle.price)} (${percent(result.gap)})`),
+      element('small', '', 'Düzeltilmiş fiyat: ilanın, senin aracının yılına ve kilometresine çevrilmiş hâli. Fark = senin fiyatın − düzeltilmiş fiyat.')
+    );
+    $('comparable-count').textContent = `${used.length} kayıt hesapta kullanıldı`;
+    if (!used.length) {
+      const row = element('tr');
+      cell(row, 'Bu araç benzer ilanlarla değil, öğrenilen fiyat modeliyle hesaplandı; ilan bazında karşılaştırma yok.').colSpan = 6;
+      body.append(row);
+      return;
+    }
+    for (const { item, adjustedPrice } of [...used].sort((a, b) => a.adjustedPrice - b.adjustedPrice)) {
+      const row = element('tr');
+      const url = core.listingUrl(item);
+      const name = [labelFor(item), item.engine].filter(Boolean).join(' · ');
+      if (url) {
+        const link = element('a', 'vehicle-name listing-link', `${name} ↗`);
+        link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer';
+        cell(row, link);
+      } else {
+        cell(row, name);
+      }
+      cell(row, `${item.year} · ${item.km.toLocaleString('tr-TR')} km${item.city ? ` · ${item.city}` : ''}`);
+      cell(row, lira(item.price), 'money');
+      cell(row, lira(adjustedPrice), 'money');
+      const diff = vehicle.price - adjustedPrice;
+      const diffText = diff === 0 ? 'aynı' : `${diff > 0 ? '+' : '−'}${lira(Math.abs(diff))} (${percent(diff / adjustedPrice)}) · ${diff > 0 ? 'seninki pahalı' : 'seninki ucuz'}`;
+      cell(row, element('span', `trend ${diff > 0 ? 'up' : 'down'}`, diffText), 'money');
+      cell(row, item.date || 'Tarih yok');
+      body.append(row);
+    }
+  }
+
   function renderComparables() {
     const body = $('comparable-body');
     body.replaceChildren();
+    fillCompareOptions();
+    const selected = state.stock.find(vehicle => vehicle.id === $('compare-vehicle').value);
+    if (selected) { renderVehicleComparison(selected); return; }
+    $('compare-summary').hidden = true;
+    setHead(['Araç', 'Yıl / km', 'Fiyat', 'Son görülme', 'Kaynak']);
     const query = core.key($('comparable-search').value);
     const records = state.comparables.filter(item => core.key([labelFor(item), item.engine, item.city].join(' ')).includes(query));
     $('comparable-count').textContent = `${records.length} kayıt gösteriliyor`;
@@ -531,6 +605,7 @@
     const isListing = vehicle.type === 'comparable';
     $('detail-title').textContent = [labelFor(vehicle), vehicle.engine].filter(Boolean).join(' · ');
     $('edit-stock').hidden = isListing;
+    $('compare-stock').hidden = isListing;
     $('remove-stock').textContent = isListing ? 'Listeden çıkar' : 'Stoktan çıkar';
     $('open-listing').hidden = !(isListing && core.listingUrl(vehicle));
     $('watch-listing').hidden = !isListing;
@@ -579,7 +654,8 @@
       if (result.comparables.length) content.append(element('h3', '', 'Hesapta kullanılan yakın kayıtlar'));
       const list = element('ul', 'detail-list');
       result.comparables.slice(0, 8).forEach(({ item, adjustedPrice }) => {
-        list.append(element('li', '', `${labelFor(item)} · ${item.year} · ${item.km.toLocaleString('tr-TR')} km · kayıt ${lira(item.price)} → düzeltilmiş ${lira(adjustedPrice)}${item.date ? ` · ${item.date}` : ''}`));
+        const diff = vehicle.price - adjustedPrice;
+        list.append(element('li', '', `${labelFor(item)} · ${item.year} · ${item.km.toLocaleString('tr-TR')} km · kayıt ${lira(item.price)} → düzeltilmiş ${lira(adjustedPrice)} · fark ${diff >= 0 ? '+' : '−'}${lira(Math.abs(diff))}${item.date ? ` · ${item.date}` : ''}`));
       });
       if (result.comparables.length) content.append(list);
     }
@@ -620,6 +696,15 @@
   document.querySelectorAll('.nav-button').forEach(button => button.addEventListener('click', () => showView(button.dataset.view)));
   $('stock-search').addEventListener('input', renderStock);
   $('comparable-search').addEventListener('input', renderComparables);
+  $('compare-vehicle').addEventListener('change', renderComparables);
+  $('compare-stock').addEventListener('click', () => {
+    if (!selectedVehicle || selectedVehicle.type !== 'stock') return;
+    fillCompareOptions();
+    $('compare-vehicle').value = selectedVehicle.id;
+    $('detail-dialog').close();
+    renderComparables();
+    showView('comparables');
+  });
   $('import-open').addEventListener('click', () => $('import-dialog').showModal());
   $('import-comparables').addEventListener('click', () => { $('import-type').value = 'comparable'; $('import-dialog').showModal(); });
   $('import-submit').addEventListener('click', async () => {

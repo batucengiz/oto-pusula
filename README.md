@@ -20,6 +20,7 @@
 - **Fiyat geçmişi:** Aynı ilanı sonraki günlerde tekrar gördüğünüzde fiyat değişimi kaydedilir. "Fiyatı düşenler" ve "en uzun süredir yayında" filtreleri pazarlıkta işe yarar.
 - **Hasar bilgisi:** İlan detayındaki yapısal "Ağır Hasar Kayıtlı" alanı ile başlık ve satıcı açıklamasındaki "boyalı", "tramer", "ağır hasar kayıtlı" gibi ifadeler sınıflandırılır. "Değişen yok" gibi olumsuz ifadeler ayırt edilir. Ağır hasar beyanlı ilanlar karşılaştırma havuzuna alınmaz, böylece piyasa fiyatını aşağı çekmez.
 - **Kondisyon seçimi (isteğe bağlı):** Stok aracının detayında “Ortalama / Çok iyi / Bakım ister” seçilebilir. Seçilmezse hesap değişmez; “Çok iyi” hedefi benzer ilanların fiyat dağılımındaki üst dilime (yaklaşık %75–%90), “Bakım ister” alt dilime taşır.
+- **Aracımla karşılaştır:** Karşılaştırmalar sekmesinde bir stok aracı seçilince, hesapta kullanılan her ilanın aracın yılına/km’sine göre düzeltilmiş fiyatı ve aracın fiyatıyla farkı listelenir.
 - **Galeri modu:** Stok CSV'si (alış maliyeti, stoğa giriş tarihi) yüklenir. Maliyet altı ilanlar, 60 günü geçen araçlar ve piyasaya göre pahalı kalan araçlar önceliklendirilir.
 - **Tek tıkla Excel:** Popup veya panelden “Excel’e aktar” gerçek bir .xlsx indirir: kalın başlıklar, sayı biçimli fiyatlar, filtre, fırsatlar üstte; ilk sütunda ve başlıkta her ilan için tıklanabilir sahibinden bağlantısı. Dosya bağımlılıksız üretilir (xlsx.js). Tüm veri JSON yedek olarak alınıp geri yüklenebilir.
 
