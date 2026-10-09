@@ -73,3 +73,15 @@ test('ilan detay sayfası: bilinmeyen yapıda etiket taraması ve sekme başlı�
   assert.equal(fallback.brand, 'Volkswagen');
   assert.equal(fallback.model, 'Passat');
 });
+
+test('dağıtım paketi: eklentinin yüklediği her dosyayı içerir, test/geliştirme dosyası içermez', () => {
+  const { runtimeFiles, build } = require('./tools/package.js');
+  const files = runtimeFiles();
+  for (const required of ['manifest.json', 'extract.js', 'popup.html', 'dashboard.html', 'core.js', 'listing.js', 'xlsx.js', 'theme.css', 'icons/icon128.png']) {
+    assert.ok(files.includes(required), `${required} pakette olmalı`);
+  }
+  assert.ok(!files.some(file => /test\.js$|node_modules|fixtures|tools\/|legacy\/|dev-server/.test(file)), files.join(', '));
+  const { bytes, folder } = build();
+  assert.equal(bytes.subarray(0, 2).toString(), 'PK');
+  assert.ok(bytes.includes(Buffer.from(`${folder}/KURULUM.txt`)));
+});

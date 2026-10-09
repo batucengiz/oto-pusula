@@ -8,7 +8,8 @@
   "scripts": {
     "dev": "node dev-server.js",
     "test": "node --test core.test.js listing.test.js xlsx.test.js dashboard.smoke.test.js pages.test.js",
-    "verify-page": "node tools/verify-page.js"
+    "verify-page": "node tools/verify-page.js",
+    "package": "node tools/package.js"
   },
   "devDependencies": {
     "jsdom": "^24.1.3"
