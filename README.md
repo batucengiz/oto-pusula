@@ -1,8 +1,12 @@
 # Oto Pusula
 
+[![Testler](https://github.com/batucengiz/oto-pusula/actions/workflows/test.yml/badge.svg)](https://github.com/batucengiz/oto-pusula/actions/workflows/test.yml) [![Son sürüm](https://img.shields.io/github/v/release/batucengiz/oto-pusula?label=s%C3%BCr%C3%BCm)](https://github.com/batucengiz/oto-pusula/releases/latest) ![Bağımlılık yok](https://img.shields.io/badge/%C3%A7al%C4%B1%C5%9Fma%20zaman%C4%B1%20ba%C4%9F%C4%B1ml%C4%B1l%C4%B1%C4%9F%C4%B1-yok-brightgreen) ![Lisans](https://img.shields.io/badge/lisans-t%C3%BCm%20haklar%C4%B1%20sakl%C4%B1d%C4%B1r-lightgrey)
+
 İkinci el araç ilanlarının fiyatını, aynı modelin piyasasıyla karşılaştıran bir Chrome eklentisi.
 
 **Kimler için:** Araç almak isteyen biri "bu ilan pahalı mı?" sorusuna cevap arar. Galerici ise stoğunu piyasayla karşılaştırıp hangi aracın fiyatını gözden geçireceğine karar verir.
+
+**Öne çıkanlar:** benzer araç eşleştirme ve öğrenen fiyat modeli · ilan sayfasındaki boya/değişen şemasından **parça bazlı kaporta puanı** (fiyattan ayrı) · çelişkili ve sonradan değişen satıcı beyanı uyarısı · fiyat geçmişi ve fırsat listesi · tek tıkla Excel · veri bilgisayardan çıkmaz.
 
 **[Son sürümü indir](https://github.com/batucengiz/oto-pusula/releases/latest)** · Chrome, Edge, Brave, Opera (masaüstü)
 
