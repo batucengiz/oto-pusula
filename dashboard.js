@@ -31,7 +31,7 @@
     }
   }
 
-  // Bildirim kendiliğinden kaybolur: bilgi 4 sn, hata (okunması daha önemli) 8 sn. Tıklayınca hemen kapanır.
+  // Bildirim kendiliğinden kaybolur: kısa bilgi 4 sn, hata en az 8 sn, uzun mesaj okunacak kadar. Tıklayınca hemen kapanır.
   let noticeTimer = null;
   function notice(message, error = false) {
     const box = $('notice');
@@ -39,7 +39,9 @@
     box.className = error ? 'notice error' : 'notice';
     box.hidden = false;
     clearTimeout(noticeTimer);
-    noticeTimer = setTimeout(() => { box.hidden = true; }, error ? 8000 : 4000);
+    // Uzun mesaj (ör. kaç ilanın neden silinmediği) okunacak kadar kalır: karakter başına ~60 ms, en fazla 12 sn.
+    const readable = Math.min(12000, Math.max(error ? 8000 : 4000, String(message).length * 60));
+    noticeTimer = setTimeout(() => { box.hidden = true; }, readable);
   }
 
   function element(tag, className, text) {
