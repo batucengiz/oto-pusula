@@ -568,12 +568,42 @@
     }
   }
 
+  // Seçili araçla farklı marka/modeldeki okunmuş ilanlar listede çıkmaz; nedenini söyler ve geçiş sunar.
+  function otherModelNote(vehicle) {
+    const sameModel = item => core.brandKey(item.brand) === core.brandKey(vehicle.brand) && core.key(item.model) === core.key(vehicle.model);
+    const counts = new Map();
+    for (const item of state.comparables) {
+      if (sameModel(item)) continue;
+      const name = [item.brand, item.model].filter(Boolean).join(' ') || 'Modeli okunamayan';
+      counts.set(name, (counts.get(name) || 0) + 1);
+    }
+    if (!counts.size) return null;
+    const total = [...counts.values()].reduce((sum, n) => sum + n, 0);
+    const top = [...counts].sort((a, b) => b[1] - a[1]);
+    const names = top.slice(0, 2).map(([name, n]) => `${name}: ${n}`).join(', ') + (top.length > 2 ? ` ve ${top.length - 2} model daha` : '');
+    const note = element('div', 'compare-note');
+    note.append(element('span', '', `Okuduğun ${total} ilan (${names}) farklı model olduğu için ${[vehicle.brand, vehicle.model].join(' ')} ile karşılaştırılmıyor.`));
+    const all = element('button', 'button button-secondary', 'Tüm kayıtları göster');
+    all.type = 'button';
+    all.addEventListener('click', () => { compareChoice = ''; renderComparables(); });
+    const market = element('button', 'button button-secondary', 'Piyasa ilanlarına git');
+    market.type = 'button';
+    market.addEventListener('click', () => showView('market'));
+    note.append(all, market);
+    return note;
+  }
+
   function renderComparables() {
     const body = $('comparable-body');
     body.replaceChildren();
     fillCompareOptions();
     const selected = state.stock.find(vehicle => vehicle.id === $('compare-vehicle').value);
-    if (selected) { renderVehicleComparison(selected); return; }
+    if (selected) {
+      renderVehicleComparison(selected);
+      const note = otherModelNote(selected);
+      if (note) $('compare-summary').append(note);
+      return;
+    }
     $('compare-summary').hidden = true;
     setHead(['Araç', 'Yıl / km', 'Fiyat', 'Son görülme', 'Kaynak']);
     const query = core.key($('comparable-search').value);

@@ -151,6 +151,19 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
   assert.equal(get('market-sort').value, 'price');
   assert.match(get('deal-shortcut').textContent, /^Fırsat arabalar \(\d+\)$/);
   assert.ok(get('action-list').children.length > 0);
+  // Stoktaki araçtan farklı modeldeki ilanlar listede çıkmaz; panel nedenini söyler ve tüm kayıtlara geçiş sunar.
+  const mixed = JSON.parse(storage.get('otoPusula_v1'));
+  mixed.comparables.push(core.normalizeRecord({ id: 'sh-9876543210', source: 'sahibinden', listingId: '9876543210', brand: 'Fiat', model: 'Linea', engine: '1.3 Multijet', year: 2012, km: 210000, price: 420000, date: '2026-10-09' }, 'comparable'));
+  storage.set('otoPusula_v1', JSON.stringify(mixed));
+  windowListeners.storage({ key: 'otoPusula_v1' });
+  get('compare-vehicle').value = 'stock-S-1';
+  get('compare-vehicle').listeners.change();
+  const note = get('compare-summary').children.find(child => child.className === 'compare-note');
+  assert.ok(note, 'farklı model uyarısı görünmeli');
+  assert.match(note.children[0].textContent, /1 ilan \(Fiat Linea: 1\) farklı model/);
+  note.children[1].click();
+  assert.equal(get('compare-vehicle').value, '', 'Tüm kayıtları göster seçimi kaldırmalı');
+  assert.equal(get('comparable-head').children.length, 5);
   nav[2].click();
   assert.equal(get('stock-view').hidden, false);
   assert.equal(get('overview-view').hidden, true);
