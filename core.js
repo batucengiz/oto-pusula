@@ -842,13 +842,22 @@
     return [merged, ...pages.filter(page => page !== existing)].slice(0, MAX_PAGES);
   }
 
+  // Silinen ilanların kimliği okunan sayfalardan da düşer; ilanı kalmayan sayfa listeden kalkar.
+  // Böylece "0 ilan" gösteren, silinince hiçbir şey değiştirmeyen boş sayfalar birikmez.
+  function prunePages(pages, comparables) {
+    const existing = new Set((comparables || []).map(item => item.id));
+    return (pages || [])
+      .map(page => ({ ...page, listingIds: page.listingIds.filter(id => existing.has(id)) }))
+      .filter(page => page.listingIds.length);
+  }
+
   // Takip listesindeki (★) ilanlar toplu silmede korunur; tek tek "Listeden çıkar" ile silinebilir.
   // Kullanıcı açıkça isterse (includeWatched) takipteki ilanlar da silinir.
   function removeListings(state, ids, { includeWatched = false } = {}) {
     const target = new Set(ids);
     const comparables = state.comparables.filter(item => !target.has(item.id) || (item.watched && !includeWatched));
     const kept = includeWatched ? 0 : state.comparables.filter(item => target.has(item.id) && item.watched).length;
-    return { state: { ...state, comparables }, removed: state.comparables.length - comparables.length, kept };
+    return { state: { ...state, comparables, pages: prunePages(state.pages, comparables) }, removed: state.comparables.length - comparables.length, kept };
   }
 
   function watchedAmong(state, ids) {
@@ -864,7 +873,8 @@
     const elsewhere = new Set(pages.filter(item => item.id !== pageId).flatMap(item => item.listingIds));
     const own = page.listingIds.filter(id => !elsewhere.has(id));
     const result = removeListings(state, own, options);
-    return { ...result, shared: page.listingIds.length - own.length, state: { ...result.state, pages: pages.filter(item => item.id !== pageId) } };
+    return { ...result, shared: page.listingIds.length - own.length,
+      state: { ...result.state, pages: prunePages(pages.filter(item => item.id !== pageId), result.state.comparables) } };
   }
 
   const tl = value => `₺${Math.round(value).toLocaleString('tr-TR')}`;
@@ -920,7 +930,7 @@
     return { flags, offer };
   }
 
-  const api = { BODY_PARTS, bodyDamage, bodyReport, bodyConflict, sameDamage, dealEligible, dataCoverage, MAX_ROWS, fuelSet, listingUrl, watchedAmong, LIMITS, contactGate, recordEvent, phoneSaveGate, browsePace, normalizeLog, advise, normalizePages, recordPage, removeListings, removePage, safeSahibindenUrl, DEFAULTS, key, brandKey, number, date, safeListingUrl, parseCsv, importCsv, normalizeRecord, merge, mergeObservations, priceChange, median, daysSince, estimate, summary };
+  const api = { prunePages, BODY_PARTS, bodyDamage, bodyReport, bodyConflict, sameDamage, dealEligible, dataCoverage, MAX_ROWS, fuelSet, listingUrl, watchedAmong, LIMITS, contactGate, recordEvent, phoneSaveGate, browsePace, normalizeLog, advise, normalizePages, recordPage, removeListings, removePage, safeSahibindenUrl, DEFAULTS, key, brandKey, number, date, safeListingUrl, parseCsv, importCsv, normalizeRecord, merge, mergeObservations, priceChange, median, daysSince, estimate, summary };
   root.OtoCore = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);

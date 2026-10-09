@@ -458,7 +458,7 @@
     };
     const analyses = core.recordEvent(state.analyses, page.id);
     const next = {
-      ...base, comparables, pages: core.recordPage(core.normalizePages(base.pages), page), sample: false,
+      ...base, comparables, pages: core.prunePages(core.recordPage(core.normalizePages(base.pages), page), comparables), sample: false,
       // Spam sayaçları örnek veri temizliğinde bile sıfırlanmaz.
       contacts: core.normalizeLog(state.contacts), phoneSaves: core.normalizeLog(state.phoneSaves), analyses
     };

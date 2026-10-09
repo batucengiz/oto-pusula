@@ -927,7 +927,7 @@
     if (!confirm(`${labelFor(selectedVehicle)} ${where} çıkarılsın mı? Bu işlem yalnızca bu cihazdaki kaydı siler.`)) return;
     const id = selectedVehicle.id;
     const next = isListing
-      ? { ...state, comparables: state.comparables.filter(item => item.id !== id) }
+      ? core.removeListings(state, [id], { includeWatched: true }).state
       : { ...state, stock: state.stock.filter(vehicle => vehicle.id !== id), sample: false };
     if (save(next)) {
       $('detail-dialog').close();
@@ -1065,6 +1065,7 @@
         stock: backup.stock.map((item, i) => core.normalizeRecord({ ...item, id: String(item.id).replace(/^stock-/, '') }, 'stock', i + 2)),
         comparables: backup.comparables.map((item, i) => core.normalizeRecord({ ...item, id: String(item.id).replace(/^comparable-/, '') }, 'comparable', i + 2))
       };
+      normalized.pages = core.prunePages(normalized.pages, normalized.comparables);
       if ((state.stock.length || state.comparables.length) && !confirm('Yedek mevcut verilerin yerine geçecek. Devam edilsin mi?')) return;
       if (save(normalized)) notice('Yedek geri yüklendi.');
     } catch (error) { notice(`Yedek yüklenemedi: ${error.message}`, true); }

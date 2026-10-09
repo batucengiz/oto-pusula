@@ -13,7 +13,8 @@
     try {
       const parsed = JSON.parse(storage.getItem(KEY));
       if (parsed?.schema === 1 && Array.isArray(parsed.stock) && Array.isArray(parsed.comparables)) {
-        return { schema: 1, stock: parsed.stock.slice(0, core.MAX_ROWS), comparables: parsed.comparables.slice(0, core.MAX_ROWS), pages: core.normalizePages(parsed.pages),
+        return { schema: 1, stock: parsed.stock.slice(0, core.MAX_ROWS), comparables: parsed.comparables.slice(0, core.MAX_ROWS),
+          pages: core.prunePages(core.normalizePages(parsed.pages), parsed.comparables.slice(0, core.MAX_ROWS)),
           contacts: core.normalizeLog(parsed.contacts), phoneSaves: core.normalizeLog(parsed.phoneSaves), analyses: core.normalizeLog(parsed.analyses, 50), sample: !!parsed.sample };
       }
     } catch { /* Bozuk kayıt yerine boş durum döner. */ }
@@ -45,7 +46,8 @@
         if (!removable.length) throw error;
         const cut = new Set(removable.slice(0, Math.max(1, Math.ceil(next.comparables.length * 0.1))).map(item => item.id));
         dropped += cut.size;
-        next = { ...next, comparables: next.comparables.filter(item => !cut.has(item.id)) };
+        const comparables = next.comparables.filter(item => !cut.has(item.id));
+        next = { ...next, comparables, pages: core.prunePages(next.pages, comparables) };
       }
     }
   }

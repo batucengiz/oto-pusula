@@ -85,3 +85,25 @@ test('dağıtım paketi: eklentinin yüklediği her dosyayı içerir, test/geli�
   assert.equal(bytes.subarray(0, 2).toString(), 'PK');
   assert.ok(bytes.includes(Buffer.from(`${folder}/KURULUM.txt`)));
 });
+
+test('ilanları silinen sayfa listeden kalkar; "0 ilan" gösteren boş sayfa birikmez', () => {
+  const core = require('./core.js');
+  const store = require('./store.js');
+  const make = i => core.normalizeRecord({ id: `sh-${7000000 + i}`, source: 'sahibinden', listingId: String(7000000 + i), brand: 'Fiat', model: 'Tipo', year: 1998, km: 200000, price: 180000 }, 'comparable');
+  const comparables = [make(1), make(2), make(3)];
+  const pages = [
+    { id: 'p-tipo', date: '2026-10-09', kind: 'search', title: 'Fiat Tipo', url: '', listingIds: [comparables[0].id, comparables[1].id] },
+    { id: 'p-linea', date: '2026-10-09', kind: 'search', title: 'Fiat Linea', url: '', listingIds: [comparables[2].id] }
+  ];
+  // "Gösterilenleri sil" ile Linea ilanı silinince Linea sayfası da kalkar, Tipo sayfası 2 ilanla kalır.
+  const after = core.removeListings({ comparables, pages }, [comparables[2].id]).state;
+  assert.deepEqual(after.pages.map(page => [page.title, page.listingIds.length]), [['Fiat Tipo', 2]]);
+  // Eski sürümden kalan boş sayfalar depodan yüklenirken temizlenir.
+  const memory = new Map([[store.KEY, JSON.stringify({ schema: 1, stock: [], comparables: comparables.slice(0, 2), pages })]]);
+  const loaded = store.load({ getItem: key => memory.get(key) ?? null });
+  assert.deepEqual(loaded.pages.map(page => page.title), ['Fiat Tipo']);
+  // Sayfa silinince yalnızca kendi ilanları gider, diğer sayfa etkilenmez.
+  const removed = core.removePage({ comparables, pages }, 'p-tipo');
+  assert.equal(removed.removed, 2);
+  assert.deepEqual(removed.state.pages.map(page => page.title), ['Fiat Linea']);
+});
