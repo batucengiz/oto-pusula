@@ -70,6 +70,9 @@
       );
       const warnings = core.advise(record, result).flags.filter(flag => flag.level === 'bad' || flag.level === 'warn');
       if (warnings.length) button.append(element('em', 'warning', `⚠ ${warnings.map(flag => flag.label).join(', ')}`));
+      // Kaporta fiyattan ayrı: okunduysa etiket, okunmadıysa ilanı açma hatırlatması.
+      const body = core.bodyReport(record);
+      button.append(element('span', '', body.known ? `Kaporta: ${body.label} · ${body.score}/100` : 'Kaporta okunmadı: ilanı açıp analiz edin'));
       button.addEventListener('click', () => openListing(record));
       nodes.push(button);
     }

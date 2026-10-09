@@ -56,7 +56,10 @@
   };
 
   const BODIES = [['Sedan', /\bSEDAN\b/], ['Hatchback', /\b(HATCHBACK|HB)\b/], ['Cross', /\bCROSS\b/], ['Sportback', /\bSPORTBACK\b/], ['Station', /\b(STATION WAGON|SW|SPORTS TOURER|VARIANT|COMBI|KOMBI)\b/]];
-  const TRIMS = ['URBAN PLUS', 'URBAN', 'LOUNGE', 'EASY', 'STREET', 'LIMITED', 'JOY', 'TOUCH', 'ICON', 'ELEGANCE', 'DREAM', 'FLAME', 'VISION', 'PASSION', 'COMFORTLINE', 'HIGHLINE', 'TRENDLINE', 'IMPRESSION', 'ELITE', 'TITANIUM', 'TREND X', 'ST-LINE', 'ALLURE', 'GT LINE', 'PRESTIGE', 'EXCLUSIVE', 'R-LINE', 'S LINE', 'M SPORT', 'AMG', 'JOY PLUS', 'TOUCH PLUS', 'STYLE', 'PRESTIGE PLUS'];
+  const TRIMS = ['URBAN PLUS', 'URBAN', 'LOUNGE', 'EASY', 'STREET', 'LIMITED', 'JOY', 'TOUCH', 'ICON', 'ELEGANCE', 'DREAM', 'FLAME', 'VISION', 'PASSION', 'COMFORTLINE', 'HIGHLINE', 'TRENDLINE', 'IMPRESSION', 'ELITE', 'TITANIUM', 'TREND X', 'ST-LINE', 'ALLURE', 'GT LINE', 'PRESTIGE', 'EXCLUSIVE', 'R-LINE', 'S LINE', 'M SPORT', 'AMG', 'JOY PLUS', 'TOUCH PLUS', 'STYLE', 'PRESTIGE PLUS',
+    // Sık görülen ek paketler (Fiat, Renault, Toyota, Hyundai, Peugeot, Opel, Ford).
+    'ACTIVE PLUS', 'DYNAMIC', 'EMOTION', 'MIRROR', 'PREMIO', 'POP', 'SPORTING', 'SAFELINE', 'EXPRESSION', 'AUTHENTIQUE', 'PRIVILEGE', 'EXTREME', 'EVOLUTION', 'TECHNO',
+    'ADVANCE', 'PREMIUM', 'JUMP', 'PRIME', 'ACCESS', 'ENJOY', 'EDITION', 'COSMO', 'ESSENTIA', 'SELECTION', 'BUSINESS', 'LIFE', 'ACTIVE'];
 
   // Türkçe büyük harf + ASCII; regex karşılaştırmaları için.
   function norm(value) {
@@ -309,7 +312,11 @@
   function whatsappLink(phone, record) {
     if (!/^905\d{9}$/.test(phone)) return '';
     const name = record.title || [record.brand, record.model].filter(Boolean).join(' ');
-    const message = `Merhaba, sahibinden.com'daki "${name}" ilanınız (ilan no: ${record.listingId}) için yazıyorum. Araç hâlâ satılık mı?`;
+    // Kaporta bilgisi yoksa, çelişkiliyse veya değişen parça varsa belge de istenir; mesajı kullanıcı düzenleyip gönderir.
+    const body = core.bodyReport(record);
+    const askReport = !body.known || core.bodyConflict(record) || body.changed.length || record.damageChanged;
+    const message = `Merhaba, sahibinden.com'daki "${name}" ilanınız (ilan no: ${record.listingId}) için yazıyorum. Araç hâlâ satılık mı?`
+      + (askReport ? ' Mümkünse ekspertiz raporunu ve tramer kaydını paylaşabilir misiniz?' : '');
     return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
   }
 
@@ -453,7 +460,7 @@
       return { record, result: core.estimate(record, comparables, core.DEFAULTS, now), change: core.priceChange(record) };
     }).filter(entry => entry.record);
     const highlights = evaluated
-      .filter(({ record, result }) => ['düşük fiyat', 'uygun'].includes(result.status) && record.condition !== 'riskli')
+      .filter(({ record, result }) => core.dealEligible(record, result))
       .sort((a, b) => a.result.gap - b.result.gap)
       .slice(0, 3);
     const drops = evaluated.filter(({ change }) => change && change.amount < 0).length;

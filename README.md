@@ -133,11 +133,12 @@ Ticari kullanımda (galeri) satıcı numaralarının saklanması kişisel veri i
 - Sonuçlar ekspertiz, resmi değerleme veya satış fiyatı garantisi değildir. Hasar bilgisi satıcının beyanıdır.
 - Kişisel kullanım içindir. Toplanan verileri yeniden yayınlamayın ve sitenin kullanım koşullarına uyun.
 - Seçiciler sahibinden.com'un sayfa yapısına bağlıdır. Site değişirse `extract.js` güncellenmelidir.
+- Ayrıntılı gizlilik politikası: [docs/GIZLILIK.md](docs/GIZLILIK.md)
 
 ## Geliştirme
 
 ```bash
-npm test        # 70 test: kaporta şeması okuma ve puanlama, dayanıklılık (bozuk/rastgele girdi), fiyat motoru ve öğrenen model, ilan ayrıştırma, hasar beyanı, uyarılar, panel, popup/WhatsApp akışı, güvenlik ve ban kuralları
+npm test        # 75 test: kaporta şeması okuma, puanlama ve beyan değişikliği, dayanıklılık (bozuk/rastgele girdi), fiyat motoru ve öğrenen model, ilan ayrıştırma, hasar beyanı, uyarılar, panel, popup/WhatsApp akışı, güvenlik ve ban kuralları
 npm run verify-page -- "fixtures/sayfa.html"   # kaydedilmiş gerçek sayfayı okuyucudan geçirir
 npm run dev     # paneli http://127.0.0.1:4173 adresinde önizler (popup için eklenti olarak yükleyin)
 ```
@@ -156,6 +157,8 @@ Sayfanın kendi betikleri çalıştırılmaz, ağ isteği yapılmaz. `fixtures/`
 
 ## Yol haritası
 
+- Tamamen orijinal ve boş şemalı ilan sayfalarıyla kaporta okuyucusunun gerçek sayfa doğrulaması
+- Chrome Web Mağazası yayını (gizlilik politikası hazır: docs/GIZLILIK.md)
 - Mobil uyumlu popup ve koyu tema
 - arabam.com gibi başka ilan siteleri için okuyucu (aynı fiyat motoru ile)
 

@@ -117,3 +117,53 @@ test('Excel çıktısında kaporta sütunları var; bilinmeyen kaporta "bilinmiy
   assert.equal(byId('1234567804')[col('Değişen parçalar')], 'Sol Ön Kapı');
   assert.equal(byId('1234567805')[col('Kaporta (satıcı şeması)')], 'bilinmiyor');
 });
+
+test('satıcı kaporta beyanını değiştirirse önceki beyan ve tarih saklanır, "Beyan değişti" uyarısı çıkar', () => {
+  const base = { id: 'sh-1234567806', source: 'sahibinden', listingId: '1234567806', brand: 'Fiat', model: 'Egea', year: 2025, km: 2000, price: 1000000 };
+  let { records } = core.mergeObservations([], [core.normalizeRecord({ ...base, damage: {} }, 'comparable')], '2026-10-01');
+  // Parça sırası farklı ama aynı beyan: değişiklik sayılmaz.
+  ({ records } = core.mergeObservations(records, [core.normalizeRecord({ ...base, damage: { painted: [] } }, 'comparable')], '2026-10-02'));
+  assert.equal(records[0].damageChanged, undefined);
+  ({ records } = core.mergeObservations(records, [core.normalizeRecord({ ...base, damage: { painted: ['Sol Ön Kapı'] } }, 'comparable')], '2026-10-05'));
+  assert.equal(records[0].damageChanged, '2026-10-05');
+  const reloaded = core.normalizeRecord(JSON.parse(JSON.stringify(records[0])), 'comparable');
+  assert.deepEqual(reloaded.damagePrevious, { local: [], painted: [], changed: [] }, 'yedekten/depodan yüklenince de korunmalı');
+  const flag = core.advise(reloaded, null).flags.find(item => item.label === 'Beyan değişti');
+  assert.match(flag.text, /önce “Orijinal \(beyan\)”, şimdi “1 boyalı”/);
+  assert.equal(core.sameDamage({ painted: ['Sağ Ön Kapı', 'Sol Ön Kapı'] }, { painted: ['Sol Ön Kapı', 'Sağ Ön Kapı'] }), true);
+});
+
+test('fırsat kuralı panel ve popupta aynı: tavanı değişen ucuz ilan fırsat listesine girmez', () => {
+  const rows = Array.from({ length: 6 }, (_, i) => ({ id: `12345678${i}1`, title: 'EGEA 1.4 FIRE URBAN', titleIndex: 2, href: `https://www.sahibinden.com/ilan/x-12345678${i}1/detay`,
+    cells: ['', '1.4 Fire Urban', 'EGEA 1.4 FIRE URBAN', '2025', '2.000', '', `${1000 + i * 10}.000 TL`, '', 'Bursa'], price: `${1000 + i * 10}.000 TL`, location: 'Bursa' }));
+  rows[0].price = '800.000 TL';
+  const state = { schema: 1, stock: [], comparables: [], pages: [] };
+  let outcome = listing.ingest({ kind: 'search', pageTitle: 'Fiat Egea', headers: ['', 'Model', 'İlan Başlığı', 'Yıl', 'KM', 'Renk', 'Fiyat', 'Tarih', 'İl'], rows }, state, '2026-10-09');
+  assert.equal(outcome.highlights[0].record.listingId, '1234567801', 'ucuz ilan önce fırsat görünür');
+  // Aynı ilanın detay sayfası okunur: tavan değişen.
+  const comparables = outcome.state.comparables.map(item => item.listingId === '1234567801' ? { ...item, damage: { local: [], painted: [], changed: ['Tavan'] } } : item);
+  outcome = listing.ingest({ kind: 'search', pageTitle: 'Fiat Egea', headers: ['', 'Model', 'İlan Başlığı', 'Yıl', 'KM', 'Renk', 'Fiyat', 'Tarih', 'İl'], rows }, { ...outcome.state, comparables }, '2026-10-09');
+  assert.ok(!outcome.highlights.some(entry => entry.record.listingId === '1234567801'), 'tavan değişen fırsat sayılmamalı');
+  const record = outcome.state.comparables.find(item => item.listingId === '1234567801');
+  assert.equal(core.dealEligible(record, { status: 'düşük fiyat' }), false);
+});
+
+test('WhatsApp mesajı: kaporta bilinmiyor/çelişkili/değişen ise ekspertiz ve tramer de istenir', () => {
+  const base = { listingId: '1234567807', title: 'Egea 1.4 Fire Urban' };
+  const ask = record => /ekspertiz raporunu ve tramer/.test(decodeURIComponent(listing.whatsappLink('905000000001', record)));
+  assert.equal(ask(base), true, 'kaporta okunmamış');
+  assert.equal(ask({ ...base, damage: { changed: ['Sol Ön Kapı'] } }), true, 'değişen parça');
+  assert.equal(ask({ ...base, damage: {}, condition: 'kusurlu' }), true, 'çelişkili beyan');
+  assert.equal(ask({ ...base, damage: { painted: ['Ön Tampon'] } }), false, 'temiz beyanda yalnızca satılık mı diye sorulur');
+});
+
+test('yaygın paket adları tanınır (Active Plus, Mirror, Premio)', () => {
+  assert.equal(listing.identifyVehicle({ context: '1.3 Multijet Active Plus', brandHint: 'Fiat', modelHint: 'Linea' }).trim, 'Active Plus');
+  assert.equal(listing.identifyVehicle({ context: '1.4 Fire Mirror', brandHint: 'Fiat', modelHint: 'Egea' }).trim, 'Mirror');
+  assert.equal(listing.identifyVehicle({ context: '1.3 Multijet Premio', brandHint: 'Fiat', modelHint: 'Linea' }).trim, 'Premio');
+  assert.equal(listing.identifyVehicle({ context: '1.4 Fire Urban Plus', brandHint: 'Fiat', modelHint: 'Egea' }).trim, 'Urban Plus', 'uzun ad önce eşleşmeli');
+});
+
+test('parça adı olarak betik veya Excel formülü saklanmaz; bilinmeyen ama düzgün ad kabul edilir', () => {
+  assert.deepEqual(core.bodyDamage({ painted: ['Sol Ön Kapı', '<script>x</script>', '=1+1', 'Sağ Marşpiyel', {}, 5] }).painted, ['Sol Ön Kapı', 'Sağ Marşpiyel']);
+});

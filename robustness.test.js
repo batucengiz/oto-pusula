@@ -14,12 +14,16 @@ const junk = () => pick(['', ' ', null, undefined, 'abc', '0', '-5', '1e9', 'NaN
 test('bozuk kayıt girdileri: ya geçerli kayıt ya anlaşılır hata', () => {
   for (let i = 0; i < 1500; i++) {
     const input = { brand: pick(['Fiat', junk()]), model: pick(['Egea', junk()]), year: pick([2020, junk()]), km: pick([50000, junk()]), price: pick([800000, junk()]),
-      cost: junk(), date: junk(), fuel: junk(), engine: junk(), grade: junk(), listingId: junk(), url: junk(), priceHistory: pick([junk(), [{ date: junk(), price: junk() }]]) };
+      cost: junk(), date: junk(), fuel: junk(), engine: junk(), grade: junk(), listingId: junk(), url: junk(), priceHistory: pick([junk(), [{ date: junk(), price: junk() }]]),
+      damage: pick([junk(), { painted: [junk(), junk(), 'Tavan'], changed: junk(), local: pick([[junk()], junk()]) }]), damagePrevious: junk(), damageChanged: junk() };
     let record;
     try { record = core.normalizeRecord(input, pick(['stock', 'comparable'])); }
     catch (error) { assert.match(error.message, /gerekli|geçersiz/); continue; }
     for (const field of ['year', 'km', 'price']) assert.ok(Number.isFinite(record[field]), field);
     if (record.url) assert.ok(record.url.startsWith('https://www.sahibinden.com/ilan/'));
+    const body = core.bodyReport(record);
+    if (body.known) assert.ok(body.score >= 0 && body.score <= 100 && body.label, 'kaporta puanı 0-100 arası');
+    assert.doesNotThrow(() => core.advise(record, null));
   }
 });
 

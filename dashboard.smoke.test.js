@@ -121,7 +121,7 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
   assert.equal(get('comparable-head').children.length, 5, 'seçim kalkınca eski görünüme dönmeli');
   assert.equal(get('comparable-body').children.length, 6);
   assert.equal(get('market-body').children.length, 6);
-  assert.equal(get('market-summary').children.length, 6);
+  assert.equal(get('market-summary').children.length, 7, 'kaporta okunmamış fırsat sayısı da gösterilmeli');
   assert.equal(get('market-chart-panel').hidden, false, 'yeterli ilan varken piyasa haritası görünmeli');
   assert.equal(get('market-legend').children.length >= 3, true);
   get('market-filter').value = 'drop';
@@ -150,6 +150,18 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
   assert.equal(get('market-filter').value, 'deal');
   assert.equal(get('market-sort').value, 'price');
   assert.match(get('deal-shortcut').textContent, /^Fırsat arabalar \(\d+\)$/);
+  // Kaporta süzgeçleri: hiçbir ilanın şeması okunmadığında bütün fırsatlar "kaporta okunmadı" grubundadır.
+  const deals = get('market-body').children.length;
+  get('market-filter').value = 'body-unknown';
+  get('market-filter').listeners.change();
+  assert.equal(get('market-body').children.length, deals);
+  get('market-filter').value = 'body-clean';
+  get('market-filter').listeners.change();
+  assert.equal(get('market-body').children.length, 1, 'eşleşme yoksa yalnızca bilgi satırı');
+  get('market-filter').value = 'all';
+  get('market-sort').value = 'body';
+  get('market-filter').listeners.change();
+  assert.ok(get('market-body').children.length > 1, 'kaporta puanına göre sıralama çalışmalı');
   assert.ok(get('action-list').children.length > 0);
   // Stoktaki araçtan farklı modeldeki ilanlar listede çıkmaz; panel nedenini söyler ve tüm kayıtlara geçiş sunar.
   const mixed = JSON.parse(storage.get('otoPusula_v1'));

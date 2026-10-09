@@ -119,7 +119,19 @@
   }
 
   function isDeal(entry) {
-    return ['düşük fiyat', 'uygun'].includes(entry.result.status) && entry.record.condition !== 'riskli' && !core.bodyReport(entry.record).severe;
+    return core.dealEligible(entry.record, entry.result);
+  }
+
+  // Satıcı beyanına göre temiz kaporta: değişen yok, en fazla bir boyalı/lokal boyalı parça, çelişki yok.
+  function cleanBody(record) {
+    const body = core.bodyReport(record);
+    return body.known && !body.changed.length && body.painted.length + body.local.length <= 1 && !core.bodyConflict(record);
+  }
+
+  // Sıralama için: kaporta okunmamış ilan en sona.
+  function bodyScore(entry) {
+    const body = core.bodyReport(entry.record);
+    return body.known ? body.score : -1;
   }
 
   function hasWarning(entry) {
@@ -252,6 +264,7 @@
       ['İzlenen ilan', entries.length],
       ['Fırsat adayı (uygun ve altı)', dealCount],
       ['Fiyatı düşen', entries.filter(entry => entry.change && entry.change.amount < 0).length],
+      ['Fırsat ama kaporta okunmadı (ilanı açıp analiz et)', entries.filter(entry => isDeal(entry) && !core.bodyReport(entry.record).known).length],
       ['Dikkat gerektiren (risk uyarısı)', entries.filter(hasWarning).length],
       ['Takip listende', entries.filter(entry => entry.record.watched).length],
       ['Yeterli karşılaştırması olan', `${entries.filter(entry => ['orta', 'yüksek'].includes(entry.result.confidence)).length}/${entries.length}`]
@@ -382,6 +395,9 @@
       .filter(({ record }) => core.key([labelFor(record), record.engine, record.city, record.title].join(' ')).includes(query))
       .filter(entry => filter === 'deal' ? isDeal(entry)
         : filter === 'drop' ? entry.change && entry.change.amount < 0
+        : filter === 'body-clean' ? isDeal(entry) && cleanBody(entry.record)
+        : filter === 'body-unknown' ? isDeal(entry) && !core.bodyReport(entry.record).known
+        : filter === 'body-changed' ? core.bodyReport(entry.record).known && core.bodyReport(entry.record).changed.length > 0
         : filter === 'expensive' ? ['yüksek fiyat', 'biraz yüksek'].includes(entry.result.status)
         : filter === 'watch' ? entry.record.watched
         : filter === 'phone' ? !!entry.record.sellerPhone
@@ -391,6 +407,7 @@
     entries.sort((a, b) => sort === 'price' ? a.record.price - b.record.price
       : sort === 'recent' ? String(b.record.date).localeCompare(String(a.record.date))
       : sort === 'age' ? (b.age ?? -1) - (a.age ?? -1)
+      : sort === 'body' ? bodyScore(b) - bodyScore(a) || gapOf(a) - gapOf(b)
       : gapOf(a) - gapOf(b));
     $('market-count').textContent = `${entries.length}/${all.length} ilan gösteriliyor`;
     shownIds = entries.map(entry => entry.record.id);
@@ -400,7 +417,10 @@
     renderMarketChart(entries);
     if (!entries.length) {
       const row = element('tr');
-      const td = cell(row, all.length ? 'Filtreye uygun ilan yok.' : 'Henüz ilan yok. Eklentiyle bir sahibinden arama sayfasını analiz edin.');
+      // Kaporta süzgeçleri yalnızca ilan sayfası analiz edilmiş kayıtlarda sonuç verir; bunu açıkça söyle.
+      const bodyHint = ['body-clean', 'body-changed'].includes(filter)
+        ? ' Kaporta bilgisi yalnızca ilan sayfasını açıp “Bu sayfayı analiz et” dediğiniz ilanlarda bulunur.' : '';
+      const td = cell(row, all.length ? `Filtreye uygun ilan yok.${bodyHint}` : 'Henüz ilan yok. Eklentiyle bir sahibinden arama sayfasını analiz edin.');
       td.colSpan = 7;
       body.append(row);
       return;

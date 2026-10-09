@@ -79,7 +79,7 @@
       pageTitle: document.title,
       listingId: (location.pathname.match(/\d{6,13}/g) || []).at(-1) || '',
       title: text(document.querySelector('.classifiedDetailTitle h1, h1')),
-      priceText: text(document.querySelector('.classifiedInfo h3, .classified-price-wrapper'))
+      priceText: text(document.querySelector('.classifiedInfo .classifiedPrice, .classifiedInfo h3, .classified-price-wrapper'))
         || boxLines.find(line => /^\d{1,3}(\.\d{3})+\s*TL/.test(line)) || '',
       location: text(document.querySelector('.classifiedInfo .classifiedLocation, .classifiedInfo h2'))
         || boxLines.find(line => / \/ /.test(line) && !/\d/.test(line) && !LABEL.test(line)) || '',

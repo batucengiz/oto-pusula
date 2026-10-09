@@ -154,7 +154,9 @@
       const parts = Array.isArray(input[group]) ? input[group] : [];
       result[group] = [];
       for (const part of parts.slice(0, 20)) {
-        const name = BODY_PART_BY_KEY.get(key(part)) || plain(part).slice(0, 40);
+        if (typeof part !== 'string') continue;
+        // Bilinmeyen parça adı yalnızca harf ve boşluktan oluşuyorsa kabul edilir (ör. yeni bir şema adı).
+        const name = BODY_PART_BY_KEY.get(key(part)) || (/^[\p{L} ]{2,40}$/u.test(plain(part)) ? plain(part) : '');
         if (!name || used.has(name)) continue;
         used.add(name);
         result[group].push(name);
@@ -174,6 +176,20 @@
     const total = damage.changed.length + damage.painted.length + damage.local.length;
     const level = severe ? 'bad' : damage.changed.length || damage.painted.length >= 4 ? 'warn' : total ? 'neutral' : 'good';
     return { known: true, ...damage, total, severe, score: Math.max(0, 100 - penalty), label: total ? counts.join(' · ') : 'Orijinal (beyan)', level };
+  }
+
+  // İki beyanın aynı olup olmadığı (parça sırası önemsiz).
+  function sameDamage(a, b) {
+    const sign = damage => DAMAGE_GROUPS.map(group => [...damage[group]].sort().join('|')).join('/');
+    const left = bodyDamage(a);
+    const right = bodyDamage(b);
+    return !left || !right || sign(left) === sign(right);
+  }
+
+  // Fırsat adayı: piyasaya göre uygun veya düşük fiyatlı; ağır hasar beyanı ve tavan değişeni yok.
+  // Panel ve popup aynı kuralı kullanır.
+  function dealEligible(record, result) {
+    return ['düşük fiyat', 'uygun'].includes(result?.status) && record?.condition !== 'riskli' && !bodyReport(record).severe;
   }
 
   // Şema ile ilan metni birbirini tutmuyorsa açıklama döner.
@@ -202,6 +218,9 @@
       conditionNote: plain(input.conditionNote).slice(0, 200),
       // Boya/değişen şeması yalnızca ilan sayfasından gelir; arama listesindeki kayıtta bulunmaz.
       ...(damage ? { damage } : {}),
+      // Satıcı şemayı sonradan değiştirdiyse önceki beyan ve değişiklik tarihi saklanır.
+      ...(damage && bodyDamage(input.damagePrevious) && date(input.damageChanged)
+        ? { damagePrevious: bodyDamage(input.damagePrevious), damageChanged: date(input.damageChanged) } : {}),
       // Yalnızca true iken yazılır; böylece yeniden okunan ilan takip işaretini silmez.
       ...(input.watched === true ? { watched: true } : {}),
       // Satıcı numarası yalnızca kullanıcı popup'ta "kaydet" dediğinde gelir; otomatik toplanmaz.
@@ -597,6 +616,11 @@
       for (const [field, value] of Object.entries(item)) {
         if (value !== '' && value !== null && value !== undefined && !(Array.isArray(value) && !value.length)) next[field] = value;
       }
+      // Kaporta beyanı değiştiyse (ör. önce "orijinal", sonra "1 boyalı") eski beyan ve tarih saklanır.
+      if (previous.damage && item.damage && !sameDamage(previous.damage, item.damage)) {
+        next.damagePrevious = previous.damage;
+        next.damageChanged = today;
+      }
       if (CONDITION_RANK[previous.condition || ''] > CONDITION_RANK[item.condition || '']) {
         next.condition = previous.condition;
         next.conditionNote = previous.conditionNote;
@@ -767,6 +791,10 @@
     } else if (body.known && body.painted.length >= 4) {
       flags.push({ level: 'warn', label: `Çok boyalı (${body.painted.length})`, text: `Satıcı beyanına göre boyalı: ${body.painted.join(', ')}.` });
     }
+    if (body.known && record.damageChanged && bodyDamage(record.damagePrevious)) {
+      const before = bodyReport({ damage: record.damagePrevious });
+      flags.push({ level: 'warn', label: 'Beyan değişti', text: `Satıcı kaporta beyanını ${record.damageChanged} tarihinde değiştirmiş: önce “${before.label}”, şimdi “${body.label}”. Nedenini sorun ve ekspertiz isteyin.` });
+    }
     const change = priceChange(record);
     if (change && change.amount < 0) {
       flags.push({ level: 'good', label: 'Fiyat düştü', text: `Takip süresince fiyat ${tl(-change.amount)} düşmüş; satıcı pazarlığa açık olabilir.` });
@@ -788,7 +816,7 @@
     return { flags, offer };
   }
 
-  const api = { BODY_PARTS, bodyDamage, bodyReport, bodyConflict, MAX_ROWS, fuelSet, listingUrl, watchedAmong, LIMITS, contactGate, recordEvent, phoneSaveGate, browsePace, normalizeLog, advise, normalizePages, recordPage, removeListings, removePage, safeSahibindenUrl, DEFAULTS, key, brandKey, number, date, safeListingUrl, parseCsv, importCsv, normalizeRecord, merge, mergeObservations, priceChange, median, daysSince, estimate, summary };
+  const api = { BODY_PARTS, bodyDamage, bodyReport, bodyConflict, sameDamage, dealEligible, MAX_ROWS, fuelSet, listingUrl, watchedAmong, LIMITS, contactGate, recordEvent, phoneSaveGate, browsePace, normalizeLog, advise, normalizePages, recordPage, removeListings, removePage, safeSahibindenUrl, DEFAULTS, key, brandKey, number, date, safeListingUrl, parseCsv, importCsv, normalizeRecord, merge, mergeObservations, priceChange, median, daysSince, estimate, summary };
   root.OtoCore = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);

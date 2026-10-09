@@ -33,10 +33,14 @@ Geliştiren: Batuhan Cengiz · https://github.com/batucengiz/oto-pusula
 KULLANIM
 - sahibinden.com'da bir araç araması açın → Oto Pusula simgesi → "Bu sayfayı analiz et".
 - "Paneli aç" ile fiyat aralıkları, fırsatlar, grafikler ve Excel çıktısı.
+- Fırsat görünen bir ilanı açıp yine "Bu sayfayı analiz et" derseniz satıcının boya/değişen
+  şeması okunur; panelde 100 üzerinden kaporta puanı fiyattan ayrı gösterilir.
+  Bu bilgi satıcı beyanıdır, almadan önce ekspertiz ve tramer kaydını doğrulayın.
 
 GÜNCELLEME
 - Yeni sürümün zip'ini aynı klasörün üzerine çıkarın, chrome://extensions sayfasında
-  Oto Pusula'nın yenile (⟳) simgesine basın. Verileriniz silinmez.
+  Oto Pusula'nın yenile (⟳) simgesine basın. Aynı klasörden yüklendiği sürece verileriniz
+  silinmez; farklı bir klasörden yüklerseniz eklenti yeni sayılır (önce panelden JSON yedek alın).
 
 GÜVENLİK
 - Eklenti yalnızca siz düğmeye bastığınızda açık sekmeyi okur; sahibinden'e istek atmaz,
