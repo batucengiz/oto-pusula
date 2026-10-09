@@ -417,6 +417,10 @@
       : sort === 'body' ? scoreOf(b) - scoreOf(a) || gapOf(a) - gapOf(b)
       : gapOf(a) - gapOf(b));
     $('market-count').textContent = `${entries.length}/${all.length} ilan gösteriliyor`;
+    // Fiyatı hesaplanamayan ilan çoksa (ör. karışık arama) nedeni ve çözümü tablonun üstünde yazar.
+    const coverage = core.dataCoverage(all);
+    $('market-coverage').textContent = coverage.hint;
+    $('market-coverage').hidden = !coverage.hint;
     shownIds = entries.map(entry => entry.record.id);
     $('delete-shown').textContent = `Gösterilenleri sil (${entries.length})`;
     $('delete-shown').disabled = !entries.length;

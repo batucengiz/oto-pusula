@@ -196,6 +196,23 @@
     return !left || !right || sign(left) === sign(right);
   }
 
+  // Fiyatı hesaplanamayan ilan çoksa nedenini ve çözümünü söyler. Karışık (marka seçilmemiş) aramalarda ilanlar
+  // onlarca modele dağılır; her ilan yalnızca kendi modeliyle karşılaştırıldığından çoğu "veri yok" kalır.
+  function dataCoverage(entries) {
+    const total = entries.length;
+    // Fiyatı hiç hesaplanamayan ("veri yok") ve çok az ilanla hesaplanan ("az veri") ilanlar birlikte sayılır.
+    const missing = entries.filter(entry => !entry.result?.center || entry.result.confidence === 'düşük').length;
+    const models = new Set(entries.map(({ record }) => `${brandKey(record.brand)}|${key(record.model)}`)).size;
+    let hint = '';
+    if (total >= 5 && missing / total >= 0.4) {
+      // Model başına ortalama 3'ten az ilan: ilanlar modellere dağılmış (karışık arama).
+      hint = total / models < 3
+        ? `${total} ilanın ${missing} tanesinde "veri yok" ya da "az veri" yazıyor: ilanlar ${models} farklı modele dağılmış. Fiyat, aynı modelin en az 4 benzer ilanıyla hesaplanır; farklı modeller birbiriyle karşılaştırılmaz. sahibinden'de marka ve model seçerek arayın (ör. Fiat → Egea) ve 2-3 sayfa analiz edin.`
+        : `${total} ilanın ${missing} tanesinde "veri yok" ya da "az veri" yazıyor; henüz yeterli benzer ilan yok. Aynı modelin arama sonuçlarından 2-3 sayfa daha analiz edin; yakın yıl ve motordaki ilanlar arttıkça fiyatlar hesaplanır.`;
+    }
+    return { total, missing, models, hint };
+  }
+
   // Fırsat adayı: piyasaya göre uygun veya düşük fiyatlı; ağır hasar beyanı ve tavan değişeni yok.
   // Panel ve popup aynı kuralı kullanır.
   function dealEligible(record, result) {
@@ -903,7 +920,7 @@
     return { flags, offer };
   }
 
-  const api = { BODY_PARTS, bodyDamage, bodyReport, bodyConflict, sameDamage, dealEligible, MAX_ROWS, fuelSet, listingUrl, watchedAmong, LIMITS, contactGate, recordEvent, phoneSaveGate, browsePace, normalizeLog, advise, normalizePages, recordPage, removeListings, removePage, safeSahibindenUrl, DEFAULTS, key, brandKey, number, date, safeListingUrl, parseCsv, importCsv, normalizeRecord, merge, mergeObservations, priceChange, median, daysSince, estimate, summary };
+  const api = { BODY_PARTS, bodyDamage, bodyReport, bodyConflict, sameDamage, dealEligible, dataCoverage, MAX_ROWS, fuelSet, listingUrl, watchedAmong, LIMITS, contactGate, recordEvent, phoneSaveGate, browsePace, normalizeLog, advise, normalizePages, recordPage, removeListings, removePage, safeSahibindenUrl, DEFAULTS, key, brandKey, number, date, safeListingUrl, parseCsv, importCsv, normalizeRecord, merge, mergeObservations, priceChange, median, daysSince, estimate, summary };
   root.OtoCore = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);

@@ -190,3 +190,18 @@ test('depo dolarsa analiz kaybolmaz: en eski, takipte olmayan ilanlar silinip ye
   // Kota dışı hata yutulmaz.
   assert.throws(() => store.saveMakingRoom({ ...store.empty() }, { setItem: () => { throw new Error('disk bozuk'); } }), /disk bozuk/);
 });
+
+test('karışık aramada çoğu ilan "veri yok" kalınca nedeni ve çözümü söylenir', () => {
+  const today = new Date('2026-10-09');
+  const make = (i, brand, model) => core.normalizeRecord({ id: `sh-${6000000 + i}`, source: 'sahibinden', listingId: String(6000000 + i), brand, model,
+    year: 2020, km: 50000 + i * 1000, price: 900000 + i * 5000, date: '2026-10-09' }, 'comparable');
+  const evaluate = pool => pool.map(record => ({ record, result: core.estimate(record, pool, core.DEFAULTS, today) }));
+  const models = [['Fiat', 'Egea'], ['Renault', 'Clio'], ['Toyota', 'Corolla'], ['Ford', 'Focus'], ['Opel', 'Astra'], ['Honda', 'Civic'], ['Hyundai', 'I20'], ['Kia', 'Rio']];
+  const mixed = core.dataCoverage(evaluate(models.map(([b, m], i) => make(i, b, m))));
+  assert.equal(mixed.missing, 8);
+  assert.match(mixed.hint, /8 farklı modele dağılmış.*marka ve model seçerek/);
+  const sameModel = core.dataCoverage(evaluate(Array.from({ length: 8 }, (_, i) => make(100 + i, 'Fiat', 'Egea'))));
+  assert.equal(sameModel.hint, '', 'aynı modelden yeterli ilan varsa uyarı çıkmaz');
+  const few = core.dataCoverage(evaluate(Array.from({ length: 6 }, (_, i) => make(200 + i, 'Fiat', i < 3 ? 'Egea' : 'Linea'))));
+  assert.match(few.hint, /2-3 sayfa daha analiz edin/);
+});

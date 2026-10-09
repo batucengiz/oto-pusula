@@ -38,6 +38,9 @@
     if (outcome.clearedSample) nodes.push(element('p', 'muted', 'Örnek veriler temizlendi; artık yalnızca gerçek ilanlar kullanılıyor.'));
     if (outcome.drops) nodes.push(element('p', 'muted', `Bu sayfada daha önce gördüğünüz ${outcome.drops} ilanın fiyatı düşmüş.`));
     if (outcome.pace?.fast) nodes.push(element('p', 'warning-line', `⚠ ${outcome.pace.message}`));
+    // Karışık aramada çoğu ilan "veri yok" kalır; nedenini ve çözümünü burada söyle.
+    const coverage = core.dataCoverage(outcome.evaluated);
+    if (coverage.hint) nodes.push(element('p', 'warning-line', `ℹ ${coverage.hint}`));
     if (outcome.roomDropped) nodes.push(element('p', 'warning-line', `⚠ Tarayıcı deposu dolduğu için en uzun süredir görülmeyen ${outcome.roomDropped} ilan silindi (takiptekiler ve numarası kayıtlılar korundu). Önemli verileriniz için panelden JSON yedek alın.`));
 
     if (outcome.evaluated.length === 1) {
