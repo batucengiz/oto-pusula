@@ -4,6 +4,27 @@
 
 **Kimler için:** Araç almak isteyen biri "bu ilan pahalı mı?" sorusuna cevap arar. Galerici ise stoğunu piyasayla karşılaştırıp hangi aracın fiyatını gözden geçireceğine karar verir.
 
+**[Son sürümü indir](https://github.com/batucengiz/oto-pusula/releases/latest)** · Chrome, Edge, Brave, Opera (masaüstü)
+
+## Ekran görüntüleri
+
+**Genel bakış:** izlenen ilanlar, fırsat ve risk sayıları, stok özeti
+
+![Genel bakış](docs/screenshots/genel-bakis.png)
+
+**Piyasa ilanları:** her ilanın fiyatı ile tahmini piyasa değeri (piyasa haritası), durum ve uyarılar
+
+![Piyasa ilanları](docs/screenshots/piyasa-ilanlari.png)
+
+<table>
+<tr>
+<td width="68%"><b>Fiyat gerekçesi:</b> kondisyon seçimi, hesabın nasıl yapıldığı, karşılaştırılan ilanlar ve fark<br><br><img src="docs/screenshots/arac-detayi.png" alt="Araç detayı ve fiyat gerekçesi"></td>
+<td width="32%"><b>Eklenti penceresi:</b> sahibinden sayfasında tek tıkla analiz, silme, Excel<br><br><img src="docs/screenshots/popup.png" alt="Eklenti penceresi"></td>
+</tr>
+</table>
+
+<sub>Ekran görüntüleri yalnızca tanıtım için oluşturulmuş örnek kayıtlarla alınmıştır; eklentide örnek veri bulunmaz, panel kullanıcının kendi analiz ettiği ilanlarla dolar.</sub>
+
 ## Ne yapar?
 
 - **Sayfa analizi:** sahibinden.com'da bir arama sonucu ya da ilan sayfasındayken eklenti simgesine tıklayıp **Bu sayfayı analiz et** dersiniz. Listedeki ilanlar okunur, marka, model, motor, paket ve kasa tipi başlıktan çıkarılır.
