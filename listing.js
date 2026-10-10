@@ -308,8 +308,13 @@
     return { brand: valid(list[next]), series: valid(list[next + 1]), categories };
   }
 
+  // Otomobil sayılmayan kategoriler: fiyatları araba piyasasıyla karşılaştırılamaz, depoda yer de kaplamasınlar.
+  const NON_CAR = { MOTOSIKLET: 'Motosiklet', 'DENIZ ARACLARI': 'Deniz Araçları', 'HAVA ARACLARI': 'Hava Araçları', KARAVAN: 'Karavan', ATV: 'ATV', UTV: 'UTV' };
+
   // Kiralık ilanın fiyatı satış fiyatı değildir; hasarlı araç kategorisindeki ilanlar normal piyasa havuzuna girmez.
   function categoryRule(categories) {
+    const other = categories.find(category => NON_CAR[category]);
+    if (other) return { skip: `otomobil dışı kategori (${NON_CAR[other]})` };
     if (categories.includes('KIRALIK ARACLAR')) return { skip: 'kiralık ilan (fiyatı satış fiyatı değil)' };
     if (categories.includes('HASARLI ARACLAR')) return { condition: 'riskli', note: 'sahibinden "Hasarlı Araçlar" kategorisi' };
     return {};
@@ -393,7 +398,8 @@
     // İlan bilgi listesindeki yapısal "Ağır Hasar Kayıtlı: Evet" alanı serbest metinden önce gelir.
     const heavyDamage = norm(get('AGIR HASAR KAYITLI', 'AGIR HASARLI', 'AGIR HASAR KAYDI'));
     const rule = categoryRule(fromCrumbs.categories);
-    if (rule.skip) throw new Error(`Bu ilan okunmadı: ${rule.skip}.`);
+    // Kategori gereği bilerek atlanan ilan bir okuma hatası değildir; çağıran bunu ayırt edebilsin.
+    if (rule.skip) throw Object.assign(new Error(`Bu ilan okunmadı: ${rule.skip}.`), { skipped: true });
     const currency = foreignCurrency(raw.currency, raw.priceText);
     if (currency) throw new Error(`Bu ilanın fiyatı TL değil (${currency}); yalnızca TL fiyatlı ilanlar karşılaştırılır.`);
     const condition = heavyDamage === 'EVET'

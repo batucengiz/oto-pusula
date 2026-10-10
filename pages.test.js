@@ -136,7 +136,15 @@ test('gerçek sayfalarla uçtan uca yolculuk: okunan her şey tutarlı kalır', 
   // Önce arama sayfaları, sonra ilan sayfaları (kullanıcının doğal sırası); aynı sayfa iki kez okunur.
   const ordered = [...files].sort((a, b) => Number(/^ilan|boyali|temiz/.test(a)) - Number(/^ilan|boyali|temiz/.test(b)));
   for (const name of [...ordered, ordered[0]]) {
-    const outcome = listing.ingest(extractFromHtml(fs.readFileSync(path.join(dir, name), 'utf8')), store.load(storage), '2026-10-10');
+    let outcome;
+    try {
+      outcome = listing.ingest(extractFromHtml(fs.readFileSync(path.join(dir, name), 'utf8')), store.load(storage), '2026-10-10');
+    } catch (error) {
+      // Otomobil dışı kategori (ör. motosiklet ilanı) bilerek okunmaz; depo değişmeden kalmalı.
+      assert.ok(error.skipped, `${name}: ${error.message}`);
+      consistent(name);
+      continue;
+    }
     store.saveMakingRoom(outcome.state, storage);
     consistent(name);
   }
