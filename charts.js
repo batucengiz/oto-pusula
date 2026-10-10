@@ -9,7 +9,10 @@
     range: { color: '#717c75', label: 'Piyasa aralığında' },
     above: { color: '#d03b3b', label: 'Piyasanın üstünde' }
   };
-  const SURFACE = '#ffffff';
+  // Nokta halkası kart zemininin rengindedir; açık/koyu temaya göre CSS değişkeninden okunur.
+  const surface = () => {
+    try { return getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() || '#ffffff'; } catch { return '#ffffff'; }
+  };
 
   function svg(tag, attrs = {}, text) {
     const node = document.createElementNS(NS, tag);
@@ -94,7 +97,7 @@
       const group = svg('g', { class: 'point', tabindex: 0, role: 'button', 'aria-label': `${label(record)}, ${lira(record.price)}` });
       group.append(
         svg('circle', { cx, cy, r: 11, class: 'hit' }),
-        svg('circle', { cx, cy, r: 5, fill: GROUPS[groupOf(result.status)].color, stroke: SURFACE, 'stroke-width': 2 })
+        svg('circle', { cx, cy, r: 5, fill: GROUPS[groupOf(result.status)].color, stroke: surface(), 'stroke-width': 2 })
       );
       const text = `${label(record)} · ${record.year} · ${record.km.toLocaleString('tr-TR')} km\nİlan ${lira(record.price)} · piyasa ${lira(result.center)} (${result.gap > 0 ? '+' : ''}${Math.round(result.gap * 100)}%)`;
       group.addEventListener('mouseenter', event => tooltip.show(text, event));
@@ -135,7 +138,7 @@
     for (let i = 1; i < points.length; i++) d += ` H${x(times[i])} V${y(prices[i])}`;
     chart.append(svg('path', { d, class: 'history-line' }));
     points.forEach((point, i) => {
-      const dot = svg('circle', { cx: x(times[i]), cy: y(prices[i]), r: 4, class: 'history-dot', stroke: SURFACE, 'stroke-width': 2 });
+      const dot = svg('circle', { cx: x(times[i]), cy: y(prices[i]), r: 4, class: 'history-dot', stroke: surface(), 'stroke-width': 2 });
       dot.append(svg('title', {}, `${point.date} · ${lira(point.price)}`));
       chart.append(dot);
     });

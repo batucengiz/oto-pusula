@@ -372,3 +372,98 @@ tbody tr.clickable:hover .badge { transform: scale(1.04); }
   .brand-mark, #deal-shortcut.has-deals, #go-deals.has-deals, #market-body tr, #stock-body tr, #comparable-body tr { animation: none; }
   .brand:hover .brand-mark, .stat-card:hover, .button:active:not(:disabled) { transform: none; }
 }
+
+/* =====================================================================
+   v9 — Açık / koyu tema. Seçim yoksa bilgisayarın ayarı izlenir (prefers-color-scheme);
+   üst çubuktaki düğmeyle seçilen tema html[data-theme] olarak uygulanır.
+   ===================================================================== */
+:root { color-scheme: light; }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0b1220; --surface: #111a2b; --surface-2: #0f1828; --surface-3: #18233a;
+  --line: #223049; --line-strong: #31415f;
+  --ink: #e6edf6; --ink-2: #c4cfdf; --muted: #95a3b8; --subtle: #6c7b92;
+  --brand: #2dd4bf; --brand-strong: #5eead4; --brand-soft: #0e2b2a; --brand-tint: #134e4a;
+  --good: #34d399; --good-bg: #0f2a22; --warn: #fbbf24; --warn-bg: #2a2010; --bad: #f87171; --bad-bg: #2c1517; --info: #a5b3c8; --info-bg: #172235;
+  --sh-1: 0 1px 2px rgba(0, 0, 0, .35);
+  --sh-2: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 28px -12px rgba(0, 0, 0, .6);
+  --sh-3: 0 24px 64px -24px rgba(0, 0, 0, .8);
+  --ring: 0 0 0 3px rgba(45, 212, 191, .3);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0b1220; --surface: #111a2b; --surface-2: #0f1828; --surface-3: #18233a;
+    --line: #223049; --line-strong: #31415f;
+    --ink: #e6edf6; --ink-2: #c4cfdf; --muted: #95a3b8; --subtle: #6c7b92;
+    --brand: #2dd4bf; --brand-strong: #5eead4; --brand-soft: #0e2b2a; --brand-tint: #134e4a;
+    --good: #34d399; --good-bg: #0f2a22; --warn: #fbbf24; --warn-bg: #2a2010; --bad: #f87171; --bad-bg: #2c1517; --info: #a5b3c8; --info-bg: #172235;
+    --sh-1: 0 1px 2px rgba(0, 0, 0, .35);
+    --sh-2: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 28px -12px rgba(0, 0, 0, .6);
+    --sh-3: 0 24px 64px -24px rgba(0, 0, 0, .8);
+    --ring: 0 0 0 3px rgba(45, 212, 191, .3);
+  }
+}
+
+/* Alttaki eski stil dosyasındaki sabit açık renkler değişkenlere bağlanır (iki temada da doğru görünür). */
+body, .main { background: var(--bg); color: var(--ink); }
+.stat-card, .panel, .dialog, dialog { background: var(--surface); color: var(--ink); border-color: var(--line); }
+.button-secondary { background: var(--surface); color: var(--ink-2); border-color: var(--line); }
+.button-secondary:hover { background: var(--surface-3); border-color: var(--line-strong); color: var(--ink); }
+.button-danger { background: var(--surface); color: var(--bad); border-color: color-mix(in srgb, var(--bad) 35%, transparent); }
+.button-danger:hover { background: var(--bad-bg); }
+input, select, textarea { background: var(--surface-2); color: var(--ink); border-color: var(--line); }
+input::placeholder, textarea::placeholder { color: var(--subtle); }
+.search-label { color: var(--muted); }
+.search-label input, .search-label select { background: var(--surface); color: var(--ink); border-color: var(--line); }
+.empty-card { background: var(--surface-2); color: var(--muted); border-color: var(--line-strong); }
+.action-item { background: var(--surface); border-color: var(--line); color: var(--ink); }
+.action-item:hover { background: var(--surface-3); border-color: var(--line-strong); }
+.muted, .count-label, .table-note, .stat-card small, .stat-card span { color: var(--muted); }
+.stat-card strong, .insight strong, .quality-item strong { color: var(--ink); }
+.topbar p, .section-heading p { color: var(--muted); }
+.notice { color: var(--good); }
+.notice.error { color: var(--bad); }
+
+/* Koyu temaya özgü ince ayarlar */
+:root[data-theme="dark"] .topbar { background: rgba(11, 18, 32, .86); }
+:root[data-theme="dark"] .button-primary { color: #04201e; }
+:root[data-theme="dark"] .badge { border-color: transparent; }
+:root[data-theme="dark"] .coverage-note { background: var(--warn-bg); color: var(--warn); border-color: rgba(251, 191, 36, .3); }
+:root[data-theme="dark"] .onboarding { border-color: rgba(45, 212, 191, .35); }
+:root[data-theme="dark"] tbody tr.clickable:hover { background: var(--surface-3); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .topbar { background: rgba(11, 18, 32, .86); }
+  :root:not([data-theme="light"]) .button-primary { color: #04201e; }
+  :root:not([data-theme="light"]) .badge { border-color: transparent; }
+  :root:not([data-theme="light"]) .coverage-note { background: var(--warn-bg); color: var(--warn); border-color: rgba(251, 191, 36, .3); }
+  :root:not([data-theme="light"]) .onboarding { border-color: rgba(45, 212, 191, .35); }
+  :root:not([data-theme="light"]) tbody tr.clickable:hover { background: var(--surface-3); }
+}
+
+/* Tema düğmesi: ay (koyuya geç) / güneş (açığa geç) simgesi */
+.theme-toggle { width: 38px; padding: 0; justify-content: center; }
+.theme-toggle::before { content: ""; width: 18px; height: 18px; background: currentColor; transition: transform .35s ease;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z'/%3E%3C/svg%3E") center / contain no-repeat; }
+.theme-toggle[data-mode="dark"]::before {
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='4.5'/%3E%3Cpath d='M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='4.5'/%3E%3Cpath d='M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4'/%3E%3C/svg%3E") center / contain no-repeat; }
+.theme-toggle:hover::before { transform: rotate(-20deg); }
+html { transition: background-color .25s ease; }
+@media (prefers-reduced-motion: reduce) { .theme-toggle:hover::before { transform: none; } html { transition: none; } }
+
+/* Grafik ve kart simgeleri iki temada da değişkenlerle çizilir. */
+.chart .grid { stroke: var(--line); }
+.chart .axis { stroke: var(--line-strong); }
+.chart .tick { fill: var(--muted); }
+.chart .tick.strong { fill: var(--ink); }
+.chart .axis-label, .chart .note { fill: var(--muted); }
+.chart .band { fill: var(--brand); opacity: .07; }
+.chart .fair { stroke: var(--brand-strong); opacity: .75; }
+.stat-card:nth-child(2) { --tile: color-mix(in srgb, #6366f1 14%, var(--surface)); --tile-ink: #6366f1; }
+:root[data-theme="dark"] .stat-card:nth-child(2) { --tile-ink: #a5b4fc; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .stat-card:nth-child(2) { --tile-ink: #a5b4fc; } }
+.chart .history-line { stroke: var(--brand-strong); }
+.chart .history-dot { fill: var(--brand-strong); }
+.chart-legend, .legend-note, .chart-panel .panel-head p { color: var(--muted); }

@@ -177,3 +177,25 @@ test('paket ve motor kodu her markada ayrılır; katalog tahmini ilanda yazmayan
   assert.equal(parts('2.0 TDI 4Motion Highline', 'Volkswagen', 'Passat'), '2.0 TDI | Highline');
   assert.equal(parts('1.6 Dynamic', 'Mazda', '3'), '1.6 | Dynamic');
 });
+
+test('açık/koyu tema: tercih sayfa çizilmeden uygulanır, panel ve popup aynı seçimi kullanır', () => {
+  for (const file of ['dashboard.html', 'popup.html']) {
+    const html = fs.readFileSync(path.join(__dirname, file), 'utf8');
+    const script = html.indexOf('<script src="theme-mode.js"></script>');
+    assert.ok(script > 0 && script < html.indexOf('<link rel="stylesheet"'), `${file}: tema betiği stil dosyalarından önce yüklenmeli (beyaz parlama olmasın)`);
+  }
+  const css = fs.readFileSync(path.join(__dirname, 'theme.css'), 'utf8');
+  assert.match(css, /:root\[data-theme="dark"\]\s*\{[^}]*--bg:/, 'koyu tema değişkenleri tanımlı olmalı');
+  assert.match(css, /prefers-color-scheme: dark\)\s*\{\s*:root:not\(\[data-theme="light"\]\)/, 'seçim yoksa bilgisayarın koyu ayarı izlenmeli');
+  // Betik, depodaki geçerli seçimi kök öğeye yazar; geçersiz değeri yok sayar.
+  const vm = require('node:vm');
+  const run = stored => {
+    const root = { dataset: {} };
+    vm.runInNewContext(fs.readFileSync(path.join(__dirname, 'theme-mode.js'), 'utf8'), { document: { documentElement: root }, localStorage: { getItem: () => stored } });
+    return root.dataset.theme;
+  };
+  assert.equal(run('dark'), 'dark');
+  assert.equal(run('light'), 'light');
+  assert.equal(run('mor'), undefined);
+  assert.equal(run(null), undefined);
+});

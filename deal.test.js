@@ -106,3 +106,12 @@ test('gerçek ilan sayfasından satıcı tipi okunur', () => {
   const record = listing.parseDetailPage(extractFromHtml(fs.readFileSync(file, 'utf8')));
   assert.equal(record.sellerType, 'Galeriden');
 });
+
+test('şüpheli ucuz (piyasanın %20+ altı) ilan ceza alır; aynı kaportada %15 altındaki ilanın önüne geçmez', () => {
+  const today = new Date('2026-10-09');
+  const record = listingRecord({ damage: {}, sellerType: 'Sahibinden' });
+  const suspicious = core.dealScore(record, priced(-0.3), today);
+  const strong = core.dealScore(record, priced(-0.15), today);
+  assert.ok(suspicious.adjustments.includes('şüpheli ucuz (-8)'));
+  assert.ok(suspicious.score < strong.score, `${suspicious.score} < ${strong.score}`);
+});

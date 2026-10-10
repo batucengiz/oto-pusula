@@ -20,6 +20,10 @@
 
 ![Piyasa ilanları](docs/screenshots/piyasa-ilanlari.png)
 
+**Koyu tema:** üst çubuktaki ay/güneş düğmesiyle açık ve koyu tema arasında geçilir; seçim yapılmazsa bilgisayarın ayarı izlenir. Popup da aynı temayı kullanır.
+
+![Koyu tema](docs/screenshots/koyu-tema.png)
+
 **Kaporta durumu:** satıcının boya/değişen şemasından parça parça okunur; kaporta puanı fiyat durumundan ayrı gösterilir, çelişkili beyan ve tavan değişeni işaretlenir
 
 ![Kaporta durumu](docs/screenshots/kaporta.png)
@@ -145,7 +149,7 @@ Ticari kullanımda (galeri) satıcı numaralarının saklanması kişisel veri i
 ## Geliştirme
 
 ```bash
-npm test        # 99 test: fırsat puanı, gerçek sayfalarla uçtan uca yolculuk, performans (5.000 ilan) ve depo dolması, kaporta şeması okuma, puanlama ve beyan değişikliği, dayanıklılık (bozuk/rastgele girdi), fiyat motoru ve öğrenen model, ilan ayrıştırma, hasar beyanı, uyarılar, panel, popup/WhatsApp akışı, güvenlik ve ban kuralları
+npm test        # 103 test: fırsat puanı, gerçek sayfalarla uçtan uca yolculuk, performans (5.000 ilan) ve depo dolması, kaporta şeması okuma, puanlama ve beyan değişikliği, dayanıklılık (bozuk/rastgele girdi), fiyat motoru ve öğrenen model, ilan ayrıştırma, hasar beyanı, uyarılar, panel, popup/WhatsApp akışı, güvenlik ve ban kuralları
 npm run verify-page -- "fixtures/sayfa.html"   # kaydedilmiş gerçek sayfayı okuyucudan geçirir
 npm run dev     # paneli http://127.0.0.1:4173 adresinde önizler (popup için eklenti olarak yükleyin)
 ```

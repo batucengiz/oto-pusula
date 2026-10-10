@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light">
+  <meta name="color-scheme" content="light dark">
+  <script src="theme-mode.js"></script>
   <title>Oto Pusula | İlan ve Stok Analizi</title>
   <link rel="icon" href="icons/icon32.png">
   <link rel="stylesheet" href="dashboard.css">
@@ -20,14 +21,14 @@
         <button class="nav-button" data-view="comparables" type="button">Karşılaştırmalar</button>
         <button class="nav-button" data-view="method" type="button">Yöntem ve veri</button>
       </nav>
-      <div class="sidebar-foot"><span class="online-dot"></span><span class="foot-text">Yerel · veri gönderilmez</span><span class="app-version">v7.1</span></div>
+      <div class="sidebar-foot"><span class="online-dot"></span><span class="foot-text">Yerel · veri gönderilmez</span><span class="app-version">v7.2</span></div>
       <div class="sidebar-credit"><span class="avatar" aria-hidden="true">BC</span><span class="credit-text"><small>Geliştiren</small><strong>Batuhan Cengiz</strong><span class="credit-links"><a href="https://github.com/batucengiz/oto-pusula" target="_blank" rel="noopener noreferrer">GitHub ↗</a><a href="https://www.linkedin.com/in/batuhan-cengiz-65199b417/" target="_blank" rel="noopener noreferrer">LinkedIn ↗</a></span></span></div>
     </aside>
 
     <main class="main-content">
       <header class="topbar">
         <div><div class="eyebrow">OTO PUSULA</div><h1 id="view-title">Genel bakış</h1><p id="view-subtitle">İzlediğiniz ilanları ve varsa stoğunuzu tek yerde görün.</p></div>
-        <div class="top-actions">
+        <div class="top-actions"><button class="button button-secondary theme-toggle" id="theme-toggle" type="button" aria-label="Koyu temaya geç" title="Koyu temaya geç"></button>
           <button class="button button-secondary" id="download-template" type="button">CSV şablonları</button>
           <button class="button button-secondary" id="backup" type="button">Yedek indir</button>
           <button class="button button-secondary" id="import-open" type="button">CSV içe aktar (galeri)</button>

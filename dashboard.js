@@ -1119,6 +1119,34 @@
     catch { notice('Yerel veriler temizlenemedi.', true); }
   });
 
+  // Açık/koyu tema düğmesi. Seçim bu cihazda hatırlanır (theme-mode.js sayfa açılırken uygular);
+  // hiç seçilmemişse bilgisayarın açık/koyu ayarı izlenir.
+  const THEME_KEY = 'otoPusula_theme';
+  function activeTheme() {
+    const chosen = document.documentElement?.dataset?.theme;
+    if (chosen === 'light' || chosen === 'dark') return chosen;
+    return globalThis.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function paintThemeButton() {
+    const dark = activeTheme() === 'dark';
+    const button = $('theme-toggle');
+    button.dataset.mode = dark ? 'dark' : 'light';
+    const label = dark ? 'Açık temaya geç' : 'Koyu temaya geç';
+    button.title = label;
+    button.setAttribute('aria-label', label);
+  }
+  $('theme-toggle').addEventListener('click', () => {
+    const next = activeTheme() === 'dark' ? 'light' : 'dark';
+    if (document.documentElement?.dataset) document.documentElement.dataset.theme = next;
+    try { localStorage.setItem(THEME_KEY, next); } catch { /* seçim bu oturumla sınırlı kalır */ }
+    paintThemeButton();
+    // Grafik renkleri temadan okunduğu için yeniden çizilir.
+    render();
+  });
+  // Bilgisayarın ayarı değişirse (seçim yapılmamışsa) düğme güncellenir.
+  globalThis.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change', () => { paintThemeButton(); render(); });
+  paintThemeButton();
+
   render();
   if (globalThis.location?.hash === '#firsat') showDeals();
 })();

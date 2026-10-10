@@ -41,3 +41,47 @@ button:active:not(:disabled) { transform: translateY(1px); }
 .deal { transition: transform .15s ease, box-shadow .15s ease; }
 .deal:hover { transform: translateY(-1px); }
 @media (prefers-reduced-motion: reduce) { .mark, #analyze.busy::after, #result:not([hidden]) > * { animation: none; } .deal:hover { transform: none; } }
+
+/* v9: popup açık tema. Panelde seçilen tema (veya seçim yoksa bilgisayarın ayarı) burada da geçerlidir. */
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="light"] { background: #f6f8fb; }
+:root[data-theme="light"] body { background: radial-gradient(320px 200px at 100% 0%, rgba(20, 184, 166, .16), transparent 60%), linear-gradient(180deg, #ffffff, #eef6f5); color: #0f172a; }
+:root[data-theme="light"] header p { color: #0f766e; }
+:root[data-theme="light"] .hint { color: #334155; }
+:root[data-theme="light"] .secondary { border-color: #cbd5e1; color: #0f172a; }
+:root[data-theme="light"] .secondary:hover { background: #f1f5f9; }
+:root[data-theme="light"] #open-deals { border-color: #f59e0b; color: #b45309; }
+:root[data-theme="light"] #export-excel { border-color: #10b981; color: #047857; }
+:root[data-theme="light"] .danger { color: #b91c1c; border-color: #fecaca; }
+:root[data-theme="light"] .danger:hover:not(:disabled) { background: #fef2f2; }
+:root[data-theme="light"] .result { background: #ffffff; border-color: #e2e8f0; box-shadow: 0 1px 2px rgba(15, 23, 42, .06); }
+:root[data-theme="light"] .result.error { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+:root[data-theme="light"] .result h2 { color: #64748b; }
+:root[data-theme="light"] .deal { background: #ecfdf5; border-color: #a7f3d0; color: #0f172a; }
+:root[data-theme="light"] .deal:hover { background: #d1fae5; }
+:root[data-theme="light"] .deal span { color: #047857; }
+:root[data-theme="light"] .deal .warning, :root[data-theme="light"] .warning-line { color: #b45309; }
+:root[data-theme="light"] .muted, :root[data-theme="light"] small { color: #64748b; }
+:root[data-theme="light"] .credit { color: #94a3b8; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) { color-scheme: light; }
+  :root:not([data-theme="dark"]) { background: #f6f8fb; }
+  :root:not([data-theme="dark"]) body { background: radial-gradient(320px 200px at 100% 0%, rgba(20, 184, 166, .16), transparent 60%), linear-gradient(180deg, #ffffff, #eef6f5); color: #0f172a; }
+  :root:not([data-theme="dark"]) header p { color: #0f766e; }
+  :root:not([data-theme="dark"]) .hint { color: #334155; }
+  :root:not([data-theme="dark"]) .secondary { border-color: #cbd5e1; color: #0f172a; }
+  :root:not([data-theme="dark"]) .secondary:hover { background: #f1f5f9; }
+  :root:not([data-theme="dark"]) #open-deals { border-color: #f59e0b; color: #b45309; }
+  :root:not([data-theme="dark"]) #export-excel { border-color: #10b981; color: #047857; }
+  :root:not([data-theme="dark"]) .danger { color: #b91c1c; border-color: #fecaca; }
+  :root:not([data-theme="dark"]) .danger:hover:not(:disabled) { background: #fef2f2; }
+  :root:not([data-theme="dark"]) .result { background: #ffffff; border-color: #e2e8f0; box-shadow: 0 1px 2px rgba(15, 23, 42, .06); }
+  :root:not([data-theme="dark"]) .result.error { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+  :root:not([data-theme="dark"]) .result h2 { color: #64748b; }
+  :root:not([data-theme="dark"]) .deal { background: #ecfdf5; border-color: #a7f3d0; color: #0f172a; }
+  :root:not([data-theme="dark"]) .deal:hover { background: #d1fae5; }
+  :root:not([data-theme="dark"]) .deal span { color: #047857; }
+  :root:not([data-theme="dark"]) .deal .warning,   :root:not([data-theme="dark"]) .warning-line { color: #b45309; }
+  :root:not([data-theme="dark"]) .muted,   :root:not([data-theme="dark"]) small { color: #64748b; }
+  :root:not([data-theme="dark"]) .credit { color: #94a3b8; }
+}

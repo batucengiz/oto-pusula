@@ -179,6 +179,9 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
   get('market-filter').listeners.change();
   assert.ok(get('market-body').children.length > 1, 'kaporta puanına göre sıralama çalışmalı');
   assert.ok(get('action-list').children.length > 0);
+  // Tema düğmesi: tıklayınca hata vermez, düğme kendi durumunu günceller.
+  get('theme-toggle').click();
+  assert.match(get('theme-toggle').title, /temaya geç/);
   // Stoktaki araçtan farklı modeldeki ilanlar listede çıkmaz; panel nedenini söyler ve tüm kayıtlara geçiş sunar.
   const mixed = JSON.parse(storage.get('otoPusula_v1'));
   mixed.comparables.push(core.normalizeRecord({ id: 'sh-9876543210', source: 'sahibinden', listingId: '9876543210', brand: 'Fiat', model: 'Linea', engine: '1.3 Multijet', year: 2012, km: 210000, price: 420000, date: '2026-10-09' }, 'comparable'));

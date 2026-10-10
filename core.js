@@ -934,6 +934,8 @@
     const adjustments = [];
     if (result.confidence === 'orta') adjustments.push('fiyat güveni orta (×0,9)');
     if (heavyUse(record, today)) { total -= 5; adjustments.push('yoğun kullanım (-5)'); }
+    // Piyasanın %20+ altı "şüpheli ucuz": gizli hasar veya dolandırıcılık olabilir; listenin tepesine tek başına çıkmasın.
+    if (gap <= -0.2) { total -= 8; adjustments.push('şüpheli ucuz (-8)'); }
     const change = priceChange(record);
     if (change && change.amount < 0) { total += 3; adjustments.push('fiyatı düştü (+3)'); }
     const score = Math.round(clamp(total, 0, 100));
