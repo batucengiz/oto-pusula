@@ -86,6 +86,22 @@ test('dağıtım paketi: eklentinin yüklediği her dosyayı içerir, test/geli�
   assert.ok(bytes.includes(Buffer.from(`${folder}/KURULUM.txt`)));
 });
 
+test('mağaza paketi: manifest.json zip kökünde, KURULUM.txt ve alt klasör yok', () => {
+  const { build } = require('./tools/package.js');
+  const { bytes, folder } = build({ store: true });
+  assert.equal(bytes.subarray(0, 2).toString(), 'PK');
+  // İlk yerel dosya başlığındaki ad: 30. bayttan itibaren, uzunluğu 26. baytta.
+  const names = [];
+  for (let at = 0; bytes.readUInt32LE(at) === 0x04034b50;) {
+    const nameLength = bytes.readUInt16LE(at + 26);
+    names.push(bytes.subarray(at + 30, at + 30 + nameLength).toString());
+    at += 30 + nameLength + bytes.readUInt32LE(at + 18);
+  }
+  assert.ok(names.includes('manifest.json'), names.join(', '));
+  assert.ok(!names.some(name => name.startsWith('oto-pusula-') || name === 'KURULUM.txt'), names.join(', '));
+  assert.match(folder, /-magaza$/);
+});
+
 test('ilanları silinen sayfa listeden kalkar; "0 ilan" gösteren boş sayfa birikmez', () => {
   const core = require('./core.js');
   const store = require('./store.js');

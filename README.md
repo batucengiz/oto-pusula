@@ -80,7 +80,7 @@ Projede örnek veya kurgusal veri yoktur: panel boş açılır ve yalnızca sizi
 
 Chrome ile aynı altyapıyı kullanan **Edge, Brave ve Opera** masaüstü tarayıcılarında da çalışır. Telefon tarayıcıları eklenti desteklemediği için mobilde çalışmaz.
 
-Yeni paket üretmek için: `npm run package` → `dist/oto-pusula-<sürüm>.zip`
+Yeni paket üretmek için: `npm run package` → `dist/oto-pusula-<sürüm>.zip`. Mağaza paketi için: `npm run package:store` → `dist/oto-pusula-<sürüm>-magaza.zip` (yayın adımları: [docs/store/MAGAZA.md](docs/store/MAGAZA.md))
 
 ## Mimari
 
@@ -165,7 +165,7 @@ Sayfanın kendi betikleri çalıştırılmaz, ağ isteği yapılmaz. `fixtures/`
 ## Yol haritası
 
 - Tamamen orijinal ve boş şemalı ilan sayfalarıyla kaporta okuyucusunun gerçek sayfa doğrulaması
-- Chrome Web Mağazası yayını (gizlilik politikası hazır: docs/GIZLILIK.md)
+- Chrome Web Mağazası ve Edge Eklentileri yayını (paket, metinler ve görseller hazır: [docs/store/MAGAZA.md](docs/store/MAGAZA.md))
 - Mobil uyumlu popup ve koyu tema
 - arabam.com gibi başka ilan siteleri için okuyucu (aynı fiyat motoru ile)
 

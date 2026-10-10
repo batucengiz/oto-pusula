@@ -1,6 +1,6 @@
 # Oto Pusula Gizlilik Politikası
 
-Son güncelleme: 9 Ekim 2026 · Geliştiren: Batuhan Cengiz ([github.com/batucengiz](https://github.com/batucengiz))
+Son güncelleme: 10 Ekim 2026 · Geliştiren: Batuhan Cengiz ([github.com/batucengiz](https://github.com/batucengiz))
 
 Oto Pusula, sahibinden.com ilanlarını kullanıcının kendi bilgisayarında analiz eden bir tarayıcı eklentisidir. Bu belge hangi verinin nasıl işlendiğini açıklar.
 
@@ -33,6 +33,14 @@ Oto Pusula, sahibinden.com ilanlarını kullanıcının kendi bilgisayarında an
 
 - `activeTab` ve `scripting`: Yalnızca düğmeye bastığınız anda, açık olan sekmeyi bir kez okumak için.
 - Kalıcı site izni, arka plan betiği veya sayfaya otomatik eklenen betik yoktur.
+
+## Chrome Web Mağazası Kullanıcı Verileri Politikası
+
+Oto Pusula'nın verileri kullanımı ve aktarımı, sınırlı kullanım (Limited Use) şartları dahil olmak üzere [Chrome Web Mağazası Kullanıcı Verileri Politikası](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq)'na uygundur. Veriler yalnızca eklentinin tek amacı olan fiyat analizi için, yalnızca kullanıcının cihazında işlenir.
+
+## Bağımsızlık
+
+Oto Pusula bağımsız bir projedir. sahibinden.com ile bir bağlantısı yoktur ve onun tarafından desteklenmez.
 
 ## Verilerin silinmesi
 
