@@ -7,6 +7,8 @@ const files = new Map([
   ['/dashboard.html', ['dashboard.html', 'text/html; charset=utf-8']],
   ['/dashboard.css', ['dashboard.css', 'text/css; charset=utf-8']],
   ['/theme.css', ['theme.css', 'text/css; charset=utf-8']],
+  ['/dark.css', ['dark.css', 'text/css; charset=utf-8']],
+  ['/theme-mode.js', ['theme-mode.js', 'text/javascript; charset=utf-8']],
   ['/favicon.ico', ['icons/icon32.png', 'image/png']],
   ['/popup.html', ['popup.html', 'text/html; charset=utf-8']],
   ['/popup.css', ['popup.css', 'text/css; charset=utf-8']],

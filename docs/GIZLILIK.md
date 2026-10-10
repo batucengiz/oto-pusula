@@ -13,6 +13,7 @@ Oto Pusula, sahibinden.com ilanlarını kullanıcının kendi bilgisayarında an
 | Satıcının telefon numarası | **Yalnızca** siz bir ilanda "Numarayı kaydet" dediğinizde, o tek ilan için | Yerel depoda; panelden tek tuşla silinebilir |
 | Kendi araç stoğunuz (galeri) | Siz eklediğinizde veya CSV yüklediğinizde | Yerel depoda |
 | Kullanım sayaçları (kaç WhatsApp mesajı açıldı, kaç sayfa okundu) | Spam ve aşırı kullanım koruması için | Yerel depoda; içinde mesaj içeriği veya numara yoktur |
+| Panel görünüm tercihi (sistem, aydınlık veya karanlık) | Siz panelde seçtiğinizde | Yerel depoda; ilan verisinden ayrı tutulur |
 
 İlan metninden çıkarılan hasar notunda telefon numaraları ve uzun sayılar gizlenir.
 
