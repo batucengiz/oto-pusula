@@ -79,3 +79,37 @@ test('çok uzun ilan adresi Excel sınırına (255) takılmasın diye kısa adre
   const table = listing.marketTable({ comparables: [record] }, new Date('2026-10-08'));
   assert.equal(table.rows[0][0].link, 'https://www.sahibinden.com/ilan/1234567810/detay');
 });
+
+test('WhatsApp: numarası kayıtlı ilanda hazır mesajlı bağlantı, uzun adres sayfa bağlantısı olarak yazılır', () => {
+  const make = (i, extra) => core.normalizeRecord({ id: `sh-12345678${i}0`, source: 'sahibinden', listingId: `12345678${i}0`,
+    title: 'SAHİBİNDEN HATASIZ BOYASIZ TRAMERSİZ ÇOK TEMİZ AİLE ARACI DEĞİŞENSİZ ŞIK & "ÖZEL"', brand: 'Fiat', model: 'Egea',
+    year: 2021, km: 80000, price: 800000 + i * 1000, date: '2026-10-08', ...extra }, 'comparable');
+  const table = listing.marketTable({ comparables: [make(1, { sellerPhone: '905321234567' }), make(2)] }, new Date('2026-10-08'));
+  const col = table.columns.findIndex(column => column.title === 'WhatsApp');
+  assert.ok(col > 0, 'WhatsApp sütunu olmalı');
+  const withPhone = table.rows.find(row => row[col]);
+  const without = table.rows.filter(row => !row[col]);
+  assert.equal(without.length, 1, 'numarası olmayan ilanda bağlantı olmamalı');
+  assert.match(withPhone[col].link, /^https:\/\/wa\.me\/905321234567\?text=/);
+  assert.ok(withPhone[col].link.length > 255, 'hazır mesajlı adres formül sınırını aşar');
+
+  const files = unzip(xlsx.build(table));
+  for (const [name, text] of Object.entries(files)) wellFormed(name, text);
+  const ref = `${xlsx.columnName(col)}${table.rows.indexOf(withPhone) + 2}`;
+  const sheet = files['xl/worksheets/sheet1.xml'];
+  assert.match(sheet, new RegExp(`<hyperlink ref="${ref}" r:id="rId1"/>`));
+  assert.ok(!new RegExp(`<c r="${ref}"[^>]*><f>`).test(sheet), 'uzun adres HYPERLINK formülüyle yazılmamalı');
+  const rels = files['xl/worksheets/_rels/sheet1.xml.rels'];
+  const doc = new (new (require('jsdom').JSDOM)('').window.DOMParser)().parseFromString(rels, 'application/xml');
+  const relation = doc.getElementsByTagName('Relationship')[0];
+  assert.equal(relation.getAttribute('Target'), withPhone[col].link, 'adres bozulmadan yazılmalı');
+  assert.equal(relation.getAttribute('TargetMode'), 'External');
+  // Kısa (ilan) bağlantıları eskisi gibi HYPERLINK formülüyle kalır.
+  assert.match(sheet, /HYPERLINK\(&quot;https:\/\/www\.sahibinden\.com\/ilan\//);
+});
+
+test('bağlantısız tabloda sayfa ilişki dosyası üretilmez', () => {
+  const files = unzip(xlsx.build({ columns: [{ title: 'A' }], rows: [['x']] }));
+  assert.ok(!('xl/worksheets/_rels/sheet1.xml.rels' in files));
+  assert.ok(!files['xl/worksheets/sheet1.xml'].includes('<hyperlinks>'));
+});

@@ -91,10 +91,17 @@
 <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
 </styleSheet>`;
 
-  function cell(ref, value, column) {
+  // HYPERLINK formülü 255 karakterle sınırlı; daha uzun adresler (ör. hazır mesajlı WhatsApp) sayfa bağlantısı olarak yazılır.
+  const FORMULA_LINK_MAX = 255;
+
+  function cell(ref, value, column, links) {
     if (value === null || value === undefined || value === '') return '';
     if (value && typeof value === 'object' && value.link) {
-      // Bağlantı adresi çağıran tarafından doğrulanmış olmalıdır (yalnızca sahibinden ilan adresleri).
+      // Bağlantı adresi çağıran tarafından doğrulanmış olmalıdır (sahibinden ilan veya wa.me adresleri).
+      if (String(value.link).length > FORMULA_LINK_MAX) {
+        links.push({ ref, target: String(value.link) });
+        return `<c r="${ref}" t="inlineStr" s="3"><is><t xml:space="preserve">${xml(value.text || value.link)}</t></is></c>`;
+      }
       const formula = `HYPERLINK("${String(value.link).replace(/"/g, '""')}","${String(value.text || value.link).replace(/"/g, '""')}")`;
       return `<c r="${ref}" t="str" s="3"><f>${xml(formula)}</f><v>${xml(value.text || value.link)}</v></c>`;
     }
@@ -109,13 +116,17 @@
     const lastColumn = columnName(columns.length - 1);
     const lastRow = rows.length + 1;
     const header = `<row r="1">${columns.map((column, i) => `<c r="${columnName(i)}1" t="inlineStr" s="1"><is><t>${xml(column.title)}</t></is></c>`).join('')}</row>`;
-    const body = rows.map((row, r) => `<row r="${r + 2}">${row.map((value, i) => cell(`${columnName(i)}${r + 2}`, value, columns[i] || {})).join('')}</row>`).join('');
+    const links = [];
+    const body = rows.map((row, r) => `<row r="${r + 2}">${row.map((value, i) => cell(`${columnName(i)}${r + 2}`, value, columns[i] || {}, links)).join('')}</row>`).join('');
+    const hyperlinks = links.length ? `\n<hyperlinks>${links.map((link, i) => `<hyperlink ref="${link.ref}" r:id="rId${i + 1}"/>`).join('')}</hyperlinks>` : '';
+    const sheetRels = links.length ? [{ name: 'xl/worksheets/_rels/sheet1.xml.rels', content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${links.map((link, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${xml(link.target)}" TargetMode="External"/>`).join('')}</Relationships>` }] : [];
     const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
 <sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
 <cols>${columns.map((column, i) => `<col min="${i + 1}" max="${i + 1}" width="${column.width || 14}" customWidth="1"/>`).join('')}</cols>
 <sheetData>${header}${body}</sheetData>
-<autoFilter ref="A1:${lastColumn}${lastRow}"/>
+<autoFilter ref="A1:${lastColumn}${lastRow}"/>${hyperlinks}
 </worksheet>`;
     const workbook = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
@@ -131,6 +142,7 @@
       { name: 'xl/_rels/workbook.xml.rels', content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>` },
       { name: 'xl/worksheets/sheet1.xml', content: sheet },
+      ...sheetRels,
       { name: 'xl/styles.xml', content: STYLES }
     ]);
   }

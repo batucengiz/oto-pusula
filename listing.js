@@ -506,6 +506,14 @@
   const STATUS_ORDER = { 'düşük fiyat': 0, uygun: 1, aralıkta: 2, 'biraz yüksek': 3, 'yüksek fiyat': 4, 'az veri': 5, 'hasar riski': 6 };
   const CONDITION_TEXT = { riskli: 'Ağır hasar beyanı', kusurlu: 'Boya/değişen/tramer', 'temiz-iddia': 'Hatasız iddiası' };
 
+  // Numarası kaydedilmiş ilanlarda panelle aynı hazır mesajlı WhatsApp bağlantısı. Excel adresleri ~2000 karakterle
+  // sınırlı olduğundan çok uzun mesajda yalnızca sohbet açılır. Mesajı yine kullanıcı kendisi gönderir.
+  function whatsappCell(record) {
+    const link = record.sellerPhone ? whatsappLink(record.sellerPhone, record) : '';
+    if (!link) return '';
+    return { link: link.length > 2000 ? `https://wa.me/${record.sellerPhone}` : link, text: 'WhatsApp’tan yaz' };
+  }
+
   // Excel'e aktarılacak piyasa tablosu (panel ve popup aynı dosyayı üretir). Fırsatlar fırsat puanına göre üstte.
   function marketTable(state, today = new Date()) {
     const columns = [
@@ -517,7 +525,7 @@
       { title: 'Uyarılar', width: 26 }, { title: 'Kaporta (satıcı şeması)', width: 20 }, { title: 'Kaporta puanı', width: 13 },
       { title: 'Değişen parçalar', width: 28 }, { title: 'Boyalı parçalar', width: 34 }, { title: 'Lokal boyalı', width: 22 },
       { title: 'Hasar bilgisi', width: 18 }, { title: 'Hasar ifadesi', width: 30 },
-      { title: 'Güven', width: 8 }, { title: 'Yöntem', width: 14 }, { title: 'Satıcı tipi', width: 15 }, { title: 'Satıcı tel', width: 15 }, { title: 'Takipte', width: 8 },
+      { title: 'Güven', width: 8 }, { title: 'Yöntem', width: 14 }, { title: 'Satıcı tipi', width: 15 }, { title: 'Satıcı tel', width: 15 }, { title: 'WhatsApp', width: 16 }, { title: 'Takipte', width: 8 },
       { title: 'İlk görülme', width: 12 }, { title: 'Son görülme', width: 12 }, { title: 'İlan no', width: 12 }, { title: 'Başlık', width: 40 }
     ];
     const entries = state.comparables.filter(item => item.source === 'sahibinden').map(record => {
@@ -539,7 +547,7 @@
         body.known ? body.changed.join(', ') : '', body.known ? body.painted.join(', ') : '', body.known ? body.local.join(', ') : '',
         CONDITION_TEXT[record.condition] || '', record.conditionNote,
         result.confidence, result.method === 'model' ? 'fiyat modeli' : result.method === 'benzer' ? 'benzer ilanlar' : '',
-        record.sellerType || '', formatPhone(record.sellerPhone), record.watched ? 'evet' : '', record.firstSeen, record.date, record.listingId,
+        record.sellerType || '', formatPhone(record.sellerPhone), whatsappCell(record), record.watched ? 'evet' : '', record.firstSeen, record.date, record.listingId,
         url ? { link: url, text: record.title || [record.brand, record.model].join(' ') } : record.title
       ];
     });
