@@ -73,11 +73,16 @@ function zip(entries) {
   return Buffer.concat([...parts, ...central, end]);
 }
 
-function build() {
+// store: Chrome Web Mağazası / Edge Eklentileri paketi. manifest.json zip'in kökünde olmalı, KURULUM.txt gereksiz.
+function build({ store = false } = {}) {
   const files = runtimeFiles();
   const missing = files.filter(file => !fs.existsSync(path.join(root, file)));
   if (missing.length) throw new Error(`Eksik dosya: ${missing.join(', ')}`);
   const folder = `oto-pusula-${manifest.version}`;
+  if (store) {
+    const entries = files.map(file => ({ name: file, data: fs.readFileSync(path.join(root, file)) }));
+    return { folder: `${folder}-magaza`, files, bytes: zip(entries) };
+  }
   const entries = [
     ...files.map(file => ({ name: `${folder}/${file}`, data: fs.readFileSync(path.join(root, file)) })),
     // BOM: eski Not Defteri ve PowerShell sürümleri de Türkçe karakterleri doğru göstersin.
@@ -89,10 +94,11 @@ function build() {
 module.exports = { runtimeFiles, build };
 
 if (require.main === module) {
-  const { folder, files, bytes } = build();
+  const store = process.argv.includes('--store');
+  const { folder, files, bytes } = build({ store });
   const dist = path.join(root, 'dist');
   fs.mkdirSync(dist, { recursive: true });
   const target = path.join(dist, `${folder}.zip`);
   fs.writeFileSync(target, bytes);
-  console.log(`${files.length} dosya + KURULUM.txt → ${path.relative(root, target)} (${Math.round(bytes.length / 1024)} KB)`);
+  console.log(`${files.length} dosya${store ? '' : ' + KURULUM.txt'} → ${path.relative(root, target)} (${Math.round(bytes.length / 1024)} KB)`);
 }

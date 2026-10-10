@@ -10,7 +10,8 @@
     "dev": "node dev-server.js",
     "test": "node --test core.test.js listing.test.js xlsx.test.js robustness.test.js dashboard.smoke.test.js pages.test.js body.test.js deal.test.js",
     "verify-page": "node tools/verify-page.js",
-    "package": "node tools/package.js"
+    "package": "node tools/package.js",
+    "package:store": "node tools/package.js --store"
   },
   "devDependencies": {
     "jsdom": "^24.1.3"
