@@ -56,7 +56,7 @@ function analyze(html, url) {
   } else if (raw?.kind === 'detail') {
     say(`İlan detay sayfası: ilan no ${raw.listingId || '(yok)'}, bilgi listesinde ${raw.info.length} alan.`);
     say(`  alanlar: ${raw.info.map(([label]) => label).join(', ') || '(bulunamadı)'}`);
-    say(`  fiyat metni: ${raw.priceText ? raw.priceText.split('\n')[0] : '(bulunamadı)'} · konum: ${raw.location || '(bulunamadı)'}`);
+    say(`  fiyat metni: ${raw.priceText ? raw.priceText.split('\n')[0] : '(bulunamadı)'} · konum: ${raw.location ? raw.location.replace(/\s+/g, ' ') : '(bulunamadı)'}`);
     say(`  açıklama: ${raw.description ? `${raw.description.length} karakter` : '(bulunamadı)'}`);
     try {
       const record = listing.parseDetailPage(raw);
@@ -67,7 +67,9 @@ function analyze(html, url) {
       say(`  gövde (şema): ${body.known ? `${body.label} · puan ${body.score}/100${body.changed.length ? ` · değişen: ${body.changed.join(', ')}` : ''}${body.painted.length ? ` · boyalı: ${body.painted.join(', ')}` : ''}${body.local.length ? ` · lokal: ${body.local.join(', ')}` : ''}` : 'şema bulunamadı'}`);
       say(`  hasar bilgisi: ${record.condition || 'yok'}${record.conditionNote ? ` (“${record.conditionNote}”)` : ''}`);
     } catch (error) {
-      say(`  HATA: ${error.message}`);
+      // Kategori kuralıyla bilerek atlanan ilan (ör. motosiklet) okuyucunun doğru çalıştığını gösterir.
+      report.ok = !!error.skipped;
+      say(`  ${error.skipped ? 'atlandı' : 'HATA'}: ${error.message}`);
     }
     const phone = listing.findMobile(raw.phoneText, raw.description);
     say(`  telefon: ${phone ? `bulundu (${maskPhone(phone)}) → WhatsApp düğmesi çalışır` : 'bulunamadı (sayfayı “Telefonu göster”e bastıktan sonra kaydedin)'}`);

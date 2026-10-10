@@ -99,9 +99,10 @@ test('Excel ve popup öne çıkanları fırsat puanına göre sıralar', () => {
 
 test('gerçek ilan sayfasından satıcı tipi okunur', () => {
   const dir = path.join(__dirname, 'fixtures');
-  const file = path.join(dir, 'ilan-semasiz.html');
+  // Otomobil ilanı kullanılır: motosiklet ilanı (ilan-semasiz) artık kategori gereği okunmaz.
+  const file = path.join(dir, 'temiz.html');
   if (!fs.existsSync(file)) return;
   const { extractFromHtml } = require('./tools/verify-page.js');
   const record = listing.parseDetailPage(extractFromHtml(fs.readFileSync(file, 'utf8')));
-  assert.equal(record.sellerType, 'Yetkili Bayiden');
+  assert.equal(record.sellerType, 'Galeriden');
 });

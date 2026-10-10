@@ -391,6 +391,25 @@ test('kategori: kiralık ilan okunmaz, "Hasarlı Araçlar" riskli sayılır, "Ot
   assert.match(rental.skipped[0].reason, /kiralık/);
 });
 
+test('kategori: motosiklet, deniz aracı gibi otomobil dışı ilanlar piyasa havuzuna girmez', () => {
+  const headers = ['', 'Model', 'İlan Başlığı', 'Yıl', 'KM', 'Fiyat', 'İlan Tarihi', 'İl / İlçe'];
+  const rows = [{ id: '1370000020', href: '', title: 'SIFIR SCOOTER', titleIndex: 2, cells: ['', 'SRX 50', 'SIFIR SCOOTER', '2026', '0', '109.470 TL', '10 Ekim', 'Kocaeli'], price: '109.470 TL', location: 'Kocaeli' }];
+  const motorcycle = listing.parseSearchPage({ kind: 'search', pageTitle: 'RKS SRX 50', headers, rows, crumbs: ['Anasayfa', 'Vasıta', 'Motosiklet', 'RKS', 'SRX 50'] });
+  assert.equal(motorcycle.records.length, 0);
+  assert.match(motorcycle.skipped[0].reason, /otomobil dışı kategori \(Motosiklet\)/);
+  const damagedBoat = listing.parseSearchPage({ kind: 'search', pageTitle: 'Tekne', headers, rows, crumbs: ['Vasıta', 'Hasarlı Araçlar', 'Deniz Araçları', 'Tekne'] });
+  assert.equal(damagedBoat.records.length, 0, 'hasarlı kategorisindeki tekne de okunmamalı');
+  // İlan sayfasında bilerek atlama, okuma hatasından ayırt edilir.
+  const detail = { kind: 'detail', url: 'https://www.sahibinden.com/ilan/vasita-motosiklet-rks-1344862969/detay', listingId: '1344862969', title: 'SIFIR SCOOTER',
+    crumbs: ['Vasıta', 'Motosiklet', 'RKS', 'SRX 50'], priceText: '109.470 TL', info: [['Marka', 'RKS'], ['Model', 'SRX 50'], ['Yıl', '2026'], ['KM', '0']] };
+  assert.throws(() => listing.parseDetailPage(detail), error => error.skipped === true && /Motosiklet/.test(error.message));
+  assert.throws(() => listing.ingest(detail, { schema: 1, stock: [], comparables: [], pages: [] }), error => error.skipped === true);
+  // Otomobil, SUV ve ticari araçlar okunmaya devam eder.
+  const car = listing.parseSearchPage({ kind: 'search', pageTitle: 'Fiat Egea', headers, rows: [{ ...rows[0], cells: ['', '1.4 Fire', 'TEMİZ', '2019', '90.000', '600.000 TL', '10 Ekim', 'Bursa'], title: 'TEMİZ', price: '600.000 TL' }],
+    crumbs: ['Anasayfa', 'Vasıta', 'Otomobil', 'Fiat', 'Egea'] });
+  assert.equal(car.records.length, 1);
+});
+
 test('tarih Türkiye saatiyle yazılır (gece 00:00-03:00 bir önceki güne düşmez)', () => {
   const previous = process.env.TZ;
   process.env.TZ = 'Europe/Istanbul';
