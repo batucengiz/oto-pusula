@@ -6,7 +6,7 @@
 
 **Kimler için:** Araç almak isteyen biri "bu ilan pahalı mı?" sorusuna cevap arar. Galerici ise stoğunu piyasayla karşılaştırıp hangi aracın fiyatını gözden geçireceğine karar verir.
 
-**Öne çıkanlar:** sahibinden.com'daki **bütün marka ve modeller** (marka ve seri sayfanın gezinme yolundan ve tablo sütunlarından okunur) · benzer araç eşleştirme ve öğrenen fiyat modeli · ilan sayfasındaki boya/değişen şemasından **parça bazlı kaporta puanı** (fiyattan ayrı) · çelişkili ve sonradan değişen satıcı beyanı uyarısı · fiyat geçmişi ve fırsat listesi · tek tıkla Excel · veri bilgisayardan çıkmaz.
+**Öne çıkanlar:** sahibinden.com'daki **bütün marka ve modeller** (marka ve seri sayfanın gezinme yolundan ve tablo sütunlarından okunur) · benzer araç eşleştirme ve öğrenen fiyat modeli · ilan sayfasındaki boya/değişen şemasından **parça bazlı kaporta puanı** (fiyattan ayrı) · çelişkili ve sonradan değişen satıcı beyanı uyarısı · fiyat, kaporta ve satıcı beyanını birleştiren **0–100 fırsat puanı** · yalnızca otomobil ilanlarıyla temiz piyasa havuzu · fiyat geçmişi ve fırsat listesi · tek tıkla Excel · veri bilgisayardan çıkmaz.
 
 **[Son sürümü indir](https://github.com/batucengiz/oto-pusula/releases/latest)** · Chrome, Edge, Brave, Opera (masaüstü)
 
@@ -59,6 +59,7 @@
 - **Kaportası okunmamış fırsatı aç:** Piyasa ilanlarındaki düğme, her basışta kaportası henüz okunmamış en ucuz fırsatı yeni sekmede açar; orada eklentiye basınca kaporta puanı panele eklenir. Sayfalar kullanıcının hızında tek tek açılır (dakikada en fazla 6), eklenti kendi kendine gezinmez.
 - **Kaporta durumu (parça parça):** İlan sayfasını açıp analiz ettiğinizde, satıcının doldurduğu boya/değişen şeması okunur: değişen, boyalı ve lokal boyalı parçalar ayrı ayrı listelenir, 100 üzerinden **kaporta puanı** verilir. Kaporta puanı fiyat değerlendirmesinden **ayrı** tutulur ("uygun fiyat" ile "temiz kaporta" iki ayrı soru). Tavanı değişen araçlar fırsat listesinden çıkarılır. Şema ile ilan metni çelişiyorsa (şemada her şey orijinal ama açıklamada "boyalı" geçiyor gibi) **"Beyan çelişkili"** uyarısı çıkar. Şeması okunmamış ilan temiz sayılmaz. Bu bilgi satıcı beyanıdır, ekspertiz yerine geçmez.
 - **Hasar bilgisi:** İlan detayındaki yapısal "Ağır Hasar Kayıtlı" alanı ile başlık ve satıcı açıklamasındaki "boyalı", "tramer", "ağır hasar kayıtlı" gibi ifadeler sınıflandırılır. "Değişen yok" gibi olumsuz ifadeler ayırt edilir. Ağır hasar beyanlı ilanlar karşılaştırma havuzuna alınmaz, böylece piyasa fiyatını aşağı çekmez.
+- **Yalnızca otomobil ilanları:** Motosiklet, deniz aracı, hava aracı, karavan, ATV/UTV ve kiralık araç ilanları ile TL dışı fiyatlı ilanlar piyasa havuzuna alınmaz; popup hangi ilanın neden atlandığını yazar. Böylece bir tekne ya da motosiklet fiyatı otomobil piyasasını bozmaz.
 - **Kondisyon seçimi (isteğe bağlı):** Stok aracının detayında “Ortalama / Çok iyi / Bakım ister” seçilebilir. Seçilmezse hesap değişmez; “Çok iyi” hedefi benzer ilanların fiyat dağılımındaki üst dilime (yaklaşık %75–%90), “Bakım ister” alt dilime taşır.
 - **Aracımla karşılaştır:** Karşılaştırmalar sekmesi stokta araç varsa otomatik olarak onunla açılır; hesapta kullanılan her ilan, aracın yılına/km’sine göre düzeltilmiş fiyatı ve aracın fiyatıyla farkı ile listelenir. Satıra tıklayınca ilan sahibinden’de açılır.
 - **Galeri modu:** Stok CSV'si (alış maliyeti, stoğa giriş tarihi) yüklenir. Maliyet altı ilanlar, 60 günü geçen araçlar ve piyasaya göre pahalı kalan araçlar önceliklendirilir.
@@ -141,6 +142,15 @@ Ticari kullanımda (galeri) satıcı numaralarının saklanması kişisel veri i
 - Seçiciler sahibinden.com'un sayfa yapısına bağlıdır. Site değişirse `extract.js` güncellenmelidir.
 - **Kapasite:** En fazla 5.000 ilan saklanır; panel 5.000 ilanla yaklaşık 1 saniyede açılır. Her tahmin, yıl ve km olarak en yakın 120 benzer ilanla yapılır. Tarayıcı deposu (~5 milyon karakter) dolarsa takipte olmayan ve numarası kaydedilmemiş, en uzun süredir görülmeyen ilanlar silinerek yeni analize yer açılır ve bu açıkça bildirilir.
 - Ayrıntılı gizlilik politikası: [docs/GIZLILIK.md](docs/GIZLILIK.md)
+
+## Sürüm notları
+
+- **7.2 (yakında):** Panelde karanlık ve aydınlık mod. Varsayılan bilgisayarın temasını izler; seçim hatırlanır, yazdırılan raporlar aydınlık çıkar.
+- **7.1:** **Fırsat puanı (0–100):** fiyat, kaporta ve satıcı beyanı tek sıralamada; fırsat listesi, popup ve Excel bu puana göre sıralanır. Motosiklet, deniz aracı, karavan gibi otomobil dışı kategoriler piyasa havuzundan çıkarıldı.
+- **7.0:** Yeni pusula simgesi; EUR/USD fiyatlı ve kiralık araç ilanları atlanır, "Hasarlı Araçlar" kategorisi riskli sayılır; tarihler yerel güne göre yazılır; küçük arayüz efektleri (hareketi azalt ayarında kapalı).
+- **6.x:** Bütün marka ve modeller, parça bazlı kaporta puanı, çelişkili beyan uyarısı, okunan sayfalar ve silme araçları, tek tıkla Excel, WhatsApp akışı ve spam sınırları.
+
+Tüm sürümler ve indirilebilir paketler: [Sürümler](https://github.com/batucengiz/oto-pusula/releases)
 
 ## Geliştirme
 
