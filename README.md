@@ -63,6 +63,7 @@
 - **Aracımla karşılaştır:** Karşılaştırmalar sekmesi stokta araç varsa otomatik olarak onunla açılır; hesapta kullanılan her ilan, aracın yılına/km’sine göre düzeltilmiş fiyatı ve aracın fiyatıyla farkı ile listelenir. Satıra tıklayınca ilan sahibinden’de açılır.
 - **Galeri modu:** Stok CSV'si (alış maliyeti, stoğa giriş tarihi) yüklenir. Maliyet altı ilanlar, 60 günü geçen araçlar ve piyasaya göre pahalı kalan araçlar önceliklendirilir.
 - **Tek tıkla Excel:** Popup veya panelden “Excel’e aktar” gerçek bir .xlsx indirir: kalın başlıklar, sayı biçimli fiyatlar, filtre, fırsatlar üstte; ilk sütunda ve başlıkta her ilan için tıklanabilir sahibinden bağlantısı. Dosya bağımlılıksız üretilir (xlsx.js). Tüm veri JSON yedek olarak alınıp geri yüklenebilir.
+- **Karanlık ve aydınlık mod:** Panelin sol alt köşesindeki “Görünüm” seçicisinden Sistem / Aydınlık / Karanlık seçilir. Varsayılan “Sistem”dir: bilgisayarınız koyu temadaysa panel de koyu açılır. Seçiminiz hatırlanır; yazdırılan raporlar her zaman aydınlık çıkar.
 
 ## Kurulum
 

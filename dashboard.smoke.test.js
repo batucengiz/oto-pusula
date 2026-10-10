@@ -49,7 +49,7 @@ test('sayfalar uzak betik yüklemez ve dinamik kod çalıştırmaz', () => {
     assert.doesNotMatch(html, /<script[^>]+src=["']https?:/i, file);
     assert.doesNotMatch(html, /<script(\s[^>]*)?>(?!<\/script>)/i, `${file} satır içi betik içermemeli`);
   }
-  for (const file of ['core.js', 'listing.js', 'charts.js', 'xlsx.js', 'store.js', 'popup.js', 'dashboard.js', 'extract.js']) {
+  for (const file of ['core.js', 'listing.js', 'charts.js', 'xlsx.js', 'store.js', 'popup.js', 'dashboard.js', 'extract.js', 'theme-mode.js']) {
     const source = fs.readFileSync(require.resolve(`./${file}`), 'utf8');
     assert.doesNotMatch(source, /\beval\(|new Function\(|\.innerHTML\s*=|fetch\(|XMLHttpRequest/, file);
   }
