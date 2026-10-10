@@ -115,6 +115,28 @@
     return box;
   }
 
+  // Fırsat puanı: fiyat + kaporta + güven, 100 üzerinden. Puanlanmayan ilanda nedeni üzerine gelince görünür.
+  function dealCell(deal) {
+    const box = element('span', 'body-cell');
+    if (!deal) {
+      const none = element('span', 'vehicle-meta', '—');
+      none.title = 'Ağır hasarlı, tavanı değişen veya fiyatı yeterli veriyle hesaplanamayan ilana fırsat puanı verilmez.';
+      box.append(none);
+      return box;
+    }
+    const kind = deal.score >= 80 ? 'good' : deal.score >= 65 ? 'neutral' : deal.score >= 50 ? 'warn' : 'bad';
+    const node = element('span', `badge ${kind}`, `${deal.score}/100`);
+    node.title = dealTitle(deal);
+    box.append(node);
+    if (deal.label) box.append(element('span', 'vehicle-meta', deal.label));
+    return box;
+  }
+
+  function dealTitle(deal) {
+    return [`Fiyat ${deal.parts.price}/60`, `Kaporta ${deal.parts.body}/25${deal.bodyKnown ? '' : ' (şema okunmadı)'}`, `Güven ${deal.parts.trust}/15`,
+      ...deal.adjustments].join(' · ');
+  }
+
   function percent(ratio) {
     return `${ratio > 0 ? '+' : ''}${Math.round(ratio * 100)}%`;
   }
@@ -130,7 +152,7 @@
     if (evaluationCache.comparables === state.comparables) return evaluationCache.entries;
     const entries = listings().map(record => {
       const result = core.estimate(record, state.comparables);
-      return { record, result, advice: core.advise(record, result), change: core.priceChange(record), age: core.daysSince(record.firstSeen) };
+      return { record, result, advice: core.advise(record, result), change: core.priceChange(record), age: core.daysSince(record.firstSeen), deal: core.dealScore(record, result) };
     });
     evaluationCache = { comparables: state.comparables, entries };
     return entries;
@@ -432,6 +454,7 @@
       : sort === 'recent' ? String(b.record.date).localeCompare(String(a.record.date))
       : sort === 'age' ? (b.age ?? -1) - (a.age ?? -1)
       : sort === 'body' ? scoreOf(b) - scoreOf(a) || gapOf(a) - gapOf(b)
+      : sort === 'deal' ? core.compareDeals(a.deal, b.deal) || gapOf(a) - gapOf(b)
       : gapOf(a) - gapOf(b));
     $('market-count').textContent = `${entries.length}/${all.length} ilan gösteriliyor`;
     updateNextDealButton();
@@ -450,7 +473,7 @@
       const bodyHint = ['body-clean', 'body-changed'].includes(filter)
         ? ' Kaporta bilgisi yalnızca ilan sayfasını açıp “Bu sayfayı analiz et” dediğiniz ilanlarda bulunur.' : '';
       const td = cell(row, all.length ? `Filtreye uygun ilan yok.${bodyHint}` : 'Henüz ilan yok. Eklentiyle bir sahibinden arama sayfasını analiz edin.');
-      td.colSpan = 7;
+      td.colSpan = 8;
       body.append(row);
       return;
     }
@@ -498,6 +521,7 @@
       cell(row, age === null ? '—' : age === 0 ? 'bugün' : `${age} gün`);
       cell(row, bodyCell(record, isDeal(entry)));
       cell(row, badge(result.status || 'veri yok'));
+      cell(row, dealCell(entry.deal));
       row.addEventListener('click', () => showDetail(record));
       row.addEventListener('keydown', event => {
         if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); showDetail(record); }
@@ -787,6 +811,13 @@
         content.append(element('p', 'detail-text', 'Bu ilanın boya/değişen şeması henüz okunmadı. İlanı sahibinden’de açıp eklentide “Bu sayfayı analiz et”e basın; parça bilgisi bu kayda eklenir.'));
       }
     }
+    const deal = isListing ? core.dealScore(vehicle, result) : null;
+    if (isListing) {
+      content.append(element('h3', '', 'Fırsat puanı'));
+      content.append(element('p', 'detail-text', deal
+        ? `${deal.score}/100${deal.label ? ` · ${deal.label}` : ''}. ${dealTitle(deal)}. Satıcı tipi: ${vehicle.sellerType || 'bilinmiyor'}. Fiyat 60, kaporta 25, satıcı tipi ve beyan tutarlılığı 15 puan; bu puan yalnızca fırsatları sıralamak içindir, ekspertiz yerine geçmez.`
+        : 'Bu ilana fırsat puanı verilmedi: ağır hasar beyanı, tavanı değişen kaporta veya yeterli veriyle hesaplanamayan fiyat.'));
+    }
     const advice = core.advise(vehicle, result);
     if (isListing && advice.flags.length) {
       content.append(element('h3', '', 'Dikkat edilmesi gerekenler'));
@@ -985,7 +1016,7 @@
 
   function showDeals() {
     $('market-filter').value = 'deal';
-    $('market-sort').value = 'price';
+    $('market-sort').value = 'deal';
     $('market-search').value = '';
     renderMarket();
     showView('market');

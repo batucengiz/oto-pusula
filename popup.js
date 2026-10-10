@@ -54,6 +54,8 @@
       if (raw?.kind === 'detail') nodes.push(element('p', body.known ? '' : 'muted', body.known
         ? `Kaporta (satıcı şeması): ${body.label} · ${body.score}/100${body.changed.length ? ` · değişen: ${body.changed.join(', ')}` : ''}`
         : 'Kaporta: bu sayfada boya/değişen şeması bulunamadı (satıcı doldurmamış olabilir).'));
+      const deal = core.dealScore(record, result);
+      if (deal) nodes.push(element('p', '', `Fırsat puanı: ${deal.score}/100${deal.label ? ` · ${deal.label}` : ''} (fiyat ${deal.parts.price}/60, kaporta ${deal.parts.body}/25, güven ${deal.parts.trust}/15)`));
       const advice = core.advise(record, result);
       advice.flags.forEach(flag => nodes.push(element('p', 'muted', `⚠ ${flag.label}: ${flag.text}`)));
       if (advice.offer) nodes.push(element('p', 'muted', `Pazarlık: açılış ${lira(advice.offer.open)}, hedef ${lira(advice.offer.target)}.`));
@@ -65,11 +67,12 @@
     if (!outcome.highlights.length) {
       nodes.push(element('p', 'muted', 'Belirgin fiyat avantajı yok ya da karşılaştırma henüz yetersiz (aynı model için en az 4 benzer ilan gerekir).'));
     }
-    for (const { record, result } of outcome.highlights) {
+    for (const { record, result, deal } of outcome.highlights) {
       const button = element('button', 'deal');
       button.type = 'button';
       button.append(
         element('strong', '', `${record.brand} ${record.model} ${record.engine || ''}`.trim()),
+        ...(deal ? [element('span', '', `Fırsat puanı ${deal.score}/100${deal.label ? ` · ${deal.label}` : ''}`)] : []),
         element('span', '', `${lira(record.price)} · tahmini merkezin %${Math.round(-result.gap * 100)} altında · ${[record.year, `${record.km.toLocaleString('tr-TR')} km`, record.city].filter(Boolean).join(' · ')}`)
       );
       const warnings = core.advise(record, result).flags.filter(flag => flag.level === 'bad' || flag.level === 'warn');
