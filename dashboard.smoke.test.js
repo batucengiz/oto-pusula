@@ -150,7 +150,7 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
   assert.equal(get('market-filter').value, 'phone');
   get('deal-shortcut').click();
   assert.equal(get('market-filter').value, 'deal');
-  assert.equal(get('market-sort').value, 'price');
+  assert.equal(get('market-sort').value, 'deal');
   assert.match(get('deal-shortcut').textContent, /^Fırsat arabalar \(\d+\)$/);
   // Kaporta süzgeçleri: hiçbir ilanın şeması okunmadığında bütün fırsatlar "kaporta okunmadı" grubundadır.
   const deals = get('market-body').children.length;
