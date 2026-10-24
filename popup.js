@@ -4,6 +4,7 @@
   const core = globalThis.OtoCore;
   const listing = globalThis.OtoListing;
   const store = globalThis.OtoStore;
+  const assistant = globalThis.OtoAssistant;
   const $ = id => document.getElementById(id);
   const lira = value => `₺${Math.round(value).toLocaleString('tr-TR')}`;
   let activeTab = null;
@@ -60,6 +61,7 @@
       advice.flags.forEach(flag => nodes.push(element('p', 'muted', `⚠ ${flag.label}: ${flag.text}`)));
       if (advice.offer) nodes.push(element('p', 'muted', `Pazarlık: açılış ${lira(advice.offer.open)}, hedef ${lira(advice.offer.target)}.`));
       if (raw?.kind === 'detail') nodes.push(...whatsappNodes(raw, record));
+      if (raw?.kind === 'detail') nodes.push(chatSection({ record, result, body, deal, advice, description: raw.description }));
       return nodes;
     }
 
@@ -121,6 +123,99 @@
       }
     });
     return [button, save, note, element('p', 'muted', 'WhatsApp’ta hazır mesaj açılır; gönder tuşuna siz basarsınız. Hesabınızı korumak için yeni satıcılara dakikada en fazla 1, günde en fazla 20 mesaj açılır. Numara siz kaydet demedikçe saklanmaz.')];
+  }
+
+  // İlan sohbeti: yalnızca Chrome'un yerleşik yapay zekası varsa görünür; yoksa kutu hiç gösterilmez.
+  let chatSession = null;
+  function closeChat() {
+    try { chatSession?.destroy?.(); } catch { /* oturum zaten kapanmış olabilir */ }
+    chatSession = null;
+  }
+
+  function chatSection(context) {
+    closeChat();
+    const section = element('section', 'chat');
+    section.hidden = true;
+    const model = assistant?.languageModel();
+    if (!model) return section;
+    const lines = assistant.facts(context);
+    const log = element('div', 'chat-log');
+    log.setAttribute('aria-live', 'polite');
+    const status = element('p', 'muted chat-status', '');
+    const form = element('form', 'chat-form');
+    const input = element('input');
+    input.type = 'text';
+    input.maxLength = assistant.MAX_QUESTION;
+    input.placeholder = 'Bu araç hakkında sorun…';
+    input.setAttribute('aria-label', 'Yapay zekaya soru');
+    const send = element('button', 'primary chat-send', 'Sor');
+    send.type = 'submit';
+    form.append(input, send);
+    const chips = element('div', 'chat-chips');
+    const chipButtons = [];
+    let options = null;
+    let busy = false;
+
+    const setBusy = value => {
+      busy = value;
+      input.disabled = value;
+      send.disabled = value;
+      chipButtons.forEach(chip => { chip.disabled = value; });
+    };
+
+    async function session() {
+      if (chatSession) return chatSession;
+      status.textContent = 'Yapay zeka hazırlanıyor…';
+      chatSession = await assistant.createSession(model, lines, options, loaded => {
+        status.textContent = `Yapay zeka modeli bu bilgisayara indiriliyor: %${Math.round(loaded * 100)} (tek seferlik)`;
+      });
+      status.textContent = '';
+      return chatSession;
+    }
+
+    async function submit(text) {
+      const question = assistant.question(text);
+      if (!question || busy) return;
+      setBusy(true);
+      input.value = '';
+      log.append(element('p', 'chat-me', question));
+      const reply = element('p', 'chat-ai', '…');
+      log.append(reply);
+      try {
+        const answer = await assistant.ask(await session(), question, partial => { reply.textContent = partial; });
+        reply.textContent = answer || 'Cevap üretilemedi; soruyu farklı sorun.';
+      } catch (error) {
+        closeChat();
+        reply.className = 'chat-ai chat-error';
+        reply.textContent = error?.name === 'NotAllowedError'
+          ? 'Chrome yapay zekayı başlatmaya izin vermedi. Bir kez “Sor”a tıklayarak tekrar deneyin.'
+          : 'Yapay zeka şu an cevap veremedi. Biraz sonra tekrar deneyin.';
+        status.textContent = '';
+      } finally {
+        setBusy(false);
+        input.focus?.();
+      }
+    }
+
+    for (const text of assistant.SUGGESTIONS) {
+      const chip = element('button', 'chat-chip', text);
+      chip.type = 'button';
+      chip.addEventListener('click', () => submit(text));
+      chipButtons.push(chip);
+      chips.append(chip);
+    }
+    form.addEventListener('submit', event => { event.preventDefault(); submit(input.value); });
+
+    section.append(element('h2', '', 'YAPAY ZEKAYA SOR'), chips, log, form, status,
+      element('p', 'muted', 'Cevaplar Chrome’un bu bilgisayarda çalışan yapay zekasından gelir; ilan bilgileri hiçbir yere gönderilmez. Yapay zeka hata yapabilir, ekspertiz yerine geçmez.'));
+    assistant.availability(model).then(found => {
+      if (found.status === 'unavailable') return;
+      options = found.options;
+      if (found.status !== 'available') status.textContent = 'İlk soruda Chrome yapay zeka modelini bu bilgisayara indirir (bir kez, birkaç GB); bu birkaç dakika sürebilir.';
+      else if (!found.turkish) status.textContent = 'Chrome’un yapay zekası Türkçeyi resmi olarak desteklemiyor; cevaplar kusurlu olabilir.';
+      section.hidden = false;
+    }).catch(() => { /* destek yoksa kutu gizli kalır */ });
+    return section;
   }
 
   async function analyze() {

@@ -52,6 +52,7 @@
 - **Veriden öğrenen fiyat modeli:** Aynı modelden en az 12 ilan biriktiğinde, yıl ve km başına değer kaybı ile motor/paket/kasa etkileri bu ilanlardan regresyonla öğrenilir. Benzer ilan azsa tahmini bu model yapar ve bunu açıkça belirtir.
 - **Alıcı uyarıları ve pazarlık önerisi:** Yılda ~35 bin km'den fazla kullanım (taksi/kiralık olabilir), piyasanın %20+ altında "şüpheli ucuz" ilan (dolandırıcılık/gizli hasar uyarısı), fiyatı düşen ve uzun süredir yayında olan ilanlar işaretlenir. Açılış teklifi ve hedef fiyat önerilir.
 - **WhatsApp’tan yaz:** İlan detay sayfasında “Telefonu göster”e kendiniz bastıktan sonra analiz ederseniz, popup o ilana özel hazır mesajla WhatsApp’ı açar; mesajı siz düzenleyip gönderirsiniz. İsterseniz “Numarayı kaydet” ile numara yalnızca o ilana yazılır, ilan takip listesine alınır ve Excel çıktısında numarayla birlikte tıklanabilir “WhatsApp’tan yaz” bağlantısı olarak görünür; panelden tek tuşla silinir. Eklenti numarayı göstermek için hiçbir şeye tıklamaz, onayınız olmadan numara saklamaz, toplu mesaj göndermez.
+- **Yapay zekaya sor (ilan sohbeti):** İlan sayfasını analiz ettikten sonra popup’ta küçük bir sohbet kutusu açılır. “Bu fiyata değer mi?”, “Kilometresi normal mi?” gibi soruları, ilan bilgileri ile eklentinin piyasa tahmini, kaporta puanı, fırsat puanı ve uyarılarına dayanarak cevaplar. Chrome’un bilgisayarda çalışan yerleşik yapay zekası (Prompt API, Gemini Nano) kullanılır: API anahtarı, hesap veya sunucu yoktur, ilan bilgileri ve sorular cihazdan çıkmaz. Model ilk kullanımda Chrome tarafından bir kez indirilir. Bu özelliği desteklemeyen tarayıcı veya bilgisayarda kutu hiç görünmez, eklentinin geri kalanı aynen çalışır. Yapay zeka hata yapabilir; ekspertiz yerine geçmez.
 - **Fırsat arabalar:** Tek tuşla piyasanın altındaki (uygun ve düşük fiyatlı, ağır hasarsız) ilanlar **fırsat puanına** göre listelenir. Popup ve panelden erişilir.
 - **Fırsat puanı (0–100):** Fiyat, kaporta ve satıcı beyanı tek sıralamada birleşir: piyasaya göre fiyat 60 puan (piyasanın %15+ altı tam puan), kaporta 25 puan (orijinal 25, kaporta puanındaki her eksik puan için -0,5; ör. 3 değişen kapı 13; şema okunmadıysa 10), satıcı tipi ("Kimden": yetkili bayi 6, sahibinden 5, galeri 4) ve tutarlı beyan (çelişki yok, sonradan değişmemiş) 15 puan. Fiyat güveni "orta" ise ×0,9, yoğun kullanımda -5, takipte fiyatı düşende +3. Etiketler: 80+ çok iyi fırsat, 65–79 iyi fırsat, 50–64 makul (yalnızca fırsat adaylarında). Böylece daha ucuz ama değişenli bir araç, biraz pahalı ama temiz bir aracın önüne geçmez. Ağır hasarlı, tavanı değişen ve az verili ilanlar puanlanmaz. Fiyat durumu ve kaporta puanı ayrı gösterilmeye devam eder.
 - **Veri yönetimi:** Her analiz edilen sayfa “Okunan sayfalar” listesine girer; istenen sayfanın ilanları tek tuşla silinir (başka sayfada da görünen ilanlar kalır). Arama/filtreyle daraltılan ilanlar “Gösterilenleri sil” ile, 30+ gündür görülmeyen eski ilanlar ayrı filtreyle temizlenir. Toplu silmede takip listesindeki (★, numarası kayıtlı) ilanlar için ayrıca sorulur; istenirse onlar da silinir.
@@ -99,6 +100,8 @@ core.js     (fiyat motoru: eşleştirme, düzeltme, ortanca/aralık, güven; fiy
     │
     ▼
 store.js ◀── dashboard.js  (panel: piyasa, stok, karşılaştırmalar; storage olayıyla canlı güncellenir)
+
+assistant.js (ilan sohbeti: core.js sonuçlarını Chrome'un yerleşik yapay zekasına bağlam olarak verir; yalnızca popup'ta)
 ```
 
 **Tasarım kararları**
@@ -139,6 +142,7 @@ Ticari kullanımda (galeri) satıcı numaralarının saklanması kişisel veri i
 
 - İzinler yalnızca `activeTab` ve `scripting`. Eklenti sadece kullanıcı düğmeye bastığında, o anki sekmeye bir kez erişir. Arka plan betiği, içerik betiği veya kalıcı site izni yoktur.
 - Eklenti hiçbir siteye kendisi istek atmaz, otomatik gezinme veya toplu tarama yapmaz. Sunucu yoktur, veri cihazdan çıkmaz.
+- İlan sohbeti yalnızca Chrome'un cihazda çalışan yapay zekasını (`LanguageModel`) kullanır; ağ isteği, API anahtarı veya ek izin gerektirmez. Sohbet sayfaya eklenmez, yalnızca popup'ta görünür.
 - Harici kütüphane veya uzak betik yoktur. İçe aktarılan metin HTML olarak çalıştırılmaz, sadece `https://www.sahibinden.com/ilan/...` bağlantıları saklanır. CSV dışa aktarmada formül enjeksiyonu engellenir. Bu kurallar testlerle denetlenir.
 - Sonuçlar ekspertiz, resmi değerleme veya satış fiyatı garantisi değildir. Hasar bilgisi satıcının beyanıdır.
 - Kişisel kullanım içindir. Toplanan verileri yeniden yayınlamayın ve sitenin kullanım koşullarına uyun.
@@ -149,7 +153,7 @@ Ticari kullanımda (galeri) satıcı numaralarının saklanması kişisel veri i
 ## Geliştirme
 
 ```bash
-npm test        # 105 test: fırsat puanı, gerçek sayfalarla uçtan uca yolculuk, performans (5.000 ilan) ve depo dolması, kaporta şeması okuma, puanlama ve beyan değişikliği, dayanıklılık (bozuk/rastgele girdi), fiyat motoru ve öğrenen model, ilan ayrıştırma, hasar beyanı, uyarılar, panel, popup/WhatsApp akışı, güvenlik ve ban kuralları
+npm test        # 114 test: ilan sohbeti (sahte yapay zeka ile), fırsat puanı, gerçek sayfalarla uçtan uca yolculuk, performans (5.000 ilan) ve depo dolması, kaporta şeması okuma, puanlama ve beyan değişikliği, dayanıklılık (bozuk/rastgele girdi), fiyat motoru ve öğrenen model, ilan ayrıştırma, hasar beyanı, uyarılar, panel, popup/WhatsApp akışı, güvenlik ve ban kuralları
 npm run verify-page -- "fixtures/sayfa.html"   # kaydedilmiş gerçek sayfayı okuyucudan geçirir
 npm run dev     # paneli http://127.0.0.1:4173 adresinde önizler (popup için eklenti olarak yükleyin)
 ```

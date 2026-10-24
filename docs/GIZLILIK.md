@@ -1,6 +1,6 @@
 # Oto Pusula Gizlilik Politikası
 
-Son güncelleme: 9 Ekim 2026 · Geliştiren: Batuhan Cengiz ([github.com/batucengiz](https://github.com/batucengiz))
+Son güncelleme: 24 Ekim 2026 · Geliştiren: Batuhan Cengiz ([github.com/batucengiz](https://github.com/batucengiz))
 
 Oto Pusula, sahibinden.com ilanlarını kullanıcının kendi bilgisayarında analiz eden bir tarayıcı eklentisidir. Bu belge hangi verinin nasıl işlendiğini açıklar.
 
@@ -27,6 +27,7 @@ Oto Pusula, sahibinden.com ilanlarını kullanıcının kendi bilgisayarında an
 - Veriler **hiçbir sunucuya gönderilmez**. Eklentinin bir sunucusu yoktur. Analiz tamamen bilgisayarınızda yapılır.
 - Üçüncü taraflarla paylaşılmaz, satılmaz, reklam için kullanılmaz.
 - WhatsApp düğmesine bastığınızda WhatsApp, hazır mesajla yeni bir sekmede açılır. Mesajı siz düzenleyip gönderirsiniz; eklenti mesaj göndermez.
+- **Yapay zekaya sor:** İlan sohbeti, Chrome'un bilgisayarınızda çalışan yerleşik yapay zeka modelini (Gemini Nano) kullanır. İlan bilgileri, eklentinin hesapları ve sorularınız yalnızca bu yerel modele verilir; eklenti bunları hiçbir sunucuya göndermez ve sohbeti saklamaz (popup kapanınca silinir). Modeli Chrome kendisi indirir ve günceller.
 - Excel ve JSON yedek dosyaları yalnızca siz indirdiğinizde bilgisayarınıza kaydedilir.
 
 ## İzinler
