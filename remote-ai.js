@@ -16,22 +16,34 @@
   }
 
   function loadKey(storage) {
-    try { return normalizeKey(storage.getItem(KEY_STORAGE)); } catch { return ''; }
+    try {
+      return normalizeKey(storage.getItem(KEY_STORAGE));
+    } catch {
+      return '';
+    }
   }
 
   function saveKey(storage, value) {
     const key = normalizeKey(value);
-    if (!key) throw new Error('Anahtar geçersiz görünüyor. Google AI Studio’dan aldığınız “AIza…” ile başlayan anahtarı yapıştırın.');
+    if (!key)
+      throw new Error(
+        'Anahtar geçersiz görünüyor. Google AI Studio’dan aldığınız “AIza…” ile başlayan anahtarı yapıştırın.'
+      );
     storage.setItem(KEY_STORAGE, key);
     return key;
   }
 
   function clearKey(storage) {
-    try { storage.removeItem(KEY_STORAGE); } catch { /* depo kapalıysa zaten anahtar yok */ }
+    try {
+      storage.removeItem(KEY_STORAGE);
+    } catch {
+      /* depo kapalıysa zaten anahtar yok */
+    }
   }
 
   function errorMessage(status) {
-    if (status === 400 || status === 401 || status === 403) return 'API anahtarı kabul edilmedi. Anahtarı kontrol edin ya da silip yeniden girin.';
+    if (status === 400 || status === 401 || status === 403)
+      return 'API anahtarı kabul edilmedi. Anahtarı kontrol edin ya da silip yeniden girin.';
     if (status === 429) return 'API kullanım sınırına ulaşıldı. Biraz sonra tekrar deneyin.';
     return 'Bulut yapay zekası şu an cevap veremedi. Biraz sonra tekrar deneyin.';
   }
@@ -54,9 +66,14 @@
         let response;
         try {
           response = await fetcher(ENDPOINT, {
-            method: 'POST', signal,
+            method: 'POST',
+            signal,
             headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-            body: JSON.stringify({ systemInstruction: { parts: [{ text: systemText }] }, contents, generationConfig: { temperature: 0.3, maxOutputTokens: 800 } })
+            body: JSON.stringify({
+              systemInstruction: { parts: [{ text: systemText }] },
+              contents,
+              generationConfig: { temperature: 0.3, maxOutputTokens: 800 }
+            })
           });
         } catch (cause) {
           if (cause?.name === 'AbortError') throw cause;
@@ -64,15 +81,25 @@
         }
         if (!response.ok) throw remoteError(errorMessage(response.status));
         let data;
-        try { data = await response.json(); } catch { throw remoteError(errorMessage(0)); }
-        const answer = (data?.candidates?.[0]?.content?.parts || []).map(part => part?.text || '').join('').trim();
+        try {
+          data = await response.json();
+        } catch {
+          throw remoteError(errorMessage(0));
+        }
+        const answer = (data?.candidates?.[0]?.content?.parts || [])
+          .map(part => part?.text || '')
+          .join('')
+          .trim();
         // Güvenlik filtresi vb. yüzünden boş dönen cevap geçmişe yazılmaz.
         if (!answer) return '';
         history.push({ role: 'user', parts: [{ text }] }, { role: 'model', parts: [{ text: answer }] });
         history.splice(0, Math.max(0, history.length - MAX_TURNS * 2));
         return answer;
       },
-      destroy() { closed = true; history.length = 0; }
+      destroy() {
+        closed = true;
+        history.length = 0;
+      }
     };
   }
 

@@ -8,7 +8,10 @@
     if (!node) return '';
     const parts = [];
     const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
-    while (walker.nextNode()) { const part = walker.currentNode.nodeValue.trim(); if (part) parts.push(part); }
+    while (walker.nextNode()) {
+      const part = walker.currentNode.nodeValue.trim();
+      if (part) parts.push(part);
+    }
     return parts.join('\n');
   };
   if (!/(^|\.)sahibinden\.com$/.test(location.hostname)) return { kind: 'unsupported' };
@@ -31,7 +34,8 @@
 
     // 2) Yedek: sayfa yapısı farklıysa, etiketi yazan yaprak öğe bulunur ve hemen yanındaki değer okunur.
     //    Aynı tarama, görünür hâldeki cep numarasını da yakalar. Hiçbir öğe değiştirilmez.
-    const LABEL = /^(İlan No|İlan Tarihi|Marka|Seri|Model|Yıl|Yakıt|Yakıt Tipi|Yakıt \/ Motor Tipi|Vites|Vites Tipi|KM|Kasa Tipi|Motor Hacmi|Motor Gücü|Ağır Hasar Kayıtlı|Kimden|Renk)\s*:?$/;
+    const LABEL =
+      /^(İlan No|İlan Tarihi|Marka|Seri|Model|Yıl|Yakıt|Yakıt Tipi|Yakıt \/ Motor Tipi|Vites|Vites Tipi|KM|Kasa Tipi|Motor Hacmi|Motor Gücü|Ağır Hasar Kayıtlı|Kimden|Renk)\s*:?$/;
     const PHONE = /^(\+?90|0)?\s*\(?\s*5\d{2}\s*\)?\s*\d{3}\s*\d{2}\s*\d{2}$/;
     const scanned = [];
     const phones = [];
@@ -56,10 +60,14 @@
     for (let node = anchor, depth = 0; !box && node && depth < 8; node = node.parentElement, depth++) {
       if (/\d{1,3}(\.\d{3})+\s*TL/.test(node.textContent || '')) box = node;
     }
-    const boxLines = text(box).split('\n').map(line => line.trim()).filter(Boolean);
+    const boxLines = text(box)
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean);
     // Seçici listesi belge sırasıyla eşleştiği için önce kesin kimlik denenir; sayfada başka "description" kutuları da var.
-    const description = document.querySelector('#classifiedDescription')
-      || document.querySelector('[id*="classifiedDescription"], .classifiedDescription, [class*="description"]');
+    const description =
+      document.querySelector('#classifiedDescription') ||
+      document.querySelector('[id*="classifiedDescription"], .classifiedDescription, [class*="description"]');
 
     // Satıcının işaretlediği boya/değişen şeması: sayfada zaten görünen parça listesi okunur.
     // Liste yoksa ve şemadaki bütün parçalar "orijinal" işaretliyse beyan "orijinal" sayılır; aksi hâlde bilinmiyor.
@@ -72,9 +80,14 @@
         const kind = String(item.getAttribute('class') || '');
         const label = text(item);
         if (/pair-title/.test(kind)) {
-          group = /local/.test(kind) || /lokal/i.test(label) ? 'local'
-            : /changed/.test(kind) || /değişen/i.test(label) ? 'changed'
-            : /paint/.test(kind) || /boyal/i.test(label) ? 'painted' : '';
+          group =
+            /local/.test(kind) || /lokal/i.test(label)
+              ? 'local'
+              : /changed/.test(kind) || /değişen/i.test(label)
+                ? 'changed'
+                : /paint/.test(kind) || /boyal/i.test(label)
+                  ? 'painted'
+                  : '';
         } else if (group && label && label.length <= 40) {
           damage[group].push(label);
         }
@@ -92,17 +105,27 @@
       crumbs,
       listingId: (location.pathname.match(/\d{6,13}/g) || []).at(-1) || '',
       title: text(document.querySelector('.classifiedDetailTitle h1, h1')),
-      priceText: text(document.querySelector('.classifiedInfo .classifiedPrice, .classifiedInfo h3, .classified-price-wrapper'))
-        || boxLines.find(line => /^\d{1,3}(\.\d{3})+\s*TL/.test(line)) || '',
-      location: text(document.querySelector('.classifiedInfo .classifiedLocation, .classifiedInfo h2'))
-        || boxLines.find(line => / \/ /.test(line) && !/\d/.test(line) && !LABEL.test(line)) || '',
+      priceText:
+        text(
+          document.querySelector('.classifiedInfo .classifiedPrice, .classifiedInfo h3, .classified-price-wrapper')
+        ) ||
+        boxLines.find(line => /^\d{1,3}(\.\d{3})+\s*TL/.test(line)) ||
+        '',
+      location:
+        text(document.querySelector('.classifiedInfo .classifiedLocation, .classifiedInfo h2')) ||
+        boxLines.find(line => / \/ /.test(line) && !/\d/.test(line) && !LABEL.test(line)) ||
+        '',
       info: info.slice(0, 60),
       description: text(description).slice(0, 12000),
       damage,
       // Yalnızca kullanıcı "Telefonu göster"e bastıktan sonra ekranda görünen metin okunur;
       // eklenti numarayı göstermek için hiçbir şeye tıklamaz.
       phoneText: [...document.querySelectorAll('[class*="phone"], [id*="phone"], [class*="Phone"], [id*="Phone"]')]
-        .map(text).concat(phones).filter(Boolean).join('\n').slice(0, 2000)
+        .map(text)
+        .concat(phones)
+        .filter(Boolean)
+        .join('\n')
+        .slice(0, 2000)
     };
   }
 
@@ -117,11 +140,18 @@
     headers: headerRow ? [...headerRow.querySelectorAll('th, td')].map(text) : [],
     rows: rows.map(row => {
       const cells = [...row.querySelectorAll('td')];
-      const titleCell = row.querySelector('.searchResultsTitleValue') || row.querySelector('a.classifiedTitle')?.closest('td');
+      const titleCell =
+        row.querySelector('.searchResultsTitleValue') || row.querySelector('a.classifiedTitle')?.closest('td');
       // Başlık hücresinde "Favoriye ekle" gibi href="#" bağlantıları da var; yalnızca ilan adresine giden alınır.
-      const link = [...row.querySelectorAll('a[href]')].find(anchor => /\/ilan\//.test(anchor.getAttribute('href') || ''));
+      const link = [...row.querySelectorAll('a[href]')].find(anchor =>
+        /\/ilan\//.test(anchor.getAttribute('href') || '')
+      );
       let href = '';
-      try { href = link ? new URL(link.getAttribute('href'), location.href).href : ''; } catch { /* bağlantısız satır */ }
+      try {
+        href = link ? new URL(link.getAttribute('href'), location.href).href : '';
+      } catch {
+        /* bağlantısız satır */
+      }
       return {
         id: row.getAttribute('data-id') || '',
         href,

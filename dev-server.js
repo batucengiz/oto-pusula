@@ -27,13 +27,18 @@ const files = new Map([
 
 const server = http.createServer(async (request, response) => {
   const selected = files.get(new URL(request.url, 'http://127.0.0.1').pathname);
-  if (!selected) { response.writeHead(404); response.end('Not found'); return; }
+  if (!selected) {
+    response.writeHead(404);
+    response.end('Not found');
+    return;
+  }
   try {
     const body = await fs.readFile(path.join(__dirname, selected[0]));
     response.writeHead(200, { 'Content-Type': selected[1], 'Cache-Control': 'no-store' });
     response.end(body);
   } catch {
-    response.writeHead(500); response.end('Server error');
+    response.writeHead(500);
+    response.end('Server error');
   }
 });
 

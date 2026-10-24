@@ -14,13 +14,25 @@ class FakeNode {
     this.hidden = false;
     this.classList = { toggle() {}, add() {}, remove() {} };
   }
-  append(...children) { this.children.push(...children); }
-  replaceChildren(...children) { this.children = [...children]; }
-  addEventListener(name, callback) { this.listeners[name] = callback; }
+  append(...children) {
+    this.children.push(...children);
+  }
+  replaceChildren(...children) {
+    this.children = [...children];
+  }
+  addEventListener(name, callback) {
+    this.listeners[name] = callback;
+  }
   setAttribute() {}
-  showModal() { this.open = true; }
-  close() { this.open = false; }
-  click() { this.listeners.click?.(); }
+  showModal() {
+    this.open = true;
+  }
+  close() {
+    this.open = false;
+  }
+  click() {
+    this.listeners.click?.();
+  }
 }
 
 test('eklenti yalnızca kullanıcı tıklayınca açık sekmeye erişir; arka plan veya kalıcı site izni yok', () => {
@@ -39,7 +51,8 @@ test('sayfa okuyucu salt okunurdur; site eklentiyi fark edebileceği iz bulamaz'
   assert.equal(manifest.web_accessible_resources, undefined, 'site eklenti dosyalarını yoklayamamalı');
   assert.equal(manifest.externally_connectable, undefined, 'site eklentiyle konuşamamalı');
   const source = fs.readFileSync(require.resolve('./extract.js'), 'utf8');
-  const writes = /\.(append|appendChild|prepend|insertBefore|insertAdjacent\w*|replaceChildren|replaceWith|remove|removeChild|setAttribute|removeAttribute|click|focus|dispatchEvent|scroll\w*)\(|\.(innerHTML|outerHTML|textContent|innerText|value|className|style)\s*=|classList\.|document\.write|postMessage|localStorage|sessionStorage|cookie|fetch\(|XMLHttpRequest|sendBeacon|WebSocket|history\.|location\s*=|location\.(assign|replace|reload)/;
+  const writes =
+    /\.(append|appendChild|prepend|insertBefore|insertAdjacent\w*|replaceChildren|replaceWith|remove|removeChild|setAttribute|removeAttribute|click|focus|dispatchEvent|scroll\w*)\(|\.(innerHTML|outerHTML|textContent|innerText|value|className|style)\s*=|classList\.|document\.write|postMessage|localStorage|sessionStorage|cookie|fetch\(|XMLHttpRequest|sendBeacon|WebSocket|history\.|location\s*=|location\.(assign|replace|reload)/;
   assert.doesNotMatch(source, writes, 'extract.js sayfada değişiklik, istek veya gezinme yapmamalı');
 });
 
@@ -49,7 +62,17 @@ test('sayfalar uzak betik yüklemez ve dinamik kod çalıştırmaz', () => {
     assert.doesNotMatch(html, /<script[^>]+src=["']https?:/i, file);
     assert.doesNotMatch(html, /<script(\s[^>]*)?>(?!<\/script>)/i, `${file} satır içi betik içermemeli`);
   }
-  for (const file of ['core.js', 'listing.js', 'charts.js', 'xlsx.js', 'store.js', 'assistant.js', 'popup.js', 'dashboard.js', 'extract.js']) {
+  for (const file of [
+    'core.js',
+    'listing.js',
+    'charts.js',
+    'xlsx.js',
+    'store.js',
+    'assistant.js',
+    'popup.js',
+    'dashboard.js',
+    'extract.js'
+  ]) {
     const source = fs.readFileSync(require.resolve(`./${file}`), 'utf8');
     assert.doesNotMatch(source, /\beval\(|new Function\(|\.innerHTML\s*=|fetch\(|XMLHttpRequest/, file);
   }
@@ -64,7 +87,9 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
   };
   const views = ['overview', 'market', 'stock', 'comparables', 'method'].map(name => get(`${name}-view`));
   const nav = ['overview', 'market', 'stock', 'comparables', 'method'].map(name => {
-    const item = new FakeNode(); item.dataset.view = name; return item;
+    const item = new FakeNode();
+    item.dataset.view = name;
+    return item;
   });
   const storage = new Map();
   const windowListeners = {};
@@ -74,7 +99,7 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
       getElementById: get,
       createElement: () => new FakeNode(),
       createElementNS: () => new FakeNode(),
-      querySelectorAll: selector => selector === '.view' ? views : selector === '.nav-button' ? nav : []
+      querySelectorAll: selector => (selector === '.view' ? views : selector === '.nav-button' ? nav : [])
     },
     localStorage: {
       getItem: key => storage.get(key) ?? null,
@@ -82,9 +107,19 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
       removeItem: key => storage.delete(key)
     },
     confirm: () => true,
-    window: { print() {}, open() {}, addEventListener: (name, fn) => { windowListeners[name] = fn; } },
+    window: {
+      print() {},
+      open() {},
+      addEventListener: (name, fn) => {
+        windowListeners[name] = fn;
+      }
+    },
     // Bildirim zamanlayıcıları testin bitmesini bekletmesin.
-    setTimeout: (fn, ms) => { const timer = setTimeout(fn, ms); timer.unref?.(); return timer; },
+    setTimeout: (fn, ms) => {
+      const timer = setTimeout(fn, ms);
+      timer.unref?.();
+      return timer;
+    },
     clearTimeout,
     console
   });
@@ -96,20 +131,68 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
   assert.equal(get('market-body').children.length, 1, 'boş panelde yalnızca yönlendirme satırı olmalı');
 
   // Bu kayıtlar yalnızca testin içinde yaşar; üründe örnek veri yoktur.
-  const listing = (n, price, extra = {}) => core.normalizeRecord({ id: `sh-12345678${n}0`, source: 'sahibinden', listingId: `12345678${n}0`,
-    brand: 'Fiat', model: 'Egea', engine: '1.4 Fire', trim: 'Easy', year: 2021, km: 80000 + n * 5000, price, date: '2026-10-08', firstSeen: '2026-09-20', ...extra }, 'comparable');
-  const drop = [{ date: '2026-09-20', price: 900000 }, { date: '2026-10-08', price: 840000 }];
-  const comparables = [listing(1, 840000, { priceHistory: drop }), listing(2, 850000, { priceHistory: drop.map(p => ({ ...p, price: p.price + 10000 })) }),
-    listing(3, 860000), listing(4, 870000), listing(5, 880000), listing(6, 790000)];
-  const stock = [core.normalizeRecord({ id: 'S-1', brand: 'Fiat', model: 'Egea', engine: '1.4 Fire', year: 2021, km: 85000, price: 900000, cost: 780000, date: '2026-07-01' }, 'stock'),
-    core.normalizeRecord({ id: 'S-2', brand: 'Fiat', model: 'Egea', engine: '1.4 Fire', year: 2022, km: 60000, price: 950000 }, 'stock')];
+  const listing = (n, price, extra = {}) =>
+    core.normalizeRecord(
+      {
+        id: `sh-12345678${n}0`,
+        source: 'sahibinden',
+        listingId: `12345678${n}0`,
+        brand: 'Fiat',
+        model: 'Egea',
+        engine: '1.4 Fire',
+        trim: 'Easy',
+        year: 2021,
+        km: 80000 + n * 5000,
+        price,
+        date: '2026-10-08',
+        firstSeen: '2026-09-20',
+        ...extra
+      },
+      'comparable'
+    );
+  const drop = [
+    { date: '2026-09-20', price: 900000 },
+    { date: '2026-10-08', price: 840000 }
+  ];
+  const comparables = [
+    listing(1, 840000, { priceHistory: drop }),
+    listing(2, 850000, { priceHistory: drop.map(p => ({ ...p, price: p.price + 10000 })) }),
+    listing(3, 860000),
+    listing(4, 870000),
+    listing(5, 880000),
+    listing(6, 790000)
+  ];
+  const stock = [
+    core.normalizeRecord(
+      {
+        id: 'S-1',
+        brand: 'Fiat',
+        model: 'Egea',
+        engine: '1.4 Fire',
+        year: 2021,
+        km: 85000,
+        price: 900000,
+        cost: 780000,
+        date: '2026-07-01'
+      },
+      'stock'
+    ),
+    core.normalizeRecord(
+      { id: 'S-2', brand: 'Fiat', model: 'Egea', engine: '1.4 Fire', year: 2022, km: 60000, price: 950000 },
+      'stock'
+    )
+  ];
   storage.set('otoPusula_v1', JSON.stringify({ schema: 1, stock, comparables, sample: false }));
   windowListeners.storage({ key: 'otoPusula_v1' });
 
   assert.equal(get('stat-units').textContent, '2');
   assert.equal(get('stock-body').children.length, 2);
   assert.equal(get('comparable-body').children.length, 6);
-  assert.equal(get('comparable-head').children.length, 6, 'stokta araç varsa Karşılaştırmalar otomatik olarak ilk araçla açılmalı');
+  assert.equal(
+    get('comparable-head').children.length,
+    6,
+    'stokta araç varsa Karşılaştırmalar otomatik olarak ilk araçla açılmalı'
+  );
   assert.equal(get('compare-vehicle').value, 'stock-S-1');
   // Aracımla karşılaştır: seçili stok aracının hesabında kullanılan ilanlar, düzeltilmiş fiyat ve fark sütunlarıyla.
   get('compare-vehicle').value = 'stock-S-1';
@@ -139,13 +222,21 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
   // İkinci soruya (takiptekileri de sil?) İptal: takipteki korunur.
   context.confirm = message => !/takip listende/.test(message);
   get('delete-shown').click();
-  assert.equal(JSON.parse(storage.get('otoPusula_v1')).comparables.length, 5, 'takipteki ilan korunmalı, diğeri silinmeli');
+  assert.equal(
+    JSON.parse(storage.get('otoPusula_v1')).comparables.length,
+    5,
+    'takipteki ilan korunmalı, diğeri silinmeli'
+  );
   // Aynı ilanı yeniden göster ve ikinci soruya Tamam de: takipteki de silinir.
   context.confirm = () => true;
   get('market-filter').value = 'watch';
   get('market-filter').listeners.change();
   get('delete-shown').click();
-  assert.equal(JSON.parse(storage.get('otoPusula_v1')).comparables.length, 4, 'kullanıcı isteyince takipteki de silinmeli');
+  assert.equal(
+    JSON.parse(storage.get('otoPusula_v1')).comparables.length,
+    4,
+    'kullanıcı isteyince takipteki de silinmeli'
+  );
   get('go-phones').click();
   assert.equal(get('market-filter').value, 'phone');
   get('deal-shortcut').click();
@@ -162,7 +253,10 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
   assert.equal(get('market-body').children.length, 1, 'eşleşme yoksa yalnızca bilgi satırı');
   // "Kaportası okunmamış fırsatı aç": her basış en ucuz fırsatı yeni sekmede açar, sayaç düşer.
   const dealState = JSON.parse(storage.get('otoPusula_v1'));
-  dealState.comparables = [...Array.from({ length: 8 }, (_, i) => listing(i + 1, 880000 + i * 5000)), listing(9, 700000)];
+  dealState.comparables = [
+    ...Array.from({ length: 8 }, (_, i) => listing(i + 1, 880000 + i * 5000)),
+    listing(9, 700000)
+  ];
   storage.set('otoPusula_v1', JSON.stringify(dealState));
   windowListeners.storage({ key: 'otoPusula_v1' });
   const opened = [];
@@ -184,7 +278,23 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
   assert.match(get('theme-toggle').title, /temaya geç/);
   // Stoktaki araçtan farklı modeldeki ilanlar listede çıkmaz; panel nedenini söyler ve tüm kayıtlara geçiş sunar.
   const mixed = JSON.parse(storage.get('otoPusula_v1'));
-  mixed.comparables.push(core.normalizeRecord({ id: 'sh-9876543210', source: 'sahibinden', listingId: '9876543210', brand: 'Fiat', model: 'Linea', engine: '1.3 Multijet', year: 2012, km: 210000, price: 420000, date: '2026-10-09' }, 'comparable'));
+  mixed.comparables.push(
+    core.normalizeRecord(
+      {
+        id: 'sh-9876543210',
+        source: 'sahibinden',
+        listingId: '9876543210',
+        brand: 'Fiat',
+        model: 'Linea',
+        engine: '1.3 Multijet',
+        year: 2012,
+        km: 210000,
+        price: 420000,
+        date: '2026-10-09'
+      },
+      'comparable'
+    )
+  );
   storage.set('otoPusula_v1', JSON.stringify(mixed));
   windowListeners.storage({ key: 'otoPusula_v1' });
   get('compare-vehicle').value = 'stock-S-1';
@@ -211,19 +321,39 @@ test('ürün kodu örnek veya kurgusal veri içermez', () => {
 
 test('popup: ilan detayında WhatsApp düğmesi hazır mesajı açar, numara depoya yazılmaz', async () => {
   const nodes = new Map();
-  const get = id => { if (!nodes.has(id)) nodes.set(id, new FakeNode(id)); return nodes.get(id); };
+  const get = id => {
+    if (!nodes.has(id)) nodes.set(id, new FakeNode(id));
+    return nodes.get(id);
+  };
   const storage = new Map();
   const opened = [];
   const detail = {
-    kind: 'detail', url: 'https://www.sahibinden.com/ilan/vasita-otomobil-fiat-1234567893/detay', listingId: '1234567893',
-    title: 'Fiat Egea 1.4 Fire Urban', priceText: '850.000 TL', location: 'İstanbul / Kadıköy',
-    info: [['Marka', 'Fiat'], ['Seri', 'Egea'], ['Model', '1.4 Fire Urban'], ['Yıl', '2021'], ['KM', '90.000']],
-    description: 'Temiz araç.', phoneText: 'Cep\n0 (500) 000 00 01'
+    kind: 'detail',
+    url: 'https://www.sahibinden.com/ilan/vasita-otomobil-fiat-1234567893/detay',
+    listingId: '1234567893',
+    title: 'Fiat Egea 1.4 Fire Urban',
+    priceText: '850.000 TL',
+    location: 'İstanbul / Kadıköy',
+    info: [
+      ['Marka', 'Fiat'],
+      ['Seri', 'Egea'],
+      ['Model', '1.4 Fire Urban'],
+      ['Yıl', '2021'],
+      ['KM', '90.000']
+    ],
+    description: 'Temiz araç.',
+    phoneText: 'Cep\n0 (500) 000 00 01'
   };
   const context = vm.createContext({
-    Node: FakeNode, console, URL,
+    Node: FakeNode,
+    console,
+    URL,
     document: { getElementById: get, createElement: () => new FakeNode() },
-    localStorage: { getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v), removeItem: k => storage.delete(k) },
+    localStorage: {
+      getItem: k => storage.get(k) ?? null,
+      setItem: (k, v) => storage.set(k, v),
+      removeItem: k => storage.delete(k)
+    },
     window: { close() {} },
     chrome: {
       tabs: { query: async () => [{ id: 1, url: detail.url }], create: ({ url }) => opened.push(url) },
@@ -231,7 +361,8 @@ test('popup: ilan detayında WhatsApp düğmesi hazır mesajı açar, numara dep
       runtime: { getURL: path => path }
     }
   });
-  for (const file of ['core.js', 'listing.js', 'store.js', 'popup.js']) vm.runInContext(fs.readFileSync(require.resolve(`./${file}`), 'utf8'), context);
+  for (const file of ['core.js', 'listing.js', 'store.js', 'popup.js'])
+    vm.runInContext(fs.readFileSync(require.resolve(`./${file}`), 'utf8'), context);
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(get('analyze').disabled, false);
   await get('analyze').listeners.click();
@@ -252,17 +383,46 @@ test('popup: ilan detayında WhatsApp düğmesi hazır mesajı açar, numara dep
 test('popup: "Bu sayfadaki ilanları sil" iki adımda siler, takiptekini korur, eski veride de çalışır', async () => {
   const core = require('./core.js');
   const nodes = new Map();
-  const get = id => { if (!nodes.has(id)) nodes.set(id, new FakeNode(id)); return nodes.get(id); };
+  const get = id => {
+    if (!nodes.has(id)) nodes.set(id, new FakeNode(id));
+    return nodes.get(id);
+  };
   const ids = ['1234567810', '1234567820', '1234567830'];
-  const page = { kind: 'search', url: 'https://www.sahibinden.com/fiat-egea', pageTitle: 'Fiat Egea', headers: [], rows: ids.map(id => ({ id })) };
+  const page = {
+    kind: 'search',
+    url: 'https://www.sahibinden.com/fiat-egea',
+    pageTitle: 'Fiat Egea',
+    headers: [],
+    rows: ids.map(id => ({ id }))
+  };
   // Sayfa kaydı olmayan (4.8 öncesi) veri: yalnızca ilanlar var.
-  const comparables = [...ids, '1234567899'].map((id, i) => core.normalizeRecord({ id: `sh-${id}`, source: 'sahibinden', listingId: id,
-    brand: 'Fiat', model: 'Egea', year: 2021, km: 80000, price: 800000 + i * 1000, ...(i === 1 ? { watched: true } : {}) }, 'comparable'));
+  const comparables = [...ids, '1234567899'].map((id, i) =>
+    core.normalizeRecord(
+      {
+        id: `sh-${id}`,
+        source: 'sahibinden',
+        listingId: id,
+        brand: 'Fiat',
+        model: 'Egea',
+        year: 2021,
+        km: 80000,
+        price: 800000 + i * 1000,
+        ...(i === 1 ? { watched: true } : {})
+      },
+      'comparable'
+    )
+  );
   const storage = new Map([['otoPusula_v1', JSON.stringify({ schema: 1, stock: [], comparables, sample: false })]]);
   const context = vm.createContext({
-    Node: FakeNode, console, URL,
+    Node: FakeNode,
+    console,
+    URL,
     document: { getElementById: get, createElement: () => new FakeNode() },
-    localStorage: { getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v), removeItem: k => storage.delete(k) },
+    localStorage: {
+      getItem: k => storage.get(k) ?? null,
+      setItem: (k, v) => storage.set(k, v),
+      removeItem: k => storage.delete(k)
+    },
     window: { close() {} },
     chrome: {
       tabs: { query: async () => [{ id: 1, url: page.url }], create() {} },
@@ -270,39 +430,76 @@ test('popup: "Bu sayfadaki ilanları sil" iki adımda siler, takiptekini korur, 
       runtime: { getURL: path => path }
     }
   });
-  for (const file of ['core.js', 'listing.js', 'store.js', 'popup.js']) vm.runInContext(fs.readFileSync(require.resolve(`./${file}`), 'utf8'), context);
+  for (const file of ['core.js', 'listing.js', 'store.js', 'popup.js'])
+    vm.runInContext(fs.readFileSync(require.resolve(`./${file}`), 'utf8'), context);
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(get('forget-page').disabled, false);
   await get('forget-page').listeners.click();
   assert.match(get('forget-page').textContent, /Silmeyi onayla: 2 ilan silinecek \(1 takipteki korunur\)/);
   assert.equal(JSON.parse(storage.get('otoPusula_v1')).comparables.length, 4, 'ilk basışta hiçbir şey silinmemeli');
   await get('forget-page').listeners.click();
-  const left = JSON.parse(storage.get('otoPusula_v1')).comparables.map(item => item.listingId).sort();
+  const left = JSON.parse(storage.get('otoPusula_v1'))
+    .comparables.map(item => item.listingId)
+    .sort();
   assert.deepEqual(left, ['1234567820', '1234567899'], 'takipteki ve başka sayfadaki ilan kalmalı');
   assert.equal(get('forget-page').textContent, 'Bu sayfadaki ilanları sil');
   const deleteWatched = get('result').children.find(child => /Takiptekileri de sil \(1\)/.test(child.textContent));
   assert.ok(deleteWatched, 'takipteki ilanları da silme düğmesi görünmeli');
   deleteWatched.click();
-  assert.deepEqual(JSON.parse(storage.get('otoPusula_v1')).comparables.map(item => item.listingId), ['1234567899'], 'yalnızca başka sayfadaki ilan kalmalı');
+  assert.deepEqual(
+    JSON.parse(storage.get('otoPusula_v1')).comparables.map(item => item.listingId),
+    ['1234567899'],
+    'yalnızca başka sayfadaki ilan kalmalı'
+  );
 });
 
 test('popup: 1 dakika dolmadan yeni satıcıya WhatsApp açılmaz, bekleme süresi gösterilir', async () => {
   const nodes = new Map();
-  const get = id => { if (!nodes.has(id)) nodes.set(id, new FakeNode(id)); return nodes.get(id); };
+  const get = id => {
+    if (!nodes.has(id)) nodes.set(id, new FakeNode(id));
+    return nodes.get(id);
+  };
   const opened = [];
   const detail = {
-    kind: 'detail', url: 'https://www.sahibinden.com/ilan/vasita-otomobil-fiat-1234567895/detay', listingId: '1234567895',
-    title: 'Fiat Egea 1.4 Fire Urban', priceText: '850.000 TL', location: 'İstanbul / Kadıköy',
-    info: [['Marka', 'Fiat'], ['Seri', 'Egea'], ['Model', '1.4 Fire Urban'], ['Yıl', '2021'], ['KM', '90.000']],
-    description: '', phoneText: '0 (500) 000 00 05'
+    kind: 'detail',
+    url: 'https://www.sahibinden.com/ilan/vasita-otomobil-fiat-1234567895/detay',
+    listingId: '1234567895',
+    title: 'Fiat Egea 1.4 Fire Urban',
+    priceText: '850.000 TL',
+    location: 'İstanbul / Kadıköy',
+    info: [
+      ['Marka', 'Fiat'],
+      ['Seri', 'Egea'],
+      ['Model', '1.4 Fire Urban'],
+      ['Yıl', '2021'],
+      ['KM', '90.000']
+    ],
+    description: '',
+    phoneText: '0 (500) 000 00 05'
   };
   // 10 saniye önce başka bir satıcıya yazılmış.
-  const storage = new Map([['otoPusula_v1', JSON.stringify({ schema: 1, stock: [], comparables: [], sample: false,
-    contacts: [{ id: 'comparable-sh-1111111111', at: Date.now() - 10000 }] })]]);
+  const storage = new Map([
+    [
+      'otoPusula_v1',
+      JSON.stringify({
+        schema: 1,
+        stock: [],
+        comparables: [],
+        sample: false,
+        contacts: [{ id: 'comparable-sh-1111111111', at: Date.now() - 10000 }]
+      })
+    ]
+  ]);
   const context = vm.createContext({
-    Node: FakeNode, console, URL,
+    Node: FakeNode,
+    console,
+    URL,
     document: { getElementById: get, createElement: () => new FakeNode() },
-    localStorage: { getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v), removeItem: k => storage.delete(k) },
+    localStorage: {
+      getItem: k => storage.get(k) ?? null,
+      setItem: (k, v) => storage.set(k, v),
+      removeItem: k => storage.delete(k)
+    },
     window: { close() {} },
     chrome: {
       tabs: { query: async () => [{ id: 1, url: detail.url }], create: ({ url }) => opened.push(url) },
@@ -310,32 +507,73 @@ test('popup: 1 dakika dolmadan yeni satıcıya WhatsApp açılmaz, bekleme süre
       runtime: { getURL: path => path }
     }
   });
-  for (const file of ['core.js', 'listing.js', 'store.js', 'popup.js']) vm.runInContext(fs.readFileSync(require.resolve(`./${file}`), 'utf8'), context);
+  for (const file of ['core.js', 'listing.js', 'store.js', 'popup.js'])
+    vm.runInContext(fs.readFileSync(require.resolve(`./${file}`), 'utf8'), context);
   await new Promise(resolve => setImmediate(resolve));
   await get('analyze').listeners.click();
   const children = get('result').children;
   children.find(child => child.className === 'whatsapp').click();
-  assert.equal(opened.length, 0, 'spam koruması WhatsApp\'ı açmamalı');
-  assert.ok(children.some(child => /saniye sonra tekrar deneyin/.test(child.textContent)), 'bekleme süresi gösterilmeli');
+  assert.equal(opened.length, 0, "spam koruması WhatsApp'ı açmamalı");
+  assert.ok(
+    children.some(child => /saniye sonra tekrar deneyin/.test(child.textContent)),
+    'bekleme süresi gösterilmeli'
+  );
   assert.equal(JSON.parse(storage.get('otoPusula_v1')).contacts.length, 1, 'engellenen deneme sayaca yazılmamalı');
 });
 
 test('popup: Excel’e aktar, popup kapansa da geçerli kalan data: adresiyle gerçek .xlsx indirir', async () => {
   const core = require('./core.js');
   const nodes = new Map();
-  const get = id => { if (!nodes.has(id)) nodes.set(id, new FakeNode(id)); return nodes.get(id); };
+  const get = id => {
+    if (!nodes.has(id)) nodes.set(id, new FakeNode(id));
+    return nodes.get(id);
+  };
   const anchors = [];
-  const comparables = [1, 2, 3].map(i => core.normalizeRecord({ id: `sh-12345678${i}0`, source: 'sahibinden', listingId: `12345678${i}0`,
-    brand: 'Fiat', model: 'Egea', year: 2021, km: 80000, price: 800000 + i * 1000, date: '2026-10-08' }, 'comparable'));
+  const comparables = [1, 2, 3].map(i =>
+    core.normalizeRecord(
+      {
+        id: `sh-12345678${i}0`,
+        source: 'sahibinden',
+        listingId: `12345678${i}0`,
+        brand: 'Fiat',
+        model: 'Egea',
+        year: 2021,
+        km: 80000,
+        price: 800000 + i * 1000,
+        date: '2026-10-08'
+      },
+      'comparable'
+    )
+  );
   const storage = new Map([['otoPusula_v1', JSON.stringify({ schema: 1, stock: [], comparables, sample: false })]]);
   const context = vm.createContext({
-    Node: FakeNode, console, URL, TextEncoder, btoa,
-    document: { getElementById: get, createElement: tag => { const node = new FakeNode(); if (tag === 'a') anchors.push(node); return node; } },
-    localStorage: { getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v), removeItem: k => storage.delete(k) },
+    Node: FakeNode,
+    console,
+    URL,
+    TextEncoder,
+    btoa,
+    document: {
+      getElementById: get,
+      createElement: tag => {
+        const node = new FakeNode();
+        if (tag === 'a') anchors.push(node);
+        return node;
+      }
+    },
+    localStorage: {
+      getItem: k => storage.get(k) ?? null,
+      setItem: (k, v) => storage.set(k, v),
+      removeItem: k => storage.delete(k)
+    },
     window: { close() {} },
-    chrome: { tabs: { query: async () => [{ id: 1, url: 'https://www.google.com/' }], create() {} }, scripting: {}, runtime: { getURL: p => p } }
+    chrome: {
+      tabs: { query: async () => [{ id: 1, url: 'https://www.google.com/' }], create() {} },
+      scripting: {},
+      runtime: { getURL: p => p }
+    }
   });
-  for (const file of ['core.js', 'listing.js', 'store.js', 'xlsx.js', 'popup.js']) vm.runInContext(fs.readFileSync(require.resolve(`./${file}`), 'utf8'), context);
+  for (const file of ['core.js', 'listing.js', 'store.js', 'xlsx.js', 'popup.js'])
+    vm.runInContext(fs.readFileSync(require.resolve(`./${file}`), 'utf8'), context);
   get('export-excel').click();
   const anchor = anchors.find(node => String(node.download || '').endsWith('.xlsx'));
   assert.ok(anchor, 'xlsx indirme bağlantısı oluşmalı');
@@ -347,7 +585,13 @@ test('popup: Excel’e aktar, popup kapansa da geçerli kalan data: adresiyle ge
 test('tema "hidden" işaretini ezmez (gizli düğmeler görünmez kalır)', () => {
   for (const file of ['theme.css', 'popup-theme.css', 'dashboard.css', 'popup.css']) {
     const css = fs.readFileSync(require.resolve(`./${file}`), 'utf8');
-    const overridesHidden = /\.button\s*\{[^}]*display\s*:/.test(css) || /\.compare-summary\s*\{[^}]*display\s*:/.test(css);
-    if (overridesHidden) assert.match(css, /\[hidden\]\s*\{\s*display:\s*none\s*!important;?\s*\}/, `${file}: display veren sınıflar varken [hidden] kuralı şart`);
+    const overridesHidden =
+      /\.button\s*\{[^}]*display\s*:/.test(css) || /\.compare-summary\s*\{[^}]*display\s*:/.test(css);
+    if (overridesHidden)
+      assert.match(
+        css,
+        /\[hidden\]\s*\{\s*display:\s*none\s*!important;?\s*\}/,
+        `${file}: display veren sınıflar varken [hidden] kuralı şart`
+      );
   }
 });

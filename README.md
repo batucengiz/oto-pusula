@@ -160,10 +160,11 @@ Ticari kullanımda (galeri) satıcı numaralarının saklanması kişisel veri i
 ```bash
 npm test        # 123 test: ilan sohbeti (sahte yerleşik ve bulut yapay zeka ile), fırsat puanı, gerçek sayfalarla uçtan uca yolculuk, performans (5.000 ilan) ve depo dolması, kaporta şeması okuma, puanlama ve beyan değişikliği, dayanıklılık (bozuk/rastgele girdi), fiyat motoru ve öğrenen model, ilan ayrıştırma, hasar beyanı, uyarılar, panel, popup/WhatsApp akışı, güvenlik ve ban kuralları
 npm run verify-page -- "fixtures/sayfa.html"   # kaydedilmiş gerçek sayfayı okuyucudan geçirir
+npm run lint    # kod denetimi (ESLint) ve biçim kontrolü (Prettier); npm run format biçimi düzeltir
 npm run dev     # paneli http://127.0.0.1:4173 adresinde önizler (popup için eklenti olarak yükleyin)
 ```
 
-Eklentinin çalışma zamanı bağımlılığı yoktur. Geliştirme için Node.js 20+ ve `npm install` (yalnızca doğrulama aracı için jsdom) yeterlidir. `legacy/` klasörü ilk prototipi saklar ve eklenti tarafından yüklenmez.
+Eklentinin çalışma zamanı bağımlılığı yoktur. Geliştirme için Node.js 20+ ve `npm install` (testler için jsdom, kod denetimi için ESLint ve Prettier) yeterlidir. Sürüm geçmişi [CHANGELOG.md](CHANGELOG.md) dosyasındadır.
 
 ### Gerçek sayfa doğrulaması
 

@@ -9,10 +9,16 @@
   "scripts": {
     "dev": "node dev-server.js",
     "test": "node --test core.test.js listing.test.js xlsx.test.js robustness.test.js dashboard.smoke.test.js pages.test.js body.test.js deal.test.js assistant.test.js",
+    "lint": "eslint . && prettier --check \"**/*.{js,css,html,json}\"",
+    "format": "prettier --write \"**/*.{js,css,html,json}\"",
     "verify-page": "node tools/verify-page.js",
     "package": "node tools/package.js"
   },
   "devDependencies": {
-    "jsdom": "^24.1.3"
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "globals": "^17.13.0",
+    "jsdom": "^24.1.3",
+    "prettier": "^3.9.10"
   }
 }

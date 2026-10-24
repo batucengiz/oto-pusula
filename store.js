@@ -6,24 +6,46 @@
   const core = root.OtoCore || (typeof require === 'function' ? require('./core.js') : null);
 
   function empty() {
-    return { schema: 1, stock: [], comparables: [], pages: [], contacts: [], phoneSaves: [], analyses: [], sample: false };
+    return {
+      schema: 1,
+      stock: [],
+      comparables: [],
+      pages: [],
+      contacts: [],
+      phoneSaves: [],
+      analyses: [],
+      sample: false
+    };
   }
 
   // 6.8 öncesi sürüm, model seçilerek yapılan aramalarda (ör. Peugeot 207) modeli motor hacmi ("1.4") olarak
   // kaydediyordu. Hiçbir araç modelinin adı "1.4" olmadığı için bu kayıtlar hiçbir şeyle eşleşmez; yüklenirken
   // atılır. Takipteki ve numarası kaydedilmiş ilanlar korunur. Sayfa yeniden okunursa doğru modelle gelir.
-  const misread = item => item?.source === 'sahibinden' && /^[0-6][.,][0-9]$/.test(String(item.model ?? '').trim()) && !item.watched && !item.sellerPhone;
+  const misread = item =>
+    item?.source === 'sahibinden' &&
+    /^[0-6][.,][0-9]$/.test(String(item.model ?? '').trim()) &&
+    !item.watched &&
+    !item.sellerPhone;
 
   function load(storage = root.localStorage) {
     try {
       const parsed = JSON.parse(storage.getItem(KEY));
       if (parsed?.schema === 1 && Array.isArray(parsed.stock) && Array.isArray(parsed.comparables)) {
         const comparables = parsed.comparables.filter(item => !misread(item)).slice(0, core.MAX_ROWS);
-        return { schema: 1, stock: parsed.stock.slice(0, core.MAX_ROWS), comparables,
+        return {
+          schema: 1,
+          stock: parsed.stock.slice(0, core.MAX_ROWS),
+          comparables,
           pages: core.prunePages(core.normalizePages(parsed.pages), comparables),
-          contacts: core.normalizeLog(parsed.contacts), phoneSaves: core.normalizeLog(parsed.phoneSaves), analyses: core.normalizeLog(parsed.analyses, 50), sample: !!parsed.sample };
+          contacts: core.normalizeLog(parsed.contacts),
+          phoneSaves: core.normalizeLog(parsed.phoneSaves),
+          analyses: core.normalizeLog(parsed.analyses, 50),
+          sample: !!parsed.sample
+        };
       }
-    } catch { /* Bozuk kayıt yerine boş durum döner. */ }
+    } catch {
+      /* Bozuk kayıt yerine boş durum döner. */
+    }
     return empty();
   }
 
@@ -47,10 +69,13 @@
         return { state: next, dropped };
       } catch (error) {
         if (!isQuota(error)) throw error;
-        const removable = next.comparables.filter(item => !item.watched && !item.sellerPhone)
+        const removable = next.comparables
+          .filter(item => !item.watched && !item.sellerPhone)
           .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
         if (!removable.length) throw error;
-        const cut = new Set(removable.slice(0, Math.max(1, Math.ceil(next.comparables.length * 0.1))).map(item => item.id));
+        const cut = new Set(
+          removable.slice(0, Math.max(1, Math.ceil(next.comparables.length * 0.1))).map(item => item.id)
+        );
         dropped += cut.size;
         const comparables = next.comparables.filter(item => !cut.has(item.id));
         next = { ...next, comparables, pages: core.prunePages(next.pages, comparables) };

@@ -7,18 +7,52 @@ const assistant = require('./assistant.js');
 const remoteAI = require('./remote-ai.js');
 
 const today = new Date('2026-10-24T12:00:00Z');
-const record = (extras = {}) => core.normalizeRecord({
-  id: 'sh-1', source: 'sahibinden', listingId: '1234567890', brand: 'Fiat', model: 'Egea', engine: '1.4 Fire', year: 2021, km: 90000,
-  price: 850000, city: 'İstanbul', sellerType: 'Sahibinden', ...extras
-}, 'comparable');
-const priced = { center: 900000, low: 840000, high: 960000, gap: -0.0556, confidence: 'yüksek', count: 14, status: 'uygun' };
+const record = (extras = {}) =>
+  core.normalizeRecord(
+    {
+      id: 'sh-1',
+      source: 'sahibinden',
+      listingId: '1234567890',
+      brand: 'Fiat',
+      model: 'Egea',
+      engine: '1.4 Fire',
+      year: 2021,
+      km: 90000,
+      price: 850000,
+      city: 'İstanbul',
+      sellerType: 'Sahibinden',
+      ...extras
+    },
+    'comparable'
+  );
+const priced = {
+  center: 900000,
+  low: 840000,
+  high: 960000,
+  gap: -0.0556,
+  confidence: 'yüksek',
+  count: 14,
+  status: 'uygun'
+};
 
 function contextFor(rec, result, description = '') {
-  return { record: rec, result, body: core.bodyReport(rec), deal: core.dealScore(rec, result, today), advice: core.advise(rec, result, today), description, today };
+  return {
+    record: rec,
+    result,
+    body: core.bodyReport(rec),
+    deal: core.dealScore(rec, result, today),
+    advice: core.advise(rec, result, today),
+    description,
+    today
+  };
 }
 
 // Sahte Prompt API: hangi seçeneklerle çağrıldığını ve gönderilen metinleri kaydeder.
-function fakeModel({ statuses = { tr: 'available', any: 'available' }, chunks = ['Fiyat ', 'piyasanın biraz altında.'], streaming = true } = {}) {
+function fakeModel({
+  statuses = { tr: 'available', any: 'available' },
+  chunks = ['Fiyat ', 'piyasanın biraz altında.'],
+  streaming = true
+} = {}) {
   const calls = { availability: [], create: [], prompts: [], destroyed: 0 };
   const api = {
     async availability(options) {
@@ -27,15 +61,24 @@ function fakeModel({ statuses = { tr: 'available', any: 'available' }, chunks = 
     },
     async create(options) {
       calls.create.push(options);
-      options.monitor?.({ addEventListener: (name, listener) => name === 'downloadprogress' && listener({ loaded: 1 }) });
+      options.monitor?.({
+        addEventListener: (name, listener) => name === 'downloadprogress' && listener({ loaded: 1 })
+      });
       const session = {
-        async prompt(text) { calls.prompts.push(text); return chunks.join(''); },
-        destroy() { calls.destroyed += 1; }
+        async prompt(text) {
+          calls.prompts.push(text);
+          return chunks.join('');
+        },
+        destroy() {
+          calls.destroyed += 1;
+        }
       };
       if (streaming) {
         session.promptStreaming = text => {
           calls.prompts.push(text);
-          return (async function* () { yield* chunks; })();
+          return (async function* () {
+            yield* chunks;
+          })();
         };
       }
       return session;
@@ -101,14 +144,24 @@ test('destek kontrolü: API yoksa gizli; Türkçe yoksa dil belirtmeden dener', 
 
   const none = fakeModel({ statuses: { tr: 'unavailable', any: 'unavailable' } });
   assert.equal((await assistant.availability(none.api)).status, 'unavailable');
-  const broken = { availability: async () => { throw new Error('x'); }, create() {} };
+  const broken = {
+    availability: async () => {
+      throw new Error('x');
+    },
+    create() {}
+  };
   assert.equal((await assistant.availability(broken)).status, 'unavailable');
 });
 
 test('oturum ilan bilgileriyle açılır; cevap akışla ya da tek seferde gelir', async () => {
   const { api, calls } = fakeModel();
   const progress = [];
-  const session = await assistant.createSession(api, ['İlan fiyatı: 850.000 TL.'], { expectedOutputs: [{ type: 'text', languages: ['tr'] }] }, value => progress.push(value));
+  const session = await assistant.createSession(
+    api,
+    ['İlan fiyatı: 850.000 TL.'],
+    { expectedOutputs: [{ type: 'text', languages: ['tr'] }] },
+    value => progress.push(value)
+  );
   assert.equal(calls.create[0].initialPrompts[0].role, 'system');
   assert.match(calls.create[0].initialPrompts[0].content, /850\.000 TL/);
   assert.deepEqual(progress, [1]);
@@ -137,7 +190,10 @@ test('sohbet kodu ağ isteği yapmaz; tek dış adres kullanıcının isteğe ba
   const popup = fs.readFileSync(require.resolve('./popup.js'), 'utf8');
   assert.doesNotMatch(popup, /fetch\(|XMLHttpRequest|WebSocket|sendBeacon/);
   const remote = fs.readFileSync(require.resolve('./remote-ai.js'), 'utf8');
-  assert.deepEqual([...remote.matchAll(/https:\/\/[^/`'"]+/g)].map(match => match[0]), ['https://generativelanguage.googleapis.com']);
+  assert.deepEqual(
+    [...remote.matchAll(/https:\/\/[^/`'"]+/g)].map(match => match[0]),
+    ['https://generativelanguage.googleapis.com']
+  );
   assert.doesNotMatch(remote, /sahibinden\.com|XMLHttpRequest|WebSocket|sendBeacon/);
   const manifest = JSON.parse(fs.readFileSync(require.resolve('./manifest.json'), 'utf8'));
   assert.deepEqual([...manifest.permissions].sort(), ['activeTab', 'scripting'], 'sohbet için yeni izin gerekmez');
@@ -148,32 +204,73 @@ test('sohbet kodu ağ isteği yapmaz; tek dış adres kullanıcının isteğe ba
 // Popup'ın sahte DOM'u (dashboard.smoke.test.js'teki ile aynı yaklaşım).
 class FakeNode {
   constructor(tag = '') {
-    this.tag = tag; this.children = []; this.listeners = {}; this.dataset = {}; this.value = ''; this.textContent = ''; this.hidden = false;
+    this.tag = tag;
+    this.children = [];
+    this.listeners = {};
+    this.dataset = {};
+    this.value = '';
+    this.textContent = '';
+    this.hidden = false;
     this.classList = { toggle() {}, add() {}, remove() {} };
   }
-  append(...children) { this.children.push(...children); }
-  replaceChildren(...children) { this.children = [...children]; }
-  addEventListener(name, callback) { this.listeners[name] = callback; }
+  append(...children) {
+    this.children.push(...children);
+  }
+  replaceChildren(...children) {
+    this.children = [...children];
+  }
+  addEventListener(name, callback) {
+    this.listeners[name] = callback;
+  }
   setAttribute() {}
-  click() { return this.listeners.click?.(); }
+  click() {
+    return this.listeners.click?.();
+  }
 }
-const walk = (node, found = []) => { found.push(node); (node.children || []).forEach(child => walk(child, found)); return found; };
+const walk = (node, found = []) => {
+  found.push(node);
+  (node.children || []).forEach(child => walk(child, found));
+  return found;
+};
 
 async function popupWithModel(LanguageModel, { remote = false, storage = new Map(), fetch, opened = [] } = {}) {
   const nodes = new Map();
-  const get = id => { if (!nodes.has(id)) nodes.set(id, new FakeNode(id)); return nodes.get(id); };
+  const get = id => {
+    if (!nodes.has(id)) nodes.set(id, new FakeNode(id));
+    return nodes.get(id);
+  };
   const detail = {
-    kind: 'detail', url: 'https://www.sahibinden.com/ilan/vasita-otomobil-fiat-1234567893/detay', listingId: '1234567893',
-    title: 'Fiat Egea 1.4 Fire Urban', priceText: '850.000 TL', location: 'İstanbul / Kadıköy',
-    info: [['Marka', 'Fiat'], ['Seri', 'Egea'], ['Model', '1.4 Fire Urban'], ['Yıl', '2021'], ['KM', '90.000']],
-    description: 'Temiz araç.', phoneText: ''
+    kind: 'detail',
+    url: 'https://www.sahibinden.com/ilan/vasita-otomobil-fiat-1234567893/detay',
+    listingId: '1234567893',
+    title: 'Fiat Egea 1.4 Fire Urban',
+    priceText: '850.000 TL',
+    location: 'İstanbul / Kadıköy',
+    info: [
+      ['Marka', 'Fiat'],
+      ['Seri', 'Egea'],
+      ['Model', '1.4 Fire Urban'],
+      ['Yıl', '2021'],
+      ['KM', '90.000']
+    ],
+    description: 'Temiz araç.',
+    phoneText: ''
   };
   const context = vm.createContext({
-    Node: FakeNode, console, URL, setTimeout, clearTimeout, AbortController,
+    Node: FakeNode,
+    console,
+    URL,
+    setTimeout,
+    clearTimeout,
+    AbortController,
     ...(LanguageModel ? { LanguageModel } : {}),
     ...(fetch ? { fetch } : {}),
     document: { getElementById: get, createElement: tag => new FakeNode(tag) },
-    localStorage: { getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v), removeItem: k => storage.delete(k) },
+    localStorage: {
+      getItem: k => storage.get(k) ?? null,
+      setItem: (k, v) => storage.set(k, v),
+      removeItem: k => storage.delete(k)
+    },
     window: { close() {} },
     chrome: {
       tabs: { query: async () => [{ id: 1, url: detail.url }], create: ({ url }) => opened.push(url) },
@@ -181,12 +278,23 @@ async function popupWithModel(LanguageModel, { remote = false, storage = new Map
       runtime: { getURL: path => path }
     }
   });
-  for (const file of ['core.js', 'listing.js', 'store.js', 'assistant.js', ...(remote ? ['remote-ai.js'] : []), 'popup.js']) vm.runInContext(fs.readFileSync(require.resolve(`./${file}`), 'utf8'), context);
+  for (const file of [
+    'core.js',
+    'listing.js',
+    'store.js',
+    'assistant.js',
+    ...(remote ? ['remote-ai.js'] : []),
+    'popup.js'
+  ])
+    vm.runInContext(fs.readFileSync(require.resolve(`./${file}`), 'utf8'), context);
   await new Promise(resolve => setImmediate(resolve));
   await get('analyze').listeners.click();
   await new Promise(resolve => setImmediate(resolve));
   const children = get('result').children;
-  return Object.assign(children.find(child => child.className === 'chat'), { siblings: children });
+  return Object.assign(
+    children.find(child => child.className === 'chat'),
+    { siblings: children }
+  );
 }
 
 test('popup: Chrome yapay zekası yoksa sohbet kutusu görünmez, analiz sonucu bozulmaz', async () => {
@@ -214,14 +322,22 @@ test('popup: ilan sayfasında soru sorulur, cevap ilan bilgileriyle cihazdaki mo
 
 test('benzer ilanlar, teklif gerekçeleri ve satıcı soruları ilan verisinden üretilir', () => {
   const rec = record({ km: 200000, damage: { changed: ['Sol Ön Kapı'] } });
-  const result = { ...priced, gap: 0.08, position: 0.75, comparables: [
-    { item: { year: 2021, km: 70000, price: 880000, engine: '1.4 Fire', city: 'Ankara' }, adjustedPrice: 860000 },
-    { item: { year: 2020, km: 95000, price: 800000 }, adjustedPrice: 800000 }
-  ] };
+  const result = {
+    ...priced,
+    gap: 0.08,
+    position: 0.75,
+    comparables: [
+      { item: { year: 2021, km: 70000, price: 880000, engine: '1.4 Fire', city: 'Ankara' }, adjustedPrice: 860000 },
+      { item: { year: 2020, km: 95000, price: 800000 }, adjustedPrice: 800000 }
+    ]
+  };
   const ctx = contextFor(rec, result);
   const comparables = assistant.comparableLines(result);
   assert.equal(comparables.length, 2);
-  assert.match(comparables[0], /2021, 70\.000 km, 1\.4 Fire, Ankara, fiyatı 880\.000 TL \(bu aracın yılına\/km'sine göre düzeltilmiş 860\.000 TL\)/);
+  assert.match(
+    comparables[0],
+    /2021, 70\.000 km, 1\.4 Fire, Ankara, fiyatı 880\.000 TL \(bu aracın yılına\/km'sine göre düzeltilmiş 860\.000 TL\)/
+  );
   assert.doesNotMatch(comparables[1], /düzeltilmiş/, 'fiyat aynıysa düzeltme yazılmaz');
   assert.equal(assistant.comparableLines({}).length, 0);
 
@@ -234,8 +350,14 @@ test('benzer ilanlar, teklif gerekçeleri ve satıcı soruları ilan verisinden 
   const questions = assistant.sellerQuestions(ctx);
   assert.match(questions[0], /Tramer/);
   assert.ok(questions.some(text => /Sol Ön Kapı/.test(text)));
-  assert.ok(questions.some(text => /Triger/.test(text)), 'yüksek km’de ağır bakım sorulur');
-  assert.ok(questions.some(text => /taksi/.test(text)), 'yoğun kullanımda kullanım geçmişi sorulur');
+  assert.ok(
+    questions.some(text => /Triger/.test(text)),
+    'yüksek km’de ağır bakım sorulur'
+  );
+  assert.ok(
+    questions.some(text => /taksi/.test(text)),
+    'yoğun kullanımda kullanım geçmişi sorulur'
+  );
   assert.ok(questions.length <= 6);
   assert.ok(assistant.sellerQuestions(contextFor(record(), priced)).some(text => /şeması yok/.test(text)));
 
@@ -247,7 +369,11 @@ test('benzer ilanlar, teklif gerekçeleri ve satıcı soruları ilan verisinden 
 
 test('API anahtarı: biçim denetlenir, yalnızca bu cihazda saklanır, silinebilir', () => {
   const store = new Map();
-  const storage = { getItem: k => store.get(k) ?? null, setItem: (k, v) => store.set(k, v), removeItem: k => store.delete(k) };
+  const storage = {
+    getItem: k => store.get(k) ?? null,
+    setItem: (k, v) => store.set(k, v),
+    removeItem: k => store.delete(k)
+  };
   const key = 'AIza' + 'x'.repeat(35);
   assert.equal(remoteAI.loadKey(storage), '');
   assert.throws(() => remoteAI.saveKey(storage, 'sk-yanlis'), /geçersiz/);
@@ -272,10 +398,16 @@ test('bulut oturumu: istek yalnızca Gemini adresine, anahtar başlıkta; geçmi
   assert.equal(requests[0].init.headers['x-goog-api-key'], 'AIza' + 'k'.repeat(35));
   assert.doesNotMatch(requests[0].url, /AIza/, 'anahtar adreste görünmez');
   assert.equal(requests[0].body.systemInstruction.parts[0].text, 'SİSTEM');
-  assert.deepEqual(requests[1].body.contents.map(item => item.role), ['user', 'model', 'user']);
+  assert.deepEqual(
+    requests[1].body.contents.map(item => item.role),
+    ['user', 'model', 'user']
+  );
 
   const denied = remoteAI.createSession('AIza' + 'k'.repeat(35), 'S', async () => ({ ok: false, status: 403 }));
-  await assert.rejects(assistant.ask(denied, 'soru'), error => error.name === 'RemoteAIError' && /anahtarı kabul edilmedi/.test(error.message));
+  await assert.rejects(
+    assistant.ask(denied, 'soru'),
+    error => error.name === 'RemoteAIError' && /anahtarı kabul edilmedi/.test(error.message)
+  );
   const limited = remoteAI.createSession('AIza' + 'k'.repeat(35), 'S', async () => ({ ok: false, status: 429 }));
   await assert.rejects(assistant.ask(limited, 'soru'), /kullanım sınırına/);
 });
@@ -290,8 +422,15 @@ test('popup: yerleşik yapay zeka yokken anahtar girilmedikçe hiçbir istek at�
   const opened = [];
   const chat = await popupWithModel(null, { remote: true, storage, fetch, opened });
   assert.equal(chat.hidden, false, 'anahtar seçeneği gösterilir');
-  assert.ok(walk(chat).some(node => /Google’a gönderilir/.test(node.textContent)), 'veri paylaşımı açıkça yazılır');
-  assert.equal(walk(chat).some(node => node.className === 'chat-chip'), false, 'anahtar yokken sohbet açılmaz');
+  assert.ok(
+    walk(chat).some(node => /Google’a gönderilir/.test(node.textContent)),
+    'veri paylaşımı açıkça yazılır'
+  );
+  assert.equal(
+    walk(chat).some(node => node.className === 'chat-chip'),
+    false,
+    'anahtar yokken sohbet açılmaz'
+  );
   const getKey = walk(chat).find(node => /Ücretsiz anahtar al/.test(node.textContent));
   getKey.click();
   assert.deepEqual(opened, ['https://aistudio.google.com/app/apikey'], 'anahtar alma sayfası yeni sekmede açılır');
@@ -312,8 +451,14 @@ test('popup: yerleşik yapay zeka yokken anahtar girilmedikçe hiçbir istek at�
   assert.deepEqual(requests, [remoteAI.ENDPOINT]);
   assert.ok(walk(chat).some(node => node.textContent === 'Bulut cevabı.'));
 
-  walk(chat).find(node => /API anahtarını sil/.test(node.textContent)).click();
-  assert.equal([...storage.values()].some(value => /AIza/.test(value)), false, 'anahtar silinir');
+  walk(chat)
+    .find(node => /API anahtarını sil/.test(node.textContent))
+    .click();
+  assert.equal(
+    [...storage.values()].some(value => /AIza/.test(value)),
+    false,
+    'anahtar silinir'
+  );
   assert.ok(walk(chat).some(node => node.tag === 'form' && node.children.some(child => child.type === 'password')));
 });
 
@@ -322,59 +467,145 @@ test('popup: yerleşik yapay zeka varken anahtarsız veri dışarı gitmez; öne
   const storage = new Map();
   const opened = [];
   const { api, calls } = fakeModel();
-  const fetch = async url => { requests.push(url); return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: 'Bulut cevabı, ayrıntılı.' }] } }] }) }; };
+  const fetch = async url => {
+    requests.push(url);
+    return {
+      ok: true,
+      json: async () => ({ candidates: [{ content: { parts: [{ text: 'Bulut cevabı, ayrıntılı.' }] } }] })
+    };
+  };
   const chat = await popupWithModel(api, { remote: true, storage, fetch, opened });
-  await walk(chat).find(node => node.className === 'chat-chip').click();
+  await walk(chat)
+    .find(node => node.className === 'chat-chip')
+    .click();
   assert.equal(calls.prompts.length, 1);
   assert.equal(requests.length, 0, 'anahtar yokken istek atılmaz');
-  assert.ok(walk(chat).some(node => /Önerimiz/.test(node.textContent)), 'Gemini anahtarı önerisi görünür');
+  assert.ok(
+    walk(chat).some(node => /Önerimiz/.test(node.textContent)),
+    'Gemini anahtarı önerisi görünür'
+  );
 
-  walk(chat).find(node => /Gemini anahtarı ekle/.test(node.textContent)).click();
-  walk(chat).find(node => /Ücretsiz anahtar al/.test(node.textContent)).click();
+  walk(chat)
+    .find(node => /Gemini anahtarı ekle/.test(node.textContent))
+    .click();
+  walk(chat)
+    .find(node => /Ücretsiz anahtar al/.test(node.textContent))
+    .click();
   assert.deepEqual(opened, ['https://aistudio.google.com/app/apikey']);
   const form = walk(chat).find(node => node.tag === 'form');
   form.children.find(node => node.tag === 'input').value = 'AIza' + 'z'.repeat(35);
   form.listeners.submit({ preventDefault() {} });
-  assert.equal(walk(chat).some(node => /Önerimiz/.test(node.textContent)), false, 'anahtar girilince öneri kaybolur');
-  await walk(chat).find(node => node.className === 'chat-chip').click();
+  assert.equal(
+    walk(chat).some(node => /Önerimiz/.test(node.textContent)),
+    false,
+    'anahtar girilince öneri kaybolur'
+  );
+  await walk(chat)
+    .find(node => node.className === 'chat-chip')
+    .click();
   assert.deepEqual(requests, [remoteAI.ENDPOINT]);
 
-  walk(chat).find(node => /API anahtarını sil/.test(node.textContent)).click();
-  assert.ok(walk(chat).some(node => /Önerimiz/.test(node.textContent)), 'anahtar silinince cihazdaki yapay zekaya dönülür');
+  walk(chat)
+    .find(node => /API anahtarını sil/.test(node.textContent))
+    .click();
+  assert.ok(
+    walk(chat).some(node => /Önerimiz/.test(node.textContent)),
+    'anahtar silinince cihazdaki yapay zekaya dönülür'
+  );
 });
 
 test('popup: yapay zeka hata verirse, takılırsa ya da boş cevap verirse popup çalışmaya devam eder', async () => {
   const scenarios = [
-    { name: 'model hatası', session: { prompt: async () => { throw new Error('boom'); } }, expect: /cevap veremedi/ },
-    { name: 'kapasite', session: { prompt: async () => { const e = new Error('x'); e.name = 'QuotaExceededError'; throw e; } }, expect: /kapasitesini aştı/ },
+    {
+      name: 'model hatası',
+      session: {
+        prompt: async () => {
+          throw new Error('boom');
+        }
+      },
+      expect: /cevap veremedi/
+    },
+    {
+      name: 'kapasite',
+      session: {
+        prompt: async () => {
+          const e = new Error('x');
+          e.name = 'QuotaExceededError';
+          throw e;
+        }
+      },
+      expect: /kapasitesini aştı/
+    },
     { name: 'boş cevap', session: { prompt: async () => '' }, expect: /Cevap üretilemedi/ },
-    { name: 'akış ortasında hata', session: { promptStreaming: () => (async function* () { yield 'Yarım'; throw new Error('kesildi'); })() }, expect: /cevap veremedi/ }
+    {
+      name: 'akış ortasında hata',
+      session: {
+        promptStreaming: () =>
+          (async function* () {
+            yield 'Yarım';
+            throw new Error('kesildi');
+          })()
+      },
+      expect: /cevap veremedi/
+    }
   ];
   for (const { name, session, expect } of scenarios) {
     let created = 0;
-    const api = { availability: async () => 'available', create: async () => { created += 1; return session; } };
+    const api = {
+      availability: async () => 'available',
+      create: async () => {
+        created += 1;
+        return session;
+      }
+    };
     const chat = await popupWithModel(api);
     const chip = walk(chat).find(node => node.className === 'chat-chip');
     await chip.click();
-    assert.ok(walk(chat).some(node => expect.test(node.textContent)), name);
+    assert.ok(
+      walk(chat).some(node => expect.test(node.textContent)),
+      name
+    );
     assert.equal(chip.disabled, false, `${name}: düğmeler tekrar kullanılabilir`);
-    assert.ok(walk(chat).some(node => /Gemini anahtarı/.test(node.textContent)), `${name}: daha güçlü model önerilir`);
+    assert.ok(
+      walk(chat).some(node => /Gemini anahtarı/.test(node.textContent)),
+      `${name}: daha güçlü model önerilir`
+    );
     await chip.click();
     assert.equal(created, name === 'boş cevap' ? 1 : 2, `${name}: hatadan sonra yeni oturum açılır`);
   }
-  const broken = { availability: async () => { throw new Error('x'); }, create() {} };
+  const broken = {
+    availability: async () => {
+      throw new Error('x');
+    },
+    create() {}
+  };
   const hidden = await popupWithModel(broken);
-  assert.ok(hidden.siblings.some(node => node.className === 'seller-questions'), 'analiz sonucu bozulmaz');
+  assert.ok(
+    hidden.siblings.some(node => node.className === 'seller-questions'),
+    'analiz sonucu bozulmaz'
+  );
 });
 
 test('süre sınırı: takılan yapay zeka iptal edilir; aşırı uzun cevap kesilir', async () => {
   let aborted = false;
-  const hanging = { prompt: (text, { signal }) => new Promise(() => signal.addEventListener('abort', () => { aborted = true; })) };
+  const hanging = {
+    prompt: (text, { signal }) =>
+      new Promise(() =>
+        signal.addEventListener('abort', () => {
+          aborted = true;
+        })
+      )
+  };
   await assert.rejects(assistant.ask(hanging, 'soru', null, { timeoutMs: 20 }), error => error.name === 'TimeoutError');
   assert.equal(aborted, true, 'istek iptal edilir');
   assert.match(assistant.errorText({ name: 'TimeoutError' }, 'builtin'), /uzun sürdü/);
 
-  const long = { promptStreaming: () => (async function* () { for (let i = 0; ; i += 1) yield `${i} ${'a'.repeat(500)} `; })() };
+  const long = {
+    promptStreaming: () =>
+      (async function* () {
+        for (let i = 0; ; i += 1) yield `${i} ${'a'.repeat(500)} `;
+      })()
+  };
   const answer = await assistant.ask(long, 'soru', null, { maxChars: 1200 });
   assert.equal(answer.length, 1201);
   assert.ok(answer.endsWith('…'));
@@ -383,17 +614,30 @@ test('süre sınırı: takılan yapay zeka iptal edilir; aşırı uzun cevap kes
 
   assert.equal(assistant.weakAnswer(''), true);
   assert.equal(assistant.weakAnswer('Üzgünüm, bu konuda bilgim yok.'), true);
-  assert.equal(assistant.weakAnswer('Fiyat piyasa ortasının biraz altında; kaporta bilgisi eksik, ekspertiz isteyin.'), false);
+  assert.equal(
+    assistant.weakAnswer('Fiyat piyasa ortasının biraz altında; kaporta bilgisi eksik, ekspertiz isteyin.'),
+    false
+  );
 });
 
 test('bulut: bağlantı yoksa, cevap bozuksa ya da boşsa Türkçe hata verir, geçmişi bozmaz', async () => {
   const key = 'AIza' + 'k'.repeat(35);
-  const offline = remoteAI.createSession(key, 'S', async () => { throw new TypeError('Failed to fetch'); });
+  const offline = remoteAI.createSession(key, 'S', async () => {
+    throw new TypeError('Failed to fetch');
+  });
   await assert.rejects(offline.prompt('soru'), /bağlanılamadı/);
-  const garbage = remoteAI.createSession(key, 'S', async () => ({ ok: true, json: async () => { throw new SyntaxError('x'); } }));
+  const garbage = remoteAI.createSession(key, 'S', async () => ({
+    ok: true,
+    json: async () => {
+      throw new SyntaxError('x');
+    }
+  }));
   await assert.rejects(garbage.prompt('soru'), error => error.name === 'RemoteAIError');
   const bodies = [];
-  const empty = remoteAI.createSession(key, 'S', async (url, init) => { bodies.push(JSON.parse(init.body)); return { ok: true, json: async () => ({ candidates: [] }) }; });
+  const empty = remoteAI.createSession(key, 'S', async (url, init) => {
+    bodies.push(JSON.parse(init.body));
+    return { ok: true, json: async () => ({ candidates: [] }) };
+  });
   assert.equal(await empty.prompt('soru'), '');
   await empty.prompt('ikinci');
   assert.equal(bodies[1].contents.length, 1, 'boş cevap geçmişe yazılmaz');
