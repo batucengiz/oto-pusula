@@ -1,6 +1,6 @@
 # Oto Pusula Gizlilik Politikası
 
-Son güncelleme: 9 Ekim 2026 · Geliştiren: Batuhan Cengiz ([github.com/batucengiz](https://github.com/batucengiz))
+Son güncelleme: 24 Ekim 2026 · Geliştiren: Batuhan Cengiz ([github.com/batucengiz](https://github.com/batucengiz))
 
 Oto Pusula, sahibinden.com ilanlarını kullanıcının kendi bilgisayarında analiz eden bir tarayıcı eklentisidir. Bu belge hangi verinin nasıl işlendiğini açıklar.
 
@@ -24,9 +24,11 @@ Oto Pusula, sahibinden.com ilanlarını kullanıcının kendi bilgisayarında an
 
 ## Veri paylaşımı
 
-- Veriler **hiçbir sunucuya gönderilmez**. Eklentinin bir sunucusu yoktur. Analiz tamamen bilgisayarınızda yapılır.
+- Veriler, siz yapay zeka sohbetinde isteğe bağlı API anahtarı girmedikçe **hiçbir sunucuya gönderilmez**. Eklentinin bir sunucusu yoktur. Analiz tamamen bilgisayarınızda yapılır.
 - Üçüncü taraflarla paylaşılmaz, satılmaz, reklam için kullanılmaz.
 - WhatsApp düğmesine bastığınızda WhatsApp, hazır mesajla yeni bir sekmede açılır. Mesajı siz düzenleyip gönderirsiniz; eklenti mesaj göndermez.
+- **Yapay zekaya sor:** İlan sohbeti varsayılan olarak Chrome'un bilgisayarınızda çalışan yerleşik yapay zeka modelini (Gemini Nano) kullanır. İlan bilgileri, eklentinin hesapları ve sorularınız yalnızca bu yerel modele verilir; eklenti bunları hiçbir sunucuya göndermez ve sohbeti saklamaz (popup kapanınca silinir). Modeli Chrome kendisi indirir ve günceller.
+- **İsteğe bağlı Gemini API anahtarı:** Daha güçlü cevaplar için ya da bilgisayarınızda yerleşik yapay zeka yoksa kendi Google Gemini API anahtarınızı girebilirsiniz. Bu **varsayılan olarak kapalıdır**; anahtar girmediğiniz sürece hiçbir istek atılmaz. Anahtar girerseniz, sohbette sorduğunuz sorular ile o ilanın bilgileri, eklentinin hesapları ve benzer ilan özetleri (satıcı telefon numarası hariç) cevap için Google'a (`generativelanguage.googleapis.com`) gönderilir ve [Google'ın Gemini API koşullarına](https://ai.google.dev/gemini-api/terms) tabidir; ücretsiz anahtarlarda Google bu içerikleri ürünlerini geliştirmek için kullanabilir. Anahtar yalnızca tarayıcınızın yerel deposunda saklanır, popup'taki "API anahtarını sil" ile silinir. Anahtarı sildiğinizde sohbet yeniden yalnızca cihazdaki yapay zekayı kullanır.
 - Excel ve JSON yedek dosyaları yalnızca siz indirdiğinizde bilgisayarınıza kaydedilir.
 
 ## İzinler

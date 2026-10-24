@@ -28,3 +28,26 @@ small { display: block; margin-top: 12px; color: #86a39a; font-size: 11px; }
 .danger:hover:not(:disabled) { background: #3a2422; }
 .danger.confirm { background: #c0392b; color: white; border-color: #c0392b; }
 .warning-line { margin: 6px 0 0; color: #ffcf8a; font-size: 12px; }
+.chat { margin-top: 12px; padding-top: 8px; border-top: 1px solid rgba(148, 163, 184, .25); }
+.chat-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.chat-chip { width: auto; padding: 5px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; background: rgba(255, 255, 255, .08); color: inherit; border: 1px solid rgba(148, 163, 184, .35); }
+.chat-log { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; }
+.chat-log:empty { display: none; }
+.chat-log p { margin: 0; padding: 7px 9px; border-radius: 9px; white-space: pre-wrap; }
+.chat-me { align-self: flex-end; max-width: 85%; background: rgba(16, 185, 129, .22); }
+.chat-ai { align-self: flex-start; max-width: 95%; background: rgba(255, 255, 255, .07); }
+.chat-error { color: #ffcf8a; }
+.chat-form { display: flex; gap: 6px; margin-top: 8px; }
+.chat-form input { flex: 1; min-width: 0; padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(148, 163, 184, .4); background: rgba(0, 0, 0, .2); color: inherit; font: inherit; }
+.chat-send { width: auto; padding: 8px 12px; background: #a9e85a; color: #173018; }
+.chat-status { margin-top: 6px; }
+.chat .muted:last-child { margin-top: 6px; font-size: 11px; }
+.chat-forget { margin-top: 8px; padding: 7px; font-size: 12px; }
+.seller-questions { margin-top: 8px; font-size: 12px; }
+.seller-questions summary { cursor: pointer; font-weight: 700; }
+.seller-questions ul { margin: 6px 0 0; padding-left: 18px; }
+.seller-questions li { margin-bottom: 3px; }
+.key-steps { margin: 8px 0 0; padding-left: 18px; font-size: 12px; }
+.key-steps li { margin-bottom: 2px; }
+.key-link { margin: 8px 0 0; padding: 8px; font-size: 12px; }
+.chat-tip { margin-top: 8px !important; padding: 8px 10px; border-radius: 8px; background: rgba(16, 185, 129, .1); border: 1px solid rgba(16, 185, 129, .3); }
