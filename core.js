@@ -36,6 +36,7 @@
     browsePace: parts.browsePace,
     normalizeLog: parts.normalizeLog,
     advise: parts.advise,
+    suddenDrop: parts.suddenDrop,
     normalizePages: parts.normalizePages,
     recordPage: parts.recordPage,
     removeListings: parts.removeListings,
