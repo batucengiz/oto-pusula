@@ -9,11 +9,18 @@
   const MAX_COMPARABLES = 5;
   const SUGGESTIONS = [
     'Bu fiyata değer mi?',
+    'Kaydettiğim ilanlarla karşılaştır',
     'Benzerlerinden neden pahalı/ucuz?',
-    'Satıcıya ne sormalıyım?',
+    'Pazarlıkta ne demeliyim?',
     'Ne kadar teklif vermeliyim?',
+    'Satıcıya ne sormalıyım?',
+    'Açıklamada şüpheli bir şey var mı?',
+    'Ekspertizde nelere baktırmalıyım?',
     'Kilometresi normal mi?',
-    'Bu modelin kronik sorunları neler?'
+    'Bu modelin kronik sorunları neler?',
+    'Tramer ve hasar kaydını nasıl kontrol ederim?',
+    'Bakım masrafı ve yakıt tüketimi nasıl?',
+    'Alırken nelere dikkat etmeliyim?'
   ];
   // Türkçe Gemini Nano'nun resmi dil listesinde olmayabilir; önce Türkçe istenir, olmazsa dil belirtmeden denenir.
   const LANGUAGE_OPTIONS = [
@@ -89,6 +96,40 @@
     return list.slice(0, 6);
   }
 
+  // Ekspertiz kontrol listesi: kaporta beyanı, yakıt/vites, yaş, km ve açıklama uyarılarına göre.
+  // Modele özgü kronik sorunlar yapay zekaya sorulur; burada yalnızca veriden çıkan kesin maddeler var.
+  function inspectionChecklist({ record, body, advice, textFlags = [], today = new Date() }) {
+    const fuel = String(record.fuel || '').toLocaleLowerCase('tr-TR');
+    const gear = String(record.transmission || '').toLocaleLowerCase('tr-TR');
+    const age = today.getUTCFullYear() - record.year;
+    const labels = new Set(textFlags.map(flag => flag.label));
+    const list = ['Tüm parçalarda boya kalınlığı ölçümü ve tramer/hasar kaydı sorgusu'];
+    if (!body?.known)
+      list.push('Boya/değişen şeması yok: her parça tek tek kontrol edilsin, macun ve lokal boya aransın');
+    if (body?.known && body.changed.length)
+      list.push(`Değişen parçalar (${body.changed.join(', ')}): bağlantı noktaları, şase, podye ve direkler`);
+    if (body?.severe) list.push('Tavan değişmiş: direkler, şase ve hava yastığı bağlantıları mutlaka kontrol edilsin');
+    if (body?.known && body.painted.length)
+      list.push(`Boyalı parçalar (${body.painted.join(', ')}): macun ve kaynak izi`);
+    list.push('Bilgisayarlı arıza taraması (OBD) ve motor/şanzıman mekanik testi, yol testi');
+    if (/dizel|diesel/.test(fuel)) list.push('Dizel: enjektörler, turbo, partikül filtresi (DPF) ve EGR');
+    if (/lpg/.test(fuel)) list.push('LPG: ruhsata işlenmiş mi, montaj belgesi, tüp tarihi ve sızdırmazlık');
+    if (/hibrit|hybrid|elektrik|electric/.test(fuel))
+      list.push('Hibrit/elektrik: batarya sağlık raporu (SOH) ve şarj sistemi');
+    if (/otomatik|yarı/.test(gear))
+      list.push('Otomatik şanzıman: vites geçişlerinde vuruntu/kayma, şanzıman yağı ve bakım geçmişi');
+    if (record.km >= 120000) list.push('Yüksek km: triger/zincir, debriyaj, amortisör ve yürüyen aksam');
+    if (age >= 10) list.push('10 yaş üstü: alt takımda paslanma, lastik ve akü tarihleri, kauçuk parçalar');
+    if ((advice?.flags || []).some(flag => flag.label === 'Yoğun kullanım'))
+      list.push('Yoğun kullanım: koltuk/direksiyon aşınması km ile uyumlu mu, servis kayıtlarında km geçmişi');
+    if (labels.has('Airbag')) list.push('Airbag uyarısı: hava yastığı modülü ve kaza geçmişi');
+    if (labels.has('Mekanik arıza / onarım'))
+      list.push('Açıklamada geçen mekanik sorun ustaya ayrıca gösterilsin, onarım faturası istensin');
+    if (labels.has('Motor/yağ belirtisi')) list.push('Motor: kompresyon testi, yağ ve su kaçağı');
+    if (labels.has('Kilometre müdahalesi')) list.push('Kilometre: beyin ve servis kayıtlarıyla karşılaştırma');
+    return list.slice(0, 10);
+  }
+
   // Teklifin gerekçeleri: pazarlıkta satıcıya söylenebilecek, ilan verisine dayanan noktalar.
   function offerReasons({ record, result, body, advice }) {
     const reasons = [];
@@ -112,16 +153,24 @@
     return reasons;
   }
 
+  // Yıllık km'nin Türkiye'deki binek araç kullanımına göre hazır yorumu; küçük model hesap yapmak zorunda kalmaz.
+  function kmVerdict(perYear) {
+    if (perYear < 8000) return 'ortalamanın altında (az kullanılmış; km geçmişi servis kayıtlarından doğrulanmalı)';
+    if (perYear <= 20000) return 'normal aralıkta (yılda 10-20 bin km)';
+    if (perYear <= 30000) return 'ortalamanın üstünde (yoğun kullanım)';
+    return 'çok yüksek (ticari ya da uzun yol kullanımı olabilir)';
+  }
+
   // Eklentinin bu ilan için hesapladığı her şey, modele düz Türkçe cümleler olarak verilir.
   // Model hesap yapmaz; yalnızca bu bilgileri yorumlar.
-  function facts({ record, result, body, deal, advice, description, today = new Date() }) {
+  function facts({ record, result, body, deal, advice, textFlags = [], description, today = new Date() }) {
     const lines = [];
     const name = [record.brand, record.model, record.engine, record.trim].filter(Boolean).join(' ');
     lines.push(`Araç: ${name}${record.title ? ` (ilan başlığı: “${clean(record.title, 200)}”)` : ''}.`);
     // core.js'teki yoğun kullanım hesabıyla aynı: model yılının ortasından bugüne.
     const years = Math.max(0.5, today.getUTCFullYear() - record.year + 0.5);
     lines.push(
-      `Model yılı ${record.year}, ${record.km.toLocaleString('tr-TR')} km (yılda ortalama yaklaşık ${Math.round(record.km / years).toLocaleString('tr-TR')} km).`
+      `Model yılı ${record.year}, ${record.km.toLocaleString('tr-TR')} km (yılda ortalama yaklaşık ${Math.round(record.km / years).toLocaleString('tr-TR')} km). Yıllık kullanım ${kmVerdict(record.km / years)}.`
     );
     const extra = [
       record.fuel && `yakıt ${record.fuel}`,
@@ -161,6 +210,10 @@
       lines.push('Fırsat puanı hesaplanmadı (piyasa tahmini yetersiz, ağır hasar ya da tavan değişeni var).');
     }
     for (const flag of advice?.flags || []) lines.push(`Uyarı – ${flag.label}: ${flag.text}`);
+    for (const flag of textFlags)
+      lines.push(
+        `İlan açıklamasında dikkat – ${flag.label}: ${flag.text} (satıcının cümlesi: «${clean(flag.quote, 120)}»)`
+      );
     const reasons = offerReasons({ record, result, body, advice });
     if (advice?.offer)
       lines.push(
@@ -174,6 +227,9 @@
       lines.push(`Benzer ilanların %${Math.round(result.position * 100)}'i (yıl/km düzeltmesiyle) bu araçtan ucuz.`);
     lines.push(...comparableLines(result));
     lines.push(`Satıcıya sorulması önerilenler: ${sellerQuestions({ record, body, advice }).join(' | ')}`);
+    lines.push(
+      `Ekspertizde baktırılması önerilenler: ${inspectionChecklist({ record, body, advice, textFlags, today }).join(' | ')}`
+    );
     // Açıklamadaki telefon numaraları (ve uzun sayılar) modele verilmez.
     const text = clean(
       String(description ?? '').replace(/(?:\+?\d[\s().-]*){7,}/g, '[numara gizlendi] '),
@@ -189,18 +245,116 @@
   function systemPrompt(lines) {
     return [
       'Sen Oto Pusula adlı ikinci el araç fiyat eklentisinin asistanısın; otomobiller konusunda bilgili, dürüst bir danışmansın. Kullanıcı sahibinden.com’da bir araç ilanına bakıyor.',
-      'Her zaman Türkçe, kısa (en fazla 5-6 cümle) ve sade cevap ver.',
+      'Her zaman Türkçe ve sade cevap ver. Önce tek cümlelik net sonucu söyle, sonra gerekçeyi ver. Basit sorularda 3-5 cümle yeter; çok parçalı sorularda her parçaya kalın olmayan kısa bir başlık ve 1-3 madde yaz, toplamda 12 maddeyi geçme.',
       'Araçla ilgili her soruya cevap verebilirsin: bu ilan, bu model ve motorun bilinen kronik sorunları, bakım ve masrafları, yakıt tüketimi, yedek parça, sigorta/kasko, ekspertiz, alım-satım süreci, araç karşılaştırması gibi.',
       'Bu ilana dair sorularda aşağıdaki İLAN BİLGİLERİ’ne dayan. Fiyat yorumunda eklentinin piyasa tahminini ve fırsat puanını kullan; kendin yeni fiyat hesaplama ve piyasa fiyatı uydurma.',
       'Genel bilgilerde emin olmadığın ayrıntıyı (rakam, arıza oranı, parça fiyatı) kesinmiş gibi verme; “genelde”, “kontrol ettirin” gibi ifadelerle belirsizliği söyle ve gerekirse yetkili servis ya da ekspertize yönlendir.',
-      'Benzer ilanlarla kıyas sorulursa aşağıdaki benzer ilanları yıl, km ve düzeltilmiş fiyatlarıyla karşılaştır.',
+      'Benzer ilanlarla kıyas sorulursa aşağıdaki benzer ilanları yıl, km ve düzeltilmiş fiyatlarıyla karşılaştır; fark varsa nedenini (yıl, km, donanım, kaporta, satıcı tipi) söyle. Fiyat yorumunda piyasa ortasına göre yüzde farkı ve güven düzeyini kullan.',
+      'Kilometre sorulursa toplam km’yi değil, yıllık ortalamayı ve İLAN BİLGİLERİ’ndeki km yorumunu kullan; yüksek km’de triger/zincir, debriyaj, şanzıman ve yürüyen aksam bakımını, düşük km’de km müdahalesi kontrolünü hatırlat.',
+      'Soru yazım hatalı, kısa ya da dağınık olsa da en olası anlamıyla cevapla; gerçekten anlaşılmıyorsa tek kısa soruyla netleştir.',
       'Teklif sorulursa eklentinin açılış ve hedef rakamlarını gerekçeleriyle söyle; başka rakam uydurma. Satıcıya ne sorulacağı sorulursa önerilen soruları madde madde ver.',
+      'Ekspertiz sorulursa “Ekspertizde baktırılması önerilenler” maddelerini ver ve bu marka/modelin bilinen kronik noktalarını (emin değilsen belirterek) ekle. Pazarlıkta ne denileceği sorulursa gerekçelere dayanan, kibar ve kısa örnek cümleler öner. İlan açıklamasındaki şüpheli ifadeler sorulursa “İlan açıklamasında dikkat” maddelerini açıkla; madde yoksa belirgin bir risk ifadesi bulunmadığını ama ekspertizin yine gerekli olduğunu söyle.',
       'Kaporta bilgisi satıcı beyanıdır; gerektiğinde ekspertiz ve tramer kaydı öner. Kesin satın al / alma demek yerine artıları ve riskleri söyle.',
+      'Birden çok parçalı ya da karmaşık sorularda soruyu parçalara ayır ve her parçaya kısa maddelerle cevap ver; bir kısmını bilmiyorsan diğer kısımları yine cevapla.',
+      'UZMAN BİLGİSİ (genel kurallar; araca özel kesin rakam gibi sunma):',
+      '- Ekspertiz: fabrika boyası genelde 80-160 mikron; 200 üstü boya, 400 üstü macun şüphesi. Lokal boya kozmetiktir; değişen parça ve tavan, direk, şasi, podye, bagaj havuzu işlemi ağır hasar işaretidir. Yol testi, OBD arıza taraması, motor/şanzıman testi ve alt kontrol yaptırılmalı.',
+      '- Tramer: hasar kaydı e-Devlet ya da şasi numarasıyla SMS (HASAR boşluk şasi no, 5664) üzerinden sorgulanır; kayıt tutarı ile boyalı/değişen parçalar uyumlu olmalı. Haciz/rehin e-Devlet’ten, muayene TÜVTÜRK’ten, km geçmişi servis kayıtlarından kontrol edilir.',
+      '- Mekanik: dizelde DPF, EGR, enjektör, turbo ve çift kütleli volan; benzinli turbo motorlarda yağ eksiltme ve zincir; otomatiklerde kuru kavramalı çift kavrama (DSG/EDC/Powershift) titreme-vuruntu, CVT’de kayma; LPG’de montaj belgesi ve supap; hibritte batarya sağlığı. Tanımadığın modelde genel risklerden konuş, kronik sorun uydurma.',
+      '- Bakım: yağ genelde 10-15 bin km ya da yılda bir; triger kayışı üreticiye göre 60-120 bin km; otomatik şanzıman yağı, fren hidroliği ve antifriz de takip edilir. Bakım kayıtları ve faturalar fiyatı etkiler.',
+      '- Alım süreci: aracı görmeden kapora gönderme; satış noterde yapılır; ruhsat, şasi ve motor numarası eşleşmeli; ödeme noterde ya da güvenli ödeme ile yapılmalı. MTV ve trafik cezası borcu sorulmalı.',
+      '- Masraf ve değer: kasko değeri, sigorta primi, yakıt tüketimi ve yedek parça bulunurluğu aracın toplam maliyetini belirler; ikinci el değeri en çok marka/model talebi, km, kaporta ve tramerle değişir.',
       'Araçlarla ilgisi olmayan konulardaki soruları kibarca geri çevir.',
       '',
       'İLAN BİLGİLERİ:',
       ...lines.map(line => `- ${line}`)
     ].join('\n');
+  }
+
+  const COMPARE_MIN = 2;
+  const COMPARE_MAX = 5;
+
+  // Karşılaştırma için her ilanın kısa özeti. Yalnızca eklentinin kayıtlı verisi kullanılır.
+  function compareFacts(entries, today = new Date()) {
+    return entries.slice(0, COMPARE_MAX).map(({ record, result, deal, advice }, index) => {
+      const body = bodyOf(record);
+      const years = Math.max(0.5, today.getUTCFullYear() - record.year + 0.5);
+      const parts = [
+        `İlan ${index + 1}: ${[record.brand, record.model, record.engine, record.trim].filter(Boolean).join(' ')}`,
+        `${record.year} model, ${Number(record.km).toLocaleString('tr-TR')} km (yılda ~${Math.round(record.km / years).toLocaleString('tr-TR')} km, ${kmVerdict(record.km / years)})`,
+        `fiyat ${lira(record.price)}`,
+        result?.center
+          ? `piyasa ortası ${lira(result.center)}, ilan bunun ${percent(result.gap)} ${result.gap < 0 ? 'altında' : 'üstünde'} (${result.status}, güven ${result.confidence})`
+          : 'piyasa tahmini yok',
+        body.known ? `kaporta ${body.score}/100 (${body.label})` : 'kaporta şeması okunmadı',
+        deal ? `fırsat puanı ${deal.score}/100` : 'fırsat puanı yok',
+        record.sellerType ? `satıcı: ${record.sellerType}` : '',
+        record.city || '',
+        (advice?.flags || []).length ? `uyarılar: ${advice.flags.map(flag => flag.label).join(', ')}` : 'uyarı yok'
+      ].filter(Boolean);
+      return `${parts.join('; ')}.`;
+    });
+  }
+
+  function bodyOf(record) {
+    const core = root.OtoCore;
+    try {
+      return core ? core.bodyReport(record) : { known: false };
+    } catch {
+      return { known: false };
+    }
+  }
+
+  function compareSystemPrompt(lines) {
+    return [
+      'Sen Oto Pusula adlı ikinci el araç eklentisinin asistanısın; otomobiller konusunda bilgili, dürüst bir danışmansın.',
+      'Kullanıcı aşağıdaki ilanlar arasında karar vermek istiyor. Her zaman Türkçe ve sade yaz.',
+      'Önce en mantıklı seçeneği numarasıyla söyle, sonra her ilan için bir-iki cümlelik artı/eksi ver, en sonda kısa bir gerekçe yaz (en fazla 10-12 cümle).',
+      'Fiyat yorumunda eklentinin piyasa tahminini, fırsat puanını, kaporta puanını ve uyarıları kullan; yeni fiyat uydurma. Model ve motorların genel bilinen güçlü/zayıf yanlarını belirsizlik payıyla ekleyebilirsin.',
+      'Kaporta bilgisi satıcı beyanıdır; kesin “al” demek yerine ekspertiz ve tramer kontrolünü hatırlat.',
+      '',
+      'İLANLAR:',
+      ...lines.map(line => `- ${line}`)
+    ].join('\n');
+  }
+
+  // Yapay zeka olmadan da gösterilen sıralama: fırsat puanı, yoksa piyasaya göre fark.
+  function rankForCompare(entries) {
+    const score = entry => (entry.deal ? entry.deal.score : entry.result?.center ? 40 - entry.result.gap * 100 : -1);
+    return [...entries].sort((a, b) => score(b) - score(a));
+  }
+
+  // Önceki sohbet ve kullanıcının kaydettiği diğer ilanlar sistem talimatına eklenir (kısaltılmış).
+  function withContext(systemText, { history = [], saved = [] } = {}) {
+    const parts = [systemText];
+    if (saved.length)
+      parts.push(
+        '',
+        'KULLANICININ YAPAY ZEKAYA KAYDETTİĞİ DİĞER İLANLAR (karşılaştırma sorulursa bunları kullan; bu ilan “Şu anki ilan”dır):',
+        ...saved.map(line => `- ${line}`)
+      );
+    const recent = history.slice(-4);
+    if (recent.length)
+      parts.push(
+        '',
+        'BU İLANLA İLGİLİ ÖNCEKİ SOHBET:',
+        ...recent.map(turn => `- Soru: ${clean(turn.q, 200)} / Cevap: ${clean(turn.a, 400)}`)
+      );
+    return parts.join('\n');
+  }
+
+  // Karmaşık soruda model bağlamı kaldıramazsa kullanılan kısa bilgi: ağır satırlar atılır, satırlar kısaltılır.
+  const BULKY =
+    /^(Benzer ilan:|Satıcının ilan açıklamasından|Ekspertizde baktırılması|Satıcıya sorulması|İlan açıklamasında dikkat)/;
+  function compactFacts(lines, max = 12) {
+    return lines
+      .filter(line => !BULKY.test(line))
+      .map(line => clean(line, 260))
+      .slice(0, max);
+  }
+
+  // Kısaltılmış bilgiyle bir kez daha denemeye değer hata mı? (Anahtar, izin ve süre hataları değil.)
+  function retryable(error) {
+    return !['RemoteAIError', 'NotAllowedError', 'TimeoutError', 'AbortError'].includes(error?.name);
   }
 
   function question(value) {
@@ -213,10 +367,10 @@
     return text && piece.startsWith(text) ? piece : text + piece;
   }
 
-  async function createSession(api, lines, options, onProgress) {
+  async function createSession(api, lines, options, onProgress, systemText = systemPrompt(lines)) {
     return api.create({
       ...(options || {}),
-      initialPrompts: [{ role: 'system', content: systemPrompt(lines) }],
+      initialPrompts: [{ role: 'system', content: systemText }],
       monitor(monitor) {
         monitor.addEventListener('downloadprogress', event => {
           if (typeof onProgress === 'function') onProgress(Math.max(0, Math.min(1, Number(event.loaded) || 0)));
@@ -301,6 +455,16 @@
   }
 
   const api = {
+    kmVerdict,
+    compactFacts,
+    retryable,
+    withContext,
+    inspectionChecklist,
+    COMPARE_MIN,
+    COMPARE_MAX,
+    compareFacts,
+    compareSystemPrompt,
+    rankForCompare,
     MAX_QUESTION,
     MAX_ANSWER,
     TIMEOUT_MS,

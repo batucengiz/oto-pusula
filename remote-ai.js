@@ -8,6 +8,8 @@
   const MODEL = 'gemini-flash-latest';
   const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
   const MAX_TURNS = 8;
+  const RETRY_MS = 1200;
+  const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
   // Google AI Studio anahtarları "AIza" ile başlar; boşluk ve görünmez karakterler atılır.
   function normalizeKey(value) {
@@ -63,21 +65,28 @@
       async prompt(text, { signal } = {}) {
         if (closed) throw new Error('Oturum kapalı.');
         const contents = [...history, { role: 'user', parts: [{ text }] }];
-        let response;
-        try {
-          response = await fetcher(ENDPOINT, {
+        const send = () =>
+          fetcher(ENDPOINT, {
             method: 'POST',
             signal,
             headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
             body: JSON.stringify({
               systemInstruction: { parts: [{ text: systemText }] },
               contents,
-              generationConfig: { temperature: 0.3, maxOutputTokens: 800 }
+              generationConfig: { temperature: 0.3, maxOutputTokens: 1200 }
             })
           });
-        } catch (cause) {
-          if (cause?.name === 'AbortError') throw cause;
-          throw remoteError('Google’a bağlanılamadı. İnternet bağlantınızı kontrol edin.');
+        let response;
+        // Google'ın geçici yoğunluk hatası (5xx) ya da kopan bağlantıda bir kez daha denenir.
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          try {
+            response = await send();
+            if (!(response.status >= 500) || attempt) break;
+          } catch (cause) {
+            if (cause?.name === 'AbortError') throw cause;
+            if (attempt) throw remoteError('Google’a bağlanılamadı. İnternet bağlantınızı kontrol edin.');
+          }
+          await wait(RETRY_MS);
         }
         if (!response.ok) throw remoteError(errorMessage(response.status));
         let data;

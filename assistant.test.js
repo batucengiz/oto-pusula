@@ -239,7 +239,10 @@ const walk = (node, found = []) => {
   return found;
 };
 
-async function popupWithModel(LanguageModel, { remote = false, storage = new Map(), fetch, opened = [] } = {}) {
+async function popupWithModel(
+  LanguageModel,
+  { remote = false, storage = new Map(), fetch, opened = [], description = 'Temiz araç.' } = {}
+) {
   const nodes = new Map();
   const get = id => {
     if (!nodes.has(id)) nodes.set(id, new FakeNode(id));
@@ -259,7 +262,7 @@ async function popupWithModel(LanguageModel, { remote = false, storage = new Map
       ['Yıl', '2021'],
       ['KM', '90.000']
     ],
-    description: 'Temiz araç.',
+    description,
     phoneText: ''
   };
   const context = vm.createContext({
@@ -492,7 +495,7 @@ test('popup: yerleşik yapay zeka varken anahtarsız veri dışarı gitmez; öne
   );
 
   walk(chat)
-    .find(node => /Gemini anahtarı ekle/.test(node.textContent))
+    .find(node => /Ücretsiz anahtar ekle/.test(node.textContent))
     .click();
   walk(chat)
     .find(node => /Ücretsiz anahtar al/.test(node.textContent))
@@ -577,7 +580,8 @@ test('popup: yapay zeka hata verirse, takılırsa ya da boş cevap verirse popup
       `${name}: daha güçlü model önerilir`
     );
     await chip.click();
-    assert.equal(created, name === 'boş cevap' ? 1 : 2, `${name}: hatadan sonra yeni oturum açılır`);
+    // Hatada bir kez kısaltılmış bilgiyle yeni oturum denenir; ikinci tıklamada yine yeni oturum açılır.
+    assert.equal(created, name === 'boş cevap' ? 1 : 4, `${name}: hatadan sonra yeni oturum açılır`);
   }
   const broken = {
     availability: async () => {
@@ -654,4 +658,135 @@ test('popup: satıcıya sorulacaklar yapay zeka olmadan da ilan sayfasında gös
   const details = chat.siblings.find(node => node.className === 'seller-questions');
   assert.ok(details);
   assert.ok(walk(details).some(node => /Tramer/.test(node.textContent)));
+});
+
+test('popup: açıklamadaki riskli ifadeler yapay zekasız listelenir ve sohbete bağlam olarak verilir', async () => {
+  const { api, calls } = fakeModel();
+  const chat = await popupWithModel(api, { description: 'Acil satılık. Ufak bir hatası var. Kapora alınır.' });
+  const box = chat.siblings.find(node => node.className === 'text-flags');
+  assert.ok(box, 'uyarı özeti görünür');
+  assert.equal(box.open, true, 'ciddi uyarı varsa açık gelir');
+  const text = walk(box)
+    .map(node => node.textContent)
+    .join(' ');
+  assert.match(text, /İlan açıklamasında dikkat \(3\)/);
+  assert.match(text, /Kapora istemi/);
+  assert.match(text, /Ufak bir hatası var/);
+  const chip = walk(chat).find(node => node.className === 'chat-chip' && /şüpheli/.test(node.textContent));
+  await chip.click();
+  assert.match(calls.create[0].initialPrompts[0].content, /İlan açıklamasında dikkat – Kapora istemi/);
+
+  const plain = await popupWithModel(null);
+  assert.equal(
+    plain.siblings.some(node => node.className === 'text-flags'),
+    false,
+    'riskli ifade yoksa kutu yok'
+  );
+});
+
+test('hazır sorular: fiyat, pazarlık, kronik arıza ve açıklama soruları tek tıkla sorulur', () => {
+  for (const text of [
+    'Bu fiyata değer mi?',
+    'Pazarlıkta ne demeliyim?',
+    'Bu modelin kronik sorunları neler?',
+    'Açıklamada şüpheli bir şey var mı?'
+  ])
+    assert.ok(assistant.SUGGESTIONS.includes(text), text);
+  assert.match(assistant.systemPrompt([]), /Pazarlıkta ne denileceği/);
+});
+
+test('karmaşık soru: ilk deneme hata verirse kısaltılmış bilgiyle yeni oturumda bir kez daha denenir', async () => {
+  const systems = [];
+  let count = 0;
+  const api = {
+    availability: async () => 'available',
+    create: async options => {
+      systems.push(options.initialPrompts[0].content);
+      count += 1;
+      const first = count === 1;
+      return {
+        prompt: async () => {
+          if (first) {
+            const error = new Error('x');
+            error.name = 'QuotaExceededError';
+            throw error;
+          }
+          return 'Kısaltılmış bilgiyle cevap.';
+        },
+        destroy() {}
+      };
+    }
+  };
+  const chat = await popupWithModel(api);
+  await walk(chat)
+    .find(node => node.className === 'chat-chip')
+    .click();
+  assert.ok(walk(chat).some(node => node.textContent === 'Kısaltılmış bilgiyle cevap.'));
+  assert.equal(systems.length, 2);
+  assert.ok(systems[1].length < systems[0].length, 'ikinci deneme daha kısa bilgiyle yapılır');
+  assert.doesNotMatch(systems[1], /Benzer ilan:/);
+});
+
+test('kısaltılmış bilgi, yeniden deneme kuralı ve km yorumu', () => {
+  const lines = [
+    'Araç: X.',
+    'Benzer ilan: 2018, 90.000 km.',
+    'Fiyat 1.000.000 TL.',
+    'Satıcının ilan açıklamasından: “uzun”'
+  ];
+  assert.deepEqual(assistant.compactFacts(lines), ['Araç: X.', 'Fiyat 1.000.000 TL.']);
+  assert.equal(assistant.compactFacts(Array.from({ length: 30 }, (_, i) => `satır ${i}`)).length, 12);
+  assert.equal(assistant.retryable(Object.assign(new Error('x'), { name: 'QuotaExceededError' })), true);
+  assert.equal(assistant.retryable(new Error('boom')), true);
+  for (const name of ['RemoteAIError', 'NotAllowedError', 'TimeoutError', 'AbortError'])
+    assert.equal(assistant.retryable(Object.assign(new Error('x'), { name })), false, name);
+  assert.match(assistant.kmVerdict(5000), /altında/);
+  assert.match(assistant.kmVerdict(15000), /normal/);
+  assert.match(assistant.kmVerdict(25000), /üstünde/);
+  assert.match(assistant.kmVerdict(40000), /çok yüksek/);
+});
+
+test('bulut oturumu: geçici sunucu hatası ve kopan bağlantıda bir kez daha dener, 4xx’te denemez', async () => {
+  const ok = {
+    ok: true,
+    status: 200,
+    json: async () => ({ candidates: [{ content: { parts: [{ text: 'Tamam.' }] } }] })
+  };
+  let calls = 0;
+  const busy = remoteAI.createSession('AIza' + 'k'.repeat(35), 'S', async () =>
+    ++calls === 1 ? { ok: false, status: 503 } : ok
+  );
+  assert.equal(await busy.prompt('soru'), 'Tamam.');
+  assert.equal(calls, 2);
+
+  calls = 0;
+  const flaky = remoteAI.createSession('AIza' + 'k'.repeat(35), 'S', async () => {
+    if (++calls === 1) throw new TypeError('Failed to fetch');
+    return ok;
+  });
+  assert.equal(await flaky.prompt('soru'), 'Tamam.');
+  assert.equal(calls, 2);
+
+  calls = 0;
+  const offline = remoteAI.createSession('AIza' + 'k'.repeat(35), 'S', async () => {
+    calls += 1;
+    throw new TypeError('Failed to fetch');
+  });
+  await assert.rejects(offline.prompt('soru'), /bağlanılamadı/);
+  assert.equal(calls, 2);
+
+  calls = 0;
+  const denied = remoteAI.createSession('AIza' + 'k'.repeat(35), 'S', async () => {
+    calls += 1;
+    return { ok: false, status: 400 };
+  });
+  await assert.rejects(denied.prompt('soru'), /RemoteAIError|anahtar/);
+  assert.equal(calls, 1);
+});
+
+test('uzman talimatları: ekspertiz, tramer, mekanik, bakım ve alım süreci bilgisi sistem metninde', () => {
+  const text = assistant.systemPrompt(['Araç: X.']);
+  for (const word of ['Ekspertiz', 'Tramer', 'DPF', 'DSG', 'triger', 'noterde', 'kasko', 'uydurma'])
+    assert.match(text, new RegExp(word), word);
+  assert.ok(assistant.SUGGESTIONS.includes('Alırken nelere dikkat etmeliyim?'));
 });
