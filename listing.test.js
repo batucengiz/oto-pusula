@@ -759,3 +759,52 @@ test('tarih Türkiye saatiyle yazılır (gece 00:00-03:00 bir önceki güne dü�
     else process.env.TZ = previous;
   }
 });
+
+test('açıklama uyarıları: riskli ifadeler yakalanır, olumsuzlar ve olağan bakım atlanır', () => {
+  const text = [
+    'ACİL SATILIK, yurt dışına çıkıyorum.',
+    'Ufak bir hatası var, sağ arka kapıda lokal boya mevcut.',
+    'Motor bakımı yeni yapıldı, şanzımanda ses geliyor.',
+    'Kapora alınır, ekspertize gerek yok. Tel: 0 (532) 123 45 67',
+    'Tramer 12.000 TL. Airbag lambası yanıyor.'
+  ].join('\n');
+  const flags = listing.descriptionFlags(text);
+  const labels = flags.map(flag => flag.label);
+  for (const label of [
+    'Ekspertize kapalı',
+    'Kapora istemi',
+    'Acil satılık',
+    'Mekanik arıza / onarım',
+    'Kusur beyanı',
+    'Airbag',
+    'Boya / değişen beyanı',
+    'Tramer kaydı'
+  ])
+    assert.ok(labels.includes(label), label);
+  assert.equal(flags[0].level, 'bad', 'ciddi olanlar önce');
+  assert.match(flags.find(flag => flag.label === 'Kusur beyanı').quote, /Ufak bir hatası var/);
+  assert.ok(
+    flags.every(flag => !/532|123 45/.test(flag.quote)),
+    'telefon numarası alıntılanmaz'
+  );
+  assert.ok(flags.length <= 8);
+
+  const clean = listing.descriptionFlags(
+    'Boya yok, değişen yok, tramer yoktur. Hatasız, boyasız. Acil değil. Motor bakımı yapıldı, revizyon gerektirmez.'
+  );
+  assert.deepEqual(
+    clean.map(flag => flag.label),
+    [],
+    'olumsuz ifadeler ve olağan bakım uyarı vermez'
+  );
+  assert.deepEqual(listing.descriptionFlags(''), []);
+  assert.deepEqual(listing.descriptionFlags(null), []);
+  assert.deepEqual(
+    listing.descriptionFlags('Ağır hasar kayıtlıdır.').map(flag => flag.label),
+    ['Ağır hasar / pert']
+  );
+  assert.deepEqual(
+    listing.descriptionFlags('Araç hacizli değildir. Yağ yakma yok.').map(flag => flag.label),
+    []
+  );
+});

@@ -9,9 +9,13 @@
   const MAX_COMPARABLES = 5;
   const SUGGESTIONS = [
     'Bu fiyata değer mi?',
+    'Kaydettiğim ilanlarla karşılaştır',
     'Benzerlerinden neden pahalı/ucuz?',
-    'Satıcıya ne sormalıyım?',
+    'Pazarlıkta ne demeliyim?',
     'Ne kadar teklif vermeliyim?',
+    'Satıcıya ne sormalıyım?',
+    'Açıklamada şüpheli bir şey var mı?',
+    'Ekspertizde nelere baktırmalıyım?',
     'Kilometresi normal mi?',
     'Bu modelin kronik sorunları neler?'
   ];
@@ -89,6 +93,40 @@
     return list.slice(0, 6);
   }
 
+  // Ekspertiz kontrol listesi: kaporta beyanı, yakıt/vites, yaş, km ve açıklama uyarılarına göre.
+  // Modele özgü kronik sorunlar yapay zekaya sorulur; burada yalnızca veriden çıkan kesin maddeler var.
+  function inspectionChecklist({ record, body, advice, textFlags = [], today = new Date() }) {
+    const fuel = String(record.fuel || '').toLocaleLowerCase('tr-TR');
+    const gear = String(record.transmission || '').toLocaleLowerCase('tr-TR');
+    const age = today.getUTCFullYear() - record.year;
+    const labels = new Set(textFlags.map(flag => flag.label));
+    const list = ['Tüm parçalarda boya kalınlığı ölçümü ve tramer/hasar kaydı sorgusu'];
+    if (!body?.known)
+      list.push('Boya/değişen şeması yok: her parça tek tek kontrol edilsin, macun ve lokal boya aransın');
+    if (body?.known && body.changed.length)
+      list.push(`Değişen parçalar (${body.changed.join(', ')}): bağlantı noktaları, şase, podye ve direkler`);
+    if (body?.severe) list.push('Tavan değişmiş: direkler, şase ve hava yastığı bağlantıları mutlaka kontrol edilsin');
+    if (body?.known && body.painted.length)
+      list.push(`Boyalı parçalar (${body.painted.join(', ')}): macun ve kaynak izi`);
+    list.push('Bilgisayarlı arıza taraması (OBD) ve motor/şanzıman mekanik testi, yol testi');
+    if (/dizel|diesel/.test(fuel)) list.push('Dizel: enjektörler, turbo, partikül filtresi (DPF) ve EGR');
+    if (/lpg/.test(fuel)) list.push('LPG: ruhsata işlenmiş mi, montaj belgesi, tüp tarihi ve sızdırmazlık');
+    if (/hibrit|hybrid|elektrik|electric/.test(fuel))
+      list.push('Hibrit/elektrik: batarya sağlık raporu (SOH) ve şarj sistemi');
+    if (/otomatik|yarı/.test(gear))
+      list.push('Otomatik şanzıman: vites geçişlerinde vuruntu/kayma, şanzıman yağı ve bakım geçmişi');
+    if (record.km >= 120000) list.push('Yüksek km: triger/zincir, debriyaj, amortisör ve yürüyen aksam');
+    if (age >= 10) list.push('10 yaş üstü: alt takımda paslanma, lastik ve akü tarihleri, kauçuk parçalar');
+    if ((advice?.flags || []).some(flag => flag.label === 'Yoğun kullanım'))
+      list.push('Yoğun kullanım: koltuk/direksiyon aşınması km ile uyumlu mu, servis kayıtlarında km geçmişi');
+    if (labels.has('Airbag')) list.push('Airbag uyarısı: hava yastığı modülü ve kaza geçmişi');
+    if (labels.has('Mekanik arıza / onarım'))
+      list.push('Açıklamada geçen mekanik sorun ustaya ayrıca gösterilsin, onarım faturası istensin');
+    if (labels.has('Motor/yağ belirtisi')) list.push('Motor: kompresyon testi, yağ ve su kaçağı');
+    if (labels.has('Kilometre müdahalesi')) list.push('Kilometre: beyin ve servis kayıtlarıyla karşılaştırma');
+    return list.slice(0, 10);
+  }
+
   // Teklifin gerekçeleri: pazarlıkta satıcıya söylenebilecek, ilan verisine dayanan noktalar.
   function offerReasons({ record, result, body, advice }) {
     const reasons = [];
@@ -114,7 +152,7 @@
 
   // Eklentinin bu ilan için hesapladığı her şey, modele düz Türkçe cümleler olarak verilir.
   // Model hesap yapmaz; yalnızca bu bilgileri yorumlar.
-  function facts({ record, result, body, deal, advice, description, today = new Date() }) {
+  function facts({ record, result, body, deal, advice, textFlags = [], description, today = new Date() }) {
     const lines = [];
     const name = [record.brand, record.model, record.engine, record.trim].filter(Boolean).join(' ');
     lines.push(`Araç: ${name}${record.title ? ` (ilan başlığı: “${clean(record.title, 200)}”)` : ''}.`);
@@ -161,6 +199,10 @@
       lines.push('Fırsat puanı hesaplanmadı (piyasa tahmini yetersiz, ağır hasar ya da tavan değişeni var).');
     }
     for (const flag of advice?.flags || []) lines.push(`Uyarı – ${flag.label}: ${flag.text}`);
+    for (const flag of textFlags)
+      lines.push(
+        `İlan açıklamasında dikkat – ${flag.label}: ${flag.text} (satıcının cümlesi: «${clean(flag.quote, 120)}»)`
+      );
     const reasons = offerReasons({ record, result, body, advice });
     if (advice?.offer)
       lines.push(
@@ -174,6 +216,9 @@
       lines.push(`Benzer ilanların %${Math.round(result.position * 100)}'i (yıl/km düzeltmesiyle) bu araçtan ucuz.`);
     lines.push(...comparableLines(result));
     lines.push(`Satıcıya sorulması önerilenler: ${sellerQuestions({ record, body, advice }).join(' | ')}`);
+    lines.push(
+      `Ekspertizde baktırılması önerilenler: ${inspectionChecklist({ record, body, advice, textFlags, today }).join(' | ')}`
+    );
     // Açıklamadaki telefon numaraları (ve uzun sayılar) modele verilmez.
     const text = clean(
       String(description ?? '').replace(/(?:\+?\d[\s().-]*){7,}/g, '[numara gizlendi] '),
@@ -195,12 +240,85 @@
       'Genel bilgilerde emin olmadığın ayrıntıyı (rakam, arıza oranı, parça fiyatı) kesinmiş gibi verme; “genelde”, “kontrol ettirin” gibi ifadelerle belirsizliği söyle ve gerekirse yetkili servis ya da ekspertize yönlendir.',
       'Benzer ilanlarla kıyas sorulursa aşağıdaki benzer ilanları yıl, km ve düzeltilmiş fiyatlarıyla karşılaştır.',
       'Teklif sorulursa eklentinin açılış ve hedef rakamlarını gerekçeleriyle söyle; başka rakam uydurma. Satıcıya ne sorulacağı sorulursa önerilen soruları madde madde ver.',
+      'Ekspertiz sorulursa “Ekspertizde baktırılması önerilenler” maddelerini ver ve bu marka/modelin bilinen kronik noktalarını (emin değilsen belirterek) ekle. Pazarlıkta ne denileceği sorulursa gerekçelere dayanan, kibar ve kısa örnek cümleler öner. İlan açıklamasındaki şüpheli ifadeler sorulursa “İlan açıklamasında dikkat” maddelerini açıkla; madde yoksa belirgin bir risk ifadesi bulunmadığını ama ekspertizin yine gerekli olduğunu söyle.',
       'Kaporta bilgisi satıcı beyanıdır; gerektiğinde ekspertiz ve tramer kaydı öner. Kesin satın al / alma demek yerine artıları ve riskleri söyle.',
       'Araçlarla ilgisi olmayan konulardaki soruları kibarca geri çevir.',
       '',
       'İLAN BİLGİLERİ:',
       ...lines.map(line => `- ${line}`)
     ].join('\n');
+  }
+
+  const COMPARE_MIN = 2;
+  const COMPARE_MAX = 5;
+
+  // Karşılaştırma için her ilanın kısa özeti. Yalnızca eklentinin kayıtlı verisi kullanılır.
+  function compareFacts(entries, today = new Date()) {
+    return entries.slice(0, COMPARE_MAX).map(({ record, result, deal, advice }, index) => {
+      const body = bodyOf(record);
+      const years = Math.max(0.5, today.getUTCFullYear() - record.year + 0.5);
+      const parts = [
+        `İlan ${index + 1}: ${[record.brand, record.model, record.engine, record.trim].filter(Boolean).join(' ')}`,
+        `${record.year} model, ${Number(record.km).toLocaleString('tr-TR')} km (yılda ~${Math.round(record.km / years).toLocaleString('tr-TR')} km)`,
+        `fiyat ${lira(record.price)}`,
+        result?.center
+          ? `piyasa ortası ${lira(result.center)}, ilan bunun ${percent(result.gap)} ${result.gap < 0 ? 'altında' : 'üstünde'} (${result.status}, güven ${result.confidence})`
+          : 'piyasa tahmini yok',
+        body.known ? `kaporta ${body.score}/100 (${body.label})` : 'kaporta şeması okunmadı',
+        deal ? `fırsat puanı ${deal.score}/100` : 'fırsat puanı yok',
+        record.sellerType ? `satıcı: ${record.sellerType}` : '',
+        record.city || '',
+        (advice?.flags || []).length ? `uyarılar: ${advice.flags.map(flag => flag.label).join(', ')}` : 'uyarı yok'
+      ].filter(Boolean);
+      return `${parts.join('; ')}.`;
+    });
+  }
+
+  function bodyOf(record) {
+    const core = root.OtoCore;
+    try {
+      return core ? core.bodyReport(record) : { known: false };
+    } catch {
+      return { known: false };
+    }
+  }
+
+  function compareSystemPrompt(lines) {
+    return [
+      'Sen Oto Pusula adlı ikinci el araç eklentisinin asistanısın; otomobiller konusunda bilgili, dürüst bir danışmansın.',
+      'Kullanıcı aşağıdaki ilanlar arasında karar vermek istiyor. Her zaman Türkçe ve sade yaz.',
+      'Önce en mantıklı seçeneği numarasıyla söyle, sonra her ilan için bir-iki cümlelik artı/eksi ver, en sonda kısa bir gerekçe yaz (en fazla 10-12 cümle).',
+      'Fiyat yorumunda eklentinin piyasa tahminini, fırsat puanını, kaporta puanını ve uyarıları kullan; yeni fiyat uydurma. Model ve motorların genel bilinen güçlü/zayıf yanlarını belirsizlik payıyla ekleyebilirsin.',
+      'Kaporta bilgisi satıcı beyanıdır; kesin “al” demek yerine ekspertiz ve tramer kontrolünü hatırlat.',
+      '',
+      'İLANLAR:',
+      ...lines.map(line => `- ${line}`)
+    ].join('\n');
+  }
+
+  // Yapay zeka olmadan da gösterilen sıralama: fırsat puanı, yoksa piyasaya göre fark.
+  function rankForCompare(entries) {
+    const score = entry => (entry.deal ? entry.deal.score : entry.result?.center ? 40 - entry.result.gap * 100 : -1);
+    return [...entries].sort((a, b) => score(b) - score(a));
+  }
+
+  // Önceki sohbet ve kullanıcının kaydettiği diğer ilanlar sistem talimatına eklenir (kısaltılmış).
+  function withContext(systemText, { history = [], saved = [] } = {}) {
+    const parts = [systemText];
+    if (saved.length)
+      parts.push(
+        '',
+        'KULLANICININ YAPAY ZEKAYA KAYDETTİĞİ DİĞER İLANLAR (karşılaştırma sorulursa bunları kullan; bu ilan “Şu anki ilan”dır):',
+        ...saved.map(line => `- ${line}`)
+      );
+    const recent = history.slice(-4);
+    if (recent.length)
+      parts.push(
+        '',
+        'BU İLANLA İLGİLİ ÖNCEKİ SOHBET:',
+        ...recent.map(turn => `- Soru: ${clean(turn.q, 200)} / Cevap: ${clean(turn.a, 400)}`)
+      );
+    return parts.join('\n');
   }
 
   function question(value) {
@@ -213,10 +331,10 @@
     return text && piece.startsWith(text) ? piece : text + piece;
   }
 
-  async function createSession(api, lines, options, onProgress) {
+  async function createSession(api, lines, options, onProgress, systemText = systemPrompt(lines)) {
     return api.create({
       ...(options || {}),
-      initialPrompts: [{ role: 'system', content: systemPrompt(lines) }],
+      initialPrompts: [{ role: 'system', content: systemText }],
       monitor(monitor) {
         monitor.addEventListener('downloadprogress', event => {
           if (typeof onProgress === 'function') onProgress(Math.max(0, Math.min(1, Number(event.loaded) || 0)));
@@ -301,6 +419,13 @@
   }
 
   const api = {
+    withContext,
+    inspectionChecklist,
+    COMPARE_MIN,
+    COMPARE_MAX,
+    compareFacts,
+    compareSystemPrompt,
+    rankForCompare,
     MAX_QUESTION,
     MAX_ANSWER,
     TIMEOUT_MS,

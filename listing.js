@@ -386,6 +386,128 @@
     return best || { condition: '', note: '' };
   }
 
+  // İlan açıklamasında dikkat edilecek ifadeler. Kurallar yapay zekasız çalışır; "boya yok" gibi olumsuzlar atlanır.
+  // [etiket, düzey, ifade, açıklama, olumsuzluk denetlensin mi]
+  const TEXT_RULES = [
+    [
+      'Ağır hasar / pert',
+      'bad',
+      /\bAGIR HASAR|\bPERT\b|\bCEKME BELGELI|\bHURDA\b/,
+      'Ağır hasar, pert veya çekme belgeli araçların değeri ve sigortası çok farklıdır; tramer ve hasar kaydını mutlaka sorgulayın.',
+      true
+    ],
+    [
+      'Haciz / rehin',
+      'bad',
+      /\bHACIZ|\bREHIN|\bYEDIEMIN/,
+      'Hacizli veya rehinli araç devredilemeyebilir; noterde devir öncesi sorgulatın.',
+      true
+    ],
+    [
+      'Kilometre müdahalesi',
+      'bad',
+      /\bKM\S*\s+(DUSURUL|OYNAN|DEGISTIRIL|SIFIRLAN)|\bKILOMETRE\S*\s+(DUSURUL|OYNAN|DEGISTIRIL|SIFIRLAN)/,
+      'Kilometre değiştirilmiş olabilir; servis kayıtlarıyla karşılaştırın.',
+      true
+    ],
+    [
+      'Ekspertize kapalı',
+      'bad',
+      /\bEKSPERTIZ\S*\s+(GEREK YOK|YOK\b|GOTURULMEZ|GOTURULEMEZ|VERILMEZ|KABUL EDILMEZ|YAPTIRILMAZ|ISTEMEYIN)|\bEKSPERTIZSIZ/,
+      'Satıcı ekspertize izin vermiyor olabilir; ekspertizsiz araç almayın.',
+      false
+    ],
+    [
+      'Motor/yağ belirtisi',
+      'bad',
+      /\bYAG YAK|\bYAG EKSILT|\bSU EKSILT|\bSU KAYNAT|\bMAVI DUMAN|\bBEYAZ DUMAN|\bKOMPRESYON KAC/,
+      'Bu belirtiler pahalı motor onarımına işaret edebilir; ustaya kontrol ettirin.',
+      true
+    ],
+    [
+      'Kapora istemi',
+      'warn',
+      /\bKAPORA|\bKAPARO/,
+      'Aracı görmeden ve noter işlemi olmadan kapora göndermeyin; dolandırıcılıkta sık kullanılır.',
+      true
+    ],
+    [
+      'Acil satılık',
+      'warn',
+      /\bACIL(EN)?\b/,
+      'Acil satışlarda pazarlık payı olabilir ama acele ettirme dolandırıcılıkta da kullanılır; neden acil olduğunu sorun.',
+      true
+    ],
+    [
+      'Mekanik arıza / onarım',
+      'warn',
+      /\b(MOTOR\S*|SANZIMAN\S*|VITES\S*|DEBRIYAJ\S*|TURBO\S*|ENJEKTOR\S*|KLIMA\S*|SILINDIR\S*|CONTA\S*)\s+(\S+\s+)?(ARIZA\S*|SORUN\S*|PROBLEM\S*|SES YAP\S*|SES GEL\S*|KACIR\S*|DEGISTIRILMELI|YAPILMALI|YAPILACAK)|\bMOTOR\S*\s+(YAPILDI|INDIRILDI|REVIZYON\S*)|\bREVIZYON\S*\s+(GORDU|YAPILDI|GORMUS)/,
+      'Mekanik arıza veya büyük onarım belirtilmiş; faturasını isteyin ve ustaya baktırın.',
+      true
+    ],
+    [
+      'Kusur beyanı',
+      'warn',
+      /\b(UFAK|KUCUK|MINIK|BASIT|BIRKAC|BAZI)\s+(BIR\s+)?(HATA|HATASI|HATALARI|KUSUR|KUSURU|KUSURLARI|SORUN|SORUNU|SORUNLARI|ARIZA|ARIZASI|EKSIK|EKSIGI|EKSIKLERI|PROBLEM|PROBLEMI)\b/,
+      'Satıcı "ufak" kusur belirtmiş; tam olarak ne olduğunu ve onarım maliyetini sorun.',
+      true
+    ],
+    [
+      'Airbag',
+      'warn',
+      /\bAIRBAG\S*\s+(\S+\s+)?(PATLAMIS|PATLAK|ACMIS|ACIK|LAMBA\S*|ISIG\S*|ARIZA\S*)|\bHAVA YASTIG\S*\s+(\S+\s+)?(PATLAMIS|ACMIS|ACIK|ARIZA\S*)/,
+      'Airbag sorunu ciddi bir kazanın işareti olabilir; ekspertizde kontrol ettirin.',
+      true
+    ],
+    [
+      'Boya / değişen beyanı',
+      'info',
+      /\bBOYALI\b|\bLOKAL BOYA|\bBOYASI VAR|\bDEGISEN\S*\b|\bDEGISMIS\b/,
+      'Açıklamada boya veya değişen geçiyor; boya/değişen şemasıyla karşılaştırın ve ekspertizle doğrulayın.',
+      true
+    ],
+    ['Tramer kaydı', 'info', /\bTRAMER\S*\b|\bHASAR KAYD/, 'Tramer tutarını şasi numarasıyla siz de sorgulayın.', true],
+    [
+      'Muayene',
+      'info',
+      /\bMUAYENE\S*\s+(YOK|BITTI|BITMIS|GECMIS|GELDI|GELMIS|YAKLASTI)/,
+      'Muayenesi yok veya yaklaşmış; masrafı ve olası kusurları hesaba katın.',
+      false
+    ]
+  ];
+
+  // Açıklamadaki riskli ifadeleri, kendi cümleleriyle birlikte döndürür (en fazla 8, önce ciddi olanlar).
+  function descriptionFlags(text) {
+    const sentences = String(text ?? '')
+      .slice(0, 12000)
+      .split(/\r?\n|(?<=[.!?;])\s+/)
+      .map(line => line.trim())
+      .filter(Boolean);
+    const found = new Map();
+    for (const sentence of sentences) {
+      const upper = norm(sentence);
+      for (const [label, level, pattern, advice, negatable] of TEXT_RULES) {
+        if (found.has(label)) continue;
+        const match = upper.match(pattern);
+        if (!match) continue;
+        if (negatable) {
+          const after = upper
+            .slice(match.index + match[0].length)
+            .trim()
+            .split(' ')
+            .slice(0, 3)
+            .join(' ');
+          if (NEGATION.test(after) || /\b(HATASIZ|BOYASIZ|DEGISENSIZ|TRAMERSIZ)\b/.test(match[0])) continue;
+        }
+        // Alıntıdaki telefon numaraları gizlenir.
+        const quote = sentence.replace(/(?:\+?\d[\s().-]*){7,}/g, '[numara] ');
+        found.set(label, { label, level, text: advice, quote: quote.length > 110 ? `${quote.slice(0, 107)}…` : quote });
+      }
+    }
+    const order = { bad: 0, warn: 1, info: 2 };
+    return [...found.values()].sort((a, b) => order[a.level] - order[b.level]).slice(0, 8);
+  }
+
   function priceFrom(text) {
     // İlk en az 4 haneli sayı alınır; ayraçlar düzensiz olsa da ("1000.000") tamamı okunur.
     const token = (String(text ?? '').match(/\d[\d.,]*\d|\d/g) || []).find(part => part.replace(/\D/g, '').length >= 4);
@@ -918,6 +1040,7 @@
     norm,
     identifyVehicle,
     assessCondition,
+    descriptionFlags,
     priceFrom,
     parseSearchPage,
     parseDetailPage,

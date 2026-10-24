@@ -391,3 +391,105 @@ button:active:not(:disabled) {
     border-color: #a7f3d0;
   }
 }
+:root[data-theme='light'] .text-flags summary,
+:root[data-theme='light'] .text-flag.warn strong {
+  color: #b45309;
+}
+:root[data-theme='light'] .text-flag.bad strong {
+  color: #b91c1c;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) .text-flags summary,
+  :root:not([data-theme='dark']) .text-flag.warn strong {
+    color: #b45309;
+  }
+  :root:not([data-theme='dark']) .text-flag.bad strong {
+    color: #b91c1c;
+  }
+}
+
+/* v7.5 sohbet düzeni, açık tema */
+:root[data-theme='light'] .chat {
+  --ai-surface: #ffffff;
+  --ai-line: #e2e8f0;
+  --ai-soft: #f8fafc;
+  --ai-me: #ecfdf5;
+  --ai-me-line: #a7f3d0;
+  --ai-muted: #64748b;
+  --ai-ink: #0f172a;
+  box-shadow: 0 12px 30px -24px rgba(15, 118, 110, 0.6);
+}
+:root[data-theme='light'] .chat-tip {
+  color: #334155;
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+:root[data-theme='light'] .chat-tip.cloud {
+  background: #f0f9ff;
+  border-color: #bae6fd;
+}
+:root[data-theme='light'] .chat-tip-action {
+  color: #047857;
+}
+:root[data-theme='light'] .chat-tip.cloud .chat-tip-action {
+  color: #b91c1c;
+}
+:root[data-theme='light'] .chat-composer {
+  background: #f8fafc;
+}
+:root[data-theme='light'] .chat-form {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+:root[data-theme='light'] .chat-save.on {
+  color: #b45309;
+}
+:root[data-theme='light'] .chat-log .chat-error {
+  color: #b45309;
+}
+:root[data-theme='light'] .chat-typing span {
+  background: #0891b2;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) .chat {
+    --ai-surface: #ffffff;
+    --ai-line: #e2e8f0;
+    --ai-soft: #f8fafc;
+    --ai-me: #ecfdf5;
+    --ai-me-line: #a7f3d0;
+    --ai-muted: #64748b;
+    --ai-ink: #0f172a;
+    box-shadow: 0 12px 30px -24px rgba(15, 118, 110, 0.6);
+  }
+  :root:not([data-theme='dark']) .chat-tip {
+    color: #334155;
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+  }
+  :root:not([data-theme='dark']) .chat-tip.cloud {
+    background: #f0f9ff;
+    border-color: #bae6fd;
+  }
+  :root:not([data-theme='dark']) .chat-tip-action {
+    color: #047857;
+  }
+  :root:not([data-theme='dark']) .chat-tip.cloud .chat-tip-action {
+    color: #b91c1c;
+  }
+  :root:not([data-theme='dark']) .chat-composer {
+    background: #f8fafc;
+  }
+  :root:not([data-theme='dark']) .chat-form {
+    background: #ffffff;
+    border-color: #cbd5e1;
+  }
+  :root:not([data-theme='dark']) .chat-save.on {
+    color: #b45309;
+  }
+  :root:not([data-theme='dark']) .chat-log .chat-error {
+    color: #b45309;
+  }
+  :root:not([data-theme='dark']) .chat-typing span {
+    background: #0891b2;
+  }
+}

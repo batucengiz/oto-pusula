@@ -2,6 +2,16 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.5.0 — 2026-10-24
+
+- Yeni asistan tasarımı: Oto Pusula Asistanı; balon mesajlar, alta sabit yazma kutusu, "yazıyor" animasyonu, açık/koyu tema uyumlu.
+- İlan açıklamasında dikkat: "acil satılık", "ufak hatası var", "kapora", "ekspertize gerek yok", airbag, mekanik arıza gibi ifadeler kural tabanlı (yapay zekasız) yakalanır; "boya yok" gibi olumsuzlar ve olağan bakım uyarı vermez.
+- Ekspertiz kontrol listesi: kaporta beyanı, yakıt, vites, yaş, km ve açıklama uyarılarına göre.
+- Yapay zekaya kaydet: en fazla 5 ilan; kayıtlı ilanlar sohbette listelenir, tıklayınca ilan yeni sekmede açılır, asistan bunları karşılaştırabilir.
+- Panelde "Seç ve karşılaştır": 2–5 kayıtlı ilan yan yana tablo + yapay zekanın "hangisi daha mantıklı?" yorumu.
+- Sohbet geçmişi: aynı ilana dönünce önceki sorular/cevaplar görünür (yalnızca bu bilgisayarda, ilan başına 10 soru, 90 gün; tek tuşla silinir).
+- Yeni hazır sorular: pazarlık, açıklamada şüpheli ifade, ekspertiz, kaydedilenlerle karşılaştırma.
+
 ## 7.4.0 — 2026-10-24
 
 - Kayıtlar `localStorage` yerine eklentinin kendi deposunda (`chrome.storage.local`) tutulur; 5 MB sınırı kalktı (`storage` ve `unlimitedStorage` izinleri). Eski kayıtlar ilk açılışta otomatik aktarılır, eski kopya ancak aktarım doğrulandıktan sonra silinir. Site izni eklenmedi.

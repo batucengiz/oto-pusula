@@ -239,7 +239,10 @@ const walk = (node, found = []) => {
   return found;
 };
 
-async function popupWithModel(LanguageModel, { remote = false, storage = new Map(), fetch, opened = [] } = {}) {
+async function popupWithModel(
+  LanguageModel,
+  { remote = false, storage = new Map(), fetch, opened = [], description = 'Temiz araç.' } = {}
+) {
   const nodes = new Map();
   const get = id => {
     if (!nodes.has(id)) nodes.set(id, new FakeNode(id));
@@ -259,7 +262,7 @@ async function popupWithModel(LanguageModel, { remote = false, storage = new Map
       ['Yıl', '2021'],
       ['KM', '90.000']
     ],
-    description: 'Temiz araç.',
+    description,
     phoneText: ''
   };
   const context = vm.createContext({
@@ -492,7 +495,7 @@ test('popup: yerleşik yapay zeka varken anahtarsız veri dışarı gitmez; öne
   );
 
   walk(chat)
-    .find(node => /Gemini anahtarı ekle/.test(node.textContent))
+    .find(node => /Ücretsiz anahtar ekle/.test(node.textContent))
     .click();
   walk(chat)
     .find(node => /Ücretsiz anahtar al/.test(node.textContent))
@@ -654,4 +657,39 @@ test('popup: satıcıya sorulacaklar yapay zeka olmadan da ilan sayfasında gös
   const details = chat.siblings.find(node => node.className === 'seller-questions');
   assert.ok(details);
   assert.ok(walk(details).some(node => /Tramer/.test(node.textContent)));
+});
+
+test('popup: açıklamadaki riskli ifadeler yapay zekasız listelenir ve sohbete bağlam olarak verilir', async () => {
+  const { api, calls } = fakeModel();
+  const chat = await popupWithModel(api, { description: 'Acil satılık. Ufak bir hatası var. Kapora alınır.' });
+  const box = chat.siblings.find(node => node.className === 'text-flags');
+  assert.ok(box, 'uyarı özeti görünür');
+  assert.equal(box.open, true, 'ciddi uyarı varsa açık gelir');
+  const text = walk(box)
+    .map(node => node.textContent)
+    .join(' ');
+  assert.match(text, /İlan açıklamasında dikkat \(3\)/);
+  assert.match(text, /Kapora istemi/);
+  assert.match(text, /Ufak bir hatası var/);
+  const chip = walk(chat).find(node => node.className === 'chat-chip' && /şüpheli/.test(node.textContent));
+  await chip.click();
+  assert.match(calls.create[0].initialPrompts[0].content, /İlan açıklamasında dikkat – Kapora istemi/);
+
+  const plain = await popupWithModel(null);
+  assert.equal(
+    plain.siblings.some(node => node.className === 'text-flags'),
+    false,
+    'riskli ifade yoksa kutu yok'
+  );
+});
+
+test('hazır sorular: fiyat, pazarlık, kronik arıza ve açıklama soruları tek tıkla sorulur', () => {
+  for (const text of [
+    'Bu fiyata değer mi?',
+    'Pazarlıkta ne demeliyim?',
+    'Bu modelin kronik sorunları neler?',
+    'Açıklamada şüpheli bir şey var mı?'
+  ])
+    assert.ok(assistant.SUGGESTIONS.includes(text), text);
+  assert.match(assistant.systemPrompt([]), /Pazarlıkta ne denileceği/);
 });

@@ -165,6 +165,7 @@
               <button class="button button-primary" id="deal-shortcut" type="button">Fırsat arabalar</button
               ><button class="button button-secondary" id="open-next-deal" type="button" hidden>
                 Kaportası okunmamış fırsatı aç</button
+              ><button class="button button-secondary" id="ai-compare-open" type="button">Seç ve karşılaştır</button
               ><button class="button button-secondary" id="export-market" type="button">Excel’e aktar</button>
             </div>
           </div>
@@ -462,6 +463,27 @@
       </form>
     </dialog>
 
+    <dialog id="ai-compare-dialog" class="dialog compare-dialog">
+      <div class="dialog-head">
+        <div>
+          <span class="eyebrow">KARŞILAŞTIR</span>
+          <h2>Hangisi daha mantıklı?</h2>
+        </div>
+        <button class="icon-button" id="ai-compare-close" aria-label="Kapat" type="button">×</button>
+      </div>
+      <p>
+        Kayıtlı ilanlardan 2–5 tanesini seçin. Yapay zekaya kaydettikleriniz seçili gelir; ardından takip listeniz (★)
+        ve tabloda gösterilenler. Yalnızca bu bilgisayardaki kayıtlar kullanılır; sahibinden’e istek atılmaz.
+      </p>
+      <div id="ai-compare-list" class="compare-list"></div>
+      <div id="ai-compare-result" class="compare-result" aria-live="polite"></div>
+      <div class="dialog-actions">
+        <span id="ai-compare-count" class="count-label"></span
+        ><button class="button button-secondary" id="ai-compare-done" type="button">Kapat</button
+        ><button class="button button-primary" id="ai-compare-run" type="button" disabled>Karşılaştır</button>
+      </div>
+    </dialog>
+
     <dialog id="detail-dialog" class="dialog detail-dialog">
       <div class="dialog-head">
         <div>
@@ -495,6 +517,10 @@
     <script src="xlsx.js"></script>
     <script src="store.js"></script>
     <script src="dashboard-ui.js"></script>
+    <script src="assistant.js"></script>
+    <script src="remote-ai.js"></script>
+    <script src="chat-history.js"></script>
+    <script src="compare-ui.js"></script>
     <script src="dashboard.js"></script>
   </body>
 </html>

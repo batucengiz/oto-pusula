@@ -106,19 +106,33 @@
           element('p', 'muted', `Pazarlık: açılış ${lira(advice.offer.open)}, hedef ${lira(advice.offer.target)}.`)
         );
       // Ek bilgiler analiz sonucunu asla bozmaz: bir hata olursa yalnızca bu satırlar atlanır.
+      let textFlags = [];
+      try {
+        if (raw?.kind === 'detail') textFlags = listing.descriptionFlags(raw.description);
+        if (textFlags.length) nodes.push(textFlagNodes(textFlags));
+      } catch {
+        textFlags = [];
+      }
       try {
         if (advice.offer && assistant) {
           const reasons = assistant.offerReasons({ record, result, body, advice });
           if (reasons.length) nodes.push(element('p', 'muted', `Gerekçe: ${reasons.join(' ')}`));
         }
         if (raw?.kind === 'detail' && assistant)
-          nodes.push(sellerQuestionNodes(assistant.sellerQuestions({ record, body, advice })));
+          nodes.push(
+            sellerQuestionNodes(assistant.sellerQuestions({ record, body, advice })),
+            listNodes(
+              'inspection-list',
+              'Ekspertiz kontrol listesi',
+              assistant.inspectionChecklist({ record, body, advice, textFlags })
+            )
+          );
       } catch {
         /* ek bilgi gösterilemedi */
       }
       if (raw?.kind === 'detail') nodes.push(...whatsappNodes(raw, record));
       if (raw?.kind === 'detail')
-        nodes.push(chatSection({ record, result, body, deal, advice, description: raw.description }));
+        nodes.push(chatSection({ record, result, body, deal, advice, textFlags, description: raw.description }));
       return nodes;
     }
 
@@ -221,6 +235,33 @@
     ];
   }
 
+  // İlan açıklamasındaki riskli ifadeler: kural tabanlı, yapay zeka gerekmez. Satıcının kendi cümlesi alıntılanır.
+  function textFlagNodes(flags) {
+    const details = element('details', 'text-flags');
+    details.open = flags.some(flag => flag.level !== 'info');
+    const list = element('ul');
+    for (const flag of flags) {
+      const item = element('li', `text-flag ${flag.level}`);
+      item.append(
+        element('strong', '', `${flag.label}: `),
+        element('span', '', flag.text),
+        element('q', '', flag.quote)
+      );
+      list.append(item);
+    }
+    details.append(element('summary', '', `İlan açıklamasında dikkat (${flags.length})`), list);
+    return details;
+  }
+
+  // Kapalı gelen, tıklayınca açılan basit madde listesi.
+  function listNodes(className, title, items) {
+    const details = element('details', className);
+    const list = element('ul');
+    items.forEach(text => list.append(element('li', '', text)));
+    details.append(element('summary', '', `${title} (${items.length})`), list);
+    return details;
+  }
+
   // Satıcıya sorulacaklar yapay zeka olmadan da gösterilir; varsayılan kapalı, tıklayınca açılır.
   function sellerQuestionNodes(questions) {
     const details = element('details', 'seller-questions');
@@ -250,7 +291,7 @@
       const builtin = assistant?.languageModel();
       const remote = globalThis.OtoRemoteAI;
       if (!assistant || (!builtin && !remote)) return section;
-      const chat = { section, lines: assistant.facts(context), found: { status: 'unavailable' } };
+      const chat = { section, context, lines: assistant.facts(context), found: { status: 'unavailable' } };
       assistant
         .availability(builtin)
         .then(found => {
@@ -352,7 +393,8 @@
     input.maxLength = assistant.MAX_QUESTION;
     input.placeholder = 'Araç hakkında sorun…';
     input.setAttribute('aria-label', 'Yapay zekaya soru');
-    const send = element('button', 'primary chat-send', 'Sor');
+    const send = element('button', 'chat-send', '↑');
+    send.setAttribute('aria-label', 'Sor');
     send.type = 'submit';
     form.append(input, send);
     const chips = element('div', 'chat-chips');
@@ -368,18 +410,64 @@
       });
     };
 
+    const history = globalThis.OtoChatHistory;
+    const recordId = chat.context.record.id;
+    let pastTurns = [];
+    let savedList = [];
+
+    // Kaydedilen diğer ilanların özeti: yalnızca eklentinin yerel kayıtlarından hesaplanır.
+    function savedFacts() {
+      try {
+        const comparables = store.load().comparables;
+        const byId = new Map(comparables.map(item => [item.id, item]));
+        const entries = savedList
+          .filter(id => id !== recordId)
+          .map(id => byId.get(id))
+          .filter(Boolean)
+          .map(record => {
+            const result = core.estimate(record, comparables);
+            return { record, result, deal: core.dealScore(record, result), advice: core.advise(record, result) };
+          });
+        return assistant.compareFacts(entries);
+      } catch {
+        return [];
+      }
+    }
+
     async function session() {
       if (chatSession) return chatSession;
+      const system = assistant.withContext(assistant.systemPrompt(lines), { history: pastTurns, saved: savedFacts() });
       if (mode.kind === 'remote') {
-        chatSession = globalThis.OtoRemoteAI.createSession(mode.key, assistant.systemPrompt(lines));
+        chatSession = globalThis.OtoRemoteAI.createSession(mode.key, system);
         return chatSession;
       }
       status.textContent = 'Yapay zeka hazırlanıyor…';
-      chatSession = await assistant.createSession(assistant.languageModel(), lines, mode.found.options, loaded => {
-        status.textContent = `Yapay zeka modeli bu bilgisayara indiriliyor: %${Math.round(loaded * 100)} (tek seferlik)`;
-      });
+      chatSession = await assistant.createSession(
+        assistant.languageModel(),
+        lines,
+        mode.found.options,
+        loaded => {
+          status.textContent = `Yapay zeka modeli bu bilgisayara indiriliyor: %${Math.round(loaded * 100)} (tek seferlik)`;
+        },
+        system
+      );
       status.textContent = '';
       return chatSession;
+    }
+
+    function bubble(role, text) {
+      const node = element('div', `chat-msg ${role}`);
+      node.append(element('p', role === 'me' ? 'chat-me' : 'chat-ai', text));
+      return node;
+    }
+
+    function typing() {
+      const node = element('div', 'chat-msg ai');
+      const dots = element('p', 'chat-ai chat-typing');
+      dots.setAttribute('aria-label', 'Yapay zeka yazıyor');
+      dots.append(element('span'), element('span'), element('span'));
+      node.append(dots);
+      return node;
     }
 
     const upgradeHint =
@@ -391,20 +479,26 @@
       setBusy(true);
       input.value = '';
       status.textContent = '';
-      log.append(element('p', 'chat-me', question));
-      const reply = element('p', 'chat-ai', '…');
-      log.append(reply);
+      chat.section.classList?.add('started');
+      log.append(bubble('me', question));
+      const holder = typing();
+      log.append(holder);
+      const reply = holder.children[0];
+      const show = text => {
+        reply.className = 'chat-ai';
+        reply.replaceChildren?.();
+        reply.textContent = text;
+      };
       try {
-        const answer = await assistant.ask(await session(), question, partial => {
-          reply.textContent = partial;
-        });
-        reply.textContent = answer || 'Cevap üretilemedi; soruyu farklı ya da daha kısa sorun.';
+        const answer = await assistant.ask(await session(), question, show);
+        show(answer || 'Cevap üretilemedi; soruyu farklı ya da daha kısa sorun.');
+        if (answer) history?.add(recordId, question, answer).catch?.(() => {});
         if (mode.kind === 'builtin' && assistant.weakAnswer(answer)) status.textContent = upgradeHint;
       } catch (error) {
         // Oturum kapatılır; bir sonraki soru temiz bir oturumla başlar.
         closeChat();
+        show(assistant.errorText(error, mode.kind));
         reply.className = 'chat-ai chat-error';
-        reply.textContent = assistant.errorText(error, mode.kind);
         status.textContent = mode.kind === 'builtin' ? upgradeHint : '';
       } finally {
         setBusy(false);
@@ -424,54 +518,138 @@
       submit(input.value);
     });
 
-    const footer = [];
+    // Üst bilgi kartı (öneri / bulut modu) ve yazma kutusunun altındaki küçük notlar.
+    const notices = [];
+    const fineprint = [];
     if (mode.kind === 'builtin') {
       if (mode.found.status !== 'available')
         status.textContent =
           'İlk soruda Chrome yapay zeka modelini bu bilgisayara indirir (bir kez, birkaç GB); bu birkaç dakika sürebilir.';
       else if (!mode.found.turkish)
         status.textContent = 'Chrome’un yapay zekası Türkçeyi resmi olarak desteklemiyor; cevaplar kusurlu olabilir.';
-      footer.push(
-        element(
-          'p',
-          'muted',
-          'Cevaplar Chrome’un bu bilgisayarda çalışan yapay zekasından gelir; ilan bilgileri hiçbir yere gönderilmez. Yapay zeka hata yapabilir, ekspertiz yerine geçmez.'
-        )
-      );
       if (globalThis.OtoRemoteAI) {
-        footer.push(
-          element(
-            'p',
-            'muted chat-tip',
-            'Önerimiz: Chrome’un yerleşik yapay zekası küçük bir model; genel araba bilgisi ve Türkçesi sınırlı. Ücretsiz Gemini API anahtarıyla kronik arıza, bakım, karşılaştırma gibi karmaşık sorulara çok daha doğru cevap alırsınız. İsteğe bağlıdır; eklerseniz sorularınız ve ilan bilgileri Google’a gönderilir.'
-          )
-        );
-        const upgrade = element('button', 'secondary key-link', 'Gemini anahtarı ekle (ücretsiz)');
+        const tip = element('div', 'chat-tip');
+        const upgrade = element('button', 'chat-tip-action', 'Ücretsiz anahtar ekle →');
         upgrade.type = 'button';
         upgrade.addEventListener('click', () => {
           closeChat();
           renderKeyForm(chat);
         });
-        footer.push(upgrade);
+        tip.append(
+          element(
+            'p',
+            '',
+            'Önerimiz: Chrome’un yerleşik yapay zekası küçük bir model; genel araba bilgisi ve Türkçesi sınırlı. Ücretsiz Gemini API anahtarıyla kronik arıza, bakım, karşılaştırma gibi karmaşık sorulara çok daha doğru cevap alırsınız. İsteğe bağlıdır; eklerseniz sorularınız ve ilan bilgileri Google’a gönderilir.'
+          ),
+          upgrade
+        );
+        notices.push(tip);
       }
+      fineprint.push('Cihazdaki yapay zeka: ilan bilgileri bu bilgisayardan çıkmaz.');
     } else {
-      const forget = element('button', 'danger chat-forget', 'API anahtarını sil');
+      const forget = element('button', 'chat-tip-action', 'API anahtarını sil');
       forget.type = 'button';
       forget.addEventListener('click', () => {
         closeChat();
         globalThis.OtoRemoteAI.clearKey(localStorage);
         showChat(chat);
       });
-      footer.push(
+      const card = element('div', 'chat-tip cloud');
+      card.append(
         element(
           'p',
-          'warning-line',
-          'Bulut modu: sorularınız ve bu ilanın bilgileri cevap için kendi API anahtarınızla Google Gemini’ye gönderilir. Yapay zeka hata yapabilir, ekspertiz yerine geçmez.'
+          '',
+          'Bulut modu: sorularınız ve bu ilanın bilgileri cevap için kendi API anahtarınızla Google Gemini’ye gönderilir.'
         ),
         forget
       );
+      notices.push(card);
     }
-    chat.section.replaceChildren(element('h2', '', 'YAPAY ZEKAYA SOR'), chips, log, form, status, ...footer);
+    fineprint.push('Yapay zeka hata yapabilir; ekspertiz yerine geçmez.');
+
+    // Başlık: asistan adı, çalışma modu ve "Yapay zekaya kaydet" düğmesi.
+    const head = element('div', 'chat-head');
+    const saveButton = element('button', 'chat-save', '☆ Yapay zekaya kaydet');
+    saveButton.type = 'button';
+    const savedStrip = element('div', 'chat-saved');
+    const title = element('div', 'chat-title');
+    title.append(element('span', 'chat-logo', '✦'), element('div', '', ''));
+    title.children[1].append(
+      element('h2', '', 'Oto Pusula Asistanı'),
+      element('small', `chat-mode ${mode.kind}`, mode.kind === 'remote' ? 'Gemini · bulut' : 'Cihazda · gizli')
+    );
+    head.append(title, saveButton);
+
+    function paintSaved() {
+      const saved = savedList.includes(recordId);
+      saveButton.textContent = saved ? '★ Kaydedildi' : '☆ Yapay zekaya kaydet';
+      saveButton.className = saved ? 'chat-save on' : 'chat-save';
+      const byId = new Map(store.load().comparables.map(item => [item.id, item]));
+      const items = savedList.map(id => byId.get(id)).filter(Boolean);
+      savedStrip.replaceChildren();
+      if (!items.length) return;
+      savedStrip.append(element('span', 'muted', `Kayıtlı ilanlar (${items.length}/${history.MAX_SAVED}):`));
+      for (const record of items) {
+        // İlan adına tıklayınca ilan yeni sekmede açılır (normal sayfa açılışı); × listeden çıkarır.
+        const pill = element('span', `saved-pill${record.id === recordId ? ' current' : ''}`);
+        const go = element('button', 'saved-open', `${record.brand} ${record.model} ${record.year}`);
+        go.type = 'button';
+        go.title = 'İlanı aç';
+        go.addEventListener('click', () => openListing(record));
+        const remove = element('button', 'saved-remove', '×');
+        remove.type = 'button';
+        remove.setAttribute('aria-label', 'Listeden çıkar');
+        remove.addEventListener('click', () => toggle(record.id));
+        pill.append(go, remove);
+        savedStrip.append(pill);
+      }
+    }
+
+    async function toggle(id) {
+      try {
+        savedList = await history.toggleSaved(id);
+        closeChat(); // yeni kayıt listesi bir sonraki soruda bağlama girer
+        paintSaved();
+      } catch {
+        status.textContent = 'Kayıt listesi güncellenemedi.';
+      }
+    }
+    saveButton.addEventListener('click', () => toggle(recordId));
+
+    // Önceki sohbet: aynı ilana dönünce görünür, tek tuşla silinir.
+    async function restore() {
+      try {
+        [pastTurns, savedList] = await Promise.all([history.load(recordId), history.savedIds()]);
+      } catch {
+        pastTurns = [];
+        savedList = [];
+      }
+      paintSaved();
+      if (!pastTurns.length) return;
+      const divider = element('div', 'chat-divider');
+      const wipe = element('button', 'chat-wipe', 'Geçmişi sil');
+      wipe.type = 'button';
+      wipe.addEventListener('click', async () => {
+        await history.clear(recordId);
+        pastTurns = [];
+        closeChat();
+        log.replaceChildren();
+      });
+      divider.append(element('span', '', 'Önceki sohbet · bu bilgisayarda kayıtlı'), wipe);
+      log.prepend?.(divider, ...pastTurns.flatMap(turn => [bubble('me', turn.q), bubble('ai', turn.a)]));
+      chat.section.classList?.add('started');
+    }
+    if (history) restore();
+    else saveButton.hidden = true;
+
+    const composer = element('div', 'chat-composer');
+    composer.append(chips, form, element('p', 'chat-fineprint', fineprint.join(' ')));
+    const empty = element('div', 'chat-empty');
+    empty.append(
+      element('p', 'chat-hello', 'Bu ilan hakkında ne öğrenmek istersiniz?'),
+      element('p', 'muted', 'Fiyat, kaporta, pazarlık, kronik arızalar ya da kaydettiğiniz ilanlarla karşılaştırma.')
+    );
+    chat.section.replaceChildren(head, savedStrip, ...notices, empty, log, status, composer);
   }
 
   async function analyze() {

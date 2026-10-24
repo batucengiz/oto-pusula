@@ -1442,6 +1442,13 @@
   });
   paintThemeButton();
 
+  // Seçilen ilanları yapay zekayla karşılaştırma (compare-ui.js); dosya yoksa panel aynen çalışır.
+  try {
+    globalThis.OtoCompareUI?.mount({ evaluate: evaluateListings, shown: () => shownIds, labelFor, element });
+  } catch {
+    /* karşılaştırma açılamazsa panelin geri kalanı etkilenmez */
+  }
+
   function begin() {
     state = store.load();
     render();
