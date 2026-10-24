@@ -2,6 +2,10 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.9.0 — 2026-10-24
+
+- Ekspertize götür raporu: ilan sayfası analizinden sonra popup'ta "Ekspertiz raporunu aç" ve "Raporu kopyala". Rapor tek sayfada ilan bilgileri, tramer beyanı, piyasa tahmini ve pazarlık önerisi, kaporta, tüm uyarılar (açıklama uyarıları dahil), işaretlenebilir satıcı soruları ve ekspertiz listesi ile not alanı içerir; "Yazdır / PDF" ile çıktısı alınır, metin hali WhatsApp'a yapıştırılır. Rapor ilana girmeden de açılır: panelde ilan detayındaki "Ekspertiz raporu ↗" ve arama sayfası analizinde her fırsat adayının altındaki bağlantı. Kaporta şeması ve açıklama yalnızca ilan sayfasında olduğundan, açılmamış ilanda raporda "ilanı bir kez açıp analiz edin" yazar. Ağ isteği yok; rapor eklentinin kendi sayfasında açılır (report.html).
+
 ## 7.8.0 — 2026-10-24
 
 - Son ziyaretten beri: aynı arama sayfasını tekrar analiz edince popup, önceki okumaya göre kaç yeni ilan geldiğini, kaç ilanın indirim ya da zam yaptığını ve kaç ilanın artık görünmediğini yazar. En büyük 3 indirim eski → yeni fiyatla listelenir, tıklanınca ilan açılır. Okunan sayfa kaydı son okumadaki ilanları (`lastIds`) tutar.

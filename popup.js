@@ -74,6 +74,55 @@
     return nodes;
   }
 
+  function openReport(record, textFlags = []) {
+    chrome.tabs.create({
+      url: chrome.runtime.getURL('report.html') + globalThis.OtoReport.encodeHash(record.id, textFlags)
+    });
+  }
+
+  // Arama sonucundaki aday için ilana girmeden rapor (kaporta okunmadıysa raporda "bilinmiyor" yazar).
+  function reportLink(record) {
+    const link = element('button', 'link-button', 'Ekspertiz raporu ↗');
+    link.type = 'button';
+    link.addEventListener('click', () => openReport(record));
+    return link;
+  }
+
+  // "Ekspertize götür" raporu: yazdırılabilir sayfa (yeni sekmede) veya WhatsApp'a yapıştırılacak düz metin.
+  function reportNodes({ record, result, body, deal, advice, textFlags }) {
+    const report = globalThis.OtoReport;
+    const box = element('div', 'report-actions');
+    const open = element('button', 'secondary', 'Ekspertiz raporunu aç');
+    open.type = 'button';
+    open.title = 'Fiyat, uyarılar, satıcı soruları ve ekspertiz listesi tek sayfada; yazdırılabilir.';
+    open.addEventListener('click', () => openReport(record, textFlags));
+    const copy = element('button', 'secondary', 'Raporu kopyala');
+    copy.type = 'button';
+    copy.addEventListener('click', async () => {
+      const text = report.toText(
+        report.build({
+          record,
+          result,
+          body,
+          deal,
+          advice,
+          questions: assistant.sellerQuestions({ record, body, advice }),
+          checklist: assistant.inspectionChecklist({ record, body, advice, textFlags }),
+          textFlags,
+          today: core.localDate()
+        })
+      );
+      try {
+        await navigator.clipboard.writeText(text);
+        copy.textContent = 'Kopyalandı';
+      } catch {
+        copy.textContent = 'Kopyalanamadı';
+      }
+    });
+    box.append(open, copy);
+    return box;
+  }
+
   function describe(outcome, raw) {
     const nodes = [];
     const { stats, skipped } = outcome;
@@ -186,6 +235,12 @@
       } catch {
         /* ek bilgi gösterilemedi */
       }
+      try {
+        if (raw?.kind === 'detail' && assistant && globalThis.OtoReport)
+          nodes.push(reportNodes({ record, result, body, deal, advice, textFlags }));
+      } catch {
+        /* rapor düğmeleri gösterilemedi */
+      }
       if (raw?.kind === 'detail') nodes.push(...whatsappNodes(raw, record));
       if (raw?.kind === 'detail')
         nodes.push(chatSection({ record, result, body, deal, advice, textFlags, description: raw.description }));
@@ -228,6 +283,7 @@
       );
       button.addEventListener('click', () => openListing(record));
       nodes.push(button);
+      if (globalThis.OtoReport) nodes.push(reportLink(record));
     }
     // Arama sayfası sohbeti: sayfadaki tüm ilanlar hakkında serbest soru. Yalnızca okunan veri kullanılır.
     try {

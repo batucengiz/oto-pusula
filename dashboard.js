@@ -882,6 +882,7 @@
     $('remove-stock').textContent = isListing ? 'Listeden çıkar' : 'Stoktan çıkar';
     $('open-listing').hidden = !(isListing && core.listingUrl(vehicle));
     $('watch-listing').hidden = !isListing;
+    $('expert-report').hidden = !(isListing && globalThis.OtoReport);
     $('whatsapp-listing').hidden = !(isListing && vehicle.sellerPhone);
     $('forget-phone').hidden = !(isListing && vehicle.sellerPhone);
     $('watch-listing').textContent = vehicle.watched ? '★ Takipten çıkar' : '☆ Takibe al';
@@ -1151,6 +1152,13 @@
     } catch (error) {
       notice(`Araç kaydedilemedi: ${error.message}`, true);
     }
+  });
+  // Ekspertiz raporu ilana girmeden de açılır; rapor yalnızca kayıtlı bilgilerden hazırlanır.
+  $('expert-report').addEventListener('click', () => {
+    if (!selectedVehicle || !globalThis.OtoReport) return;
+    const url = `report.html${globalThis.OtoReport.encodeHash(selectedVehicle.id)}`;
+    if (globalThis.chrome?.tabs?.create) chrome.tabs.create({ url: chrome.runtime.getURL(url) });
+    else window.open(url, '_blank', 'noopener');
   });
   $('detail-close').addEventListener('click', () => $('detail-dialog').close());
   $('detail-done').addEventListener('click', () => $('detail-dialog').close());

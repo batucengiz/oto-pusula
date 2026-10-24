@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <script src="theme-mode.js"></script>
+    <title>Oto Pusula | Ekspertiz raporu</title>
+    <link rel="icon" href="icons/icon32.png" />
+    <link rel="stylesheet" href="report.css" />
+  </head>
+  <body>
+    <main class="sheet">
+      <header class="head">
+        <div class="brand">OTO PUSULA · EKSPERTİZ RAPORU</div>
+        <h1 id="title">Rapor hazırlanıyor…</h1>
+        <p id="subtitle" class="muted"></p>
+        <p id="meta" class="muted"></p>
+        <div class="actions no-print">
+          <button id="print" type="button">Yazdır / PDF</button>
+          <button id="copy" type="button">Metni kopyala</button>
+          <span id="status" class="muted" role="status"></span>
+        </div>
+      </header>
+      <dl id="facts" class="facts"></dl>
+      <div id="sections"></div>
+      <section class="notes">
+        <h2>Notlar</h2>
+        <div class="lines"></div>
+      </section>
+      <footer class="muted">
+        Satıcı beyanı ve ilan verisinden hazırlanmıştır; ekspertiz ve resmi değerleme yerine geçmez. Veri bu
+        bilgisayardan çıkmaz.
+      </footer>
+    </main>
+    <script src="core-records.js"></script>
+    <script src="core-csv.js"></script>
+    <script src="core-price.js"></script>
+    <script src="core-limits.js"></script>
+    <script src="core-deal.js"></script>
+    <script src="core.js"></script>
+    <script src="store.js"></script>
+    <script src="assistant.js"></script>
+    <script src="report.js"></script>
+    <script src="report-page.js"></script>
+  </body>
+</html>
