@@ -101,7 +101,12 @@ test('yeniden yayınlanan ilan: aynı araç yeni numarayla gelince eski ilanın 
   );
   const fresh = records.find(item => item.listingId === '2222222222');
   assert.equal(stats.relisted, 1);
-  assert.deepEqual(fresh.relistOf, { listingId: '1111111111', firstSeen: '2026-08-15', price: 980000 });
+  assert.deepEqual(fresh.relistOf, {
+    listingId: '1111111111',
+    firstSeen: '2026-08-15',
+    price: 980000,
+    lastId: '1111111111'
+  });
   const flag = core
     .advise(core.normalizeRecord(fresh, 'comparable'), null, today)
     .flags.find(item => item.label === 'Yeniden yayınlanmış');
@@ -111,7 +116,9 @@ test('yeniden yayınlanan ilan: aynı araç yeni numarayla gelince eski ilanın 
 
   // Zincir: üçüncü yayında ilk ilanın bilgisi korunur.
   const third = core.mergeObservations(records, [make('3333333333', { km: 88000 })], '2026-10-24');
-  assert.equal(third.records.find(item => item.listingId === '3333333333').relistOf.listingId, '1111111111');
+  const chained = third.records.find(item => item.listingId === '3333333333').relistOf;
+  assert.equal(chained.listingId, '1111111111');
+  assert.equal(chained.lastId, '2222222222');
 });
 
 test('yeniden yayın eşleşmesi temkinlidir', () => {
@@ -198,4 +205,70 @@ test('popup analiz özeti ani indirimi sayar', () => {
   const first = listing.ingest({ ...raw, priceText: '950.000 TL' }, empty, '2026-10-14');
   const second = listing.ingest({ ...raw, priceText: '880.000 TL' }, first.state, '2026-10-20');
   assert.equal(second.suddenDrops, 1);
+});
+
+test('yeniden yayınlanan aracın eski ilanı piyasa hesabında ikinci kez sayılmaz', () => {
+  const pool = [];
+  for (let i = 0; i < 6; i++) pool.push(make(`50000000${i}0`, { km: 60000 + i * 4000, price: 950000 + i * 10000 }));
+  const old = make('1111111111', { km: 80000, price: 960000 });
+  const fresh = {
+    ...make('2222222222', { km: 80500, price: 955000 }),
+    relistOf: { listingId: '1111111111', firstSeen: '2026-08-15', price: 960000, lastId: '1111111111' }
+  };
+  const target = make('3333333333', { km: 75000, price: 900000, city: 'Ankara' });
+  const withOld = core.estimate(target, [...pool, old, fresh], core.DEFAULTS, today);
+  const used = withOld.comparables.map(entry => entry.item.listingId);
+  assert.ok(used.includes('2222222222'));
+  assert.ok(!used.includes('1111111111'));
+});
+
+test('arama sayfası: son ziyaretten beri yeni, indirim, zam ve kaybolan ilanlar', () => {
+  const url = 'https://www.sahibinden.com/renault-clio?a5_min=2020';
+  const row = (id, price) => ({
+    id,
+    title: `Renault Clio 1.0 TCe ${id}`,
+    cells: ['', 'Renault Clio 1.0 TCe', '2021', '87.000'],
+    titleIndex: 1,
+    price: `${price.toLocaleString('tr-TR')} TL`,
+    location: 'İzmir'
+  });
+  const raw = rows => ({
+    kind: 'search',
+    url,
+    pageTitle: 'Renault Clio',
+    headers: ['', 'İlan Başlığı', 'Yıl', 'KM'],
+    rows
+  });
+  {
+    const empty = { schema: 1, stock: [], comparables: [], pages: [] };
+    const first = listing.ingest(
+      raw([row('1000000001', 900000), row('1000000002', 950000), row('1000000003', 1000000)]),
+      empty,
+      '2026-10-18'
+    );
+    assert.equal(first.sinceLast, null);
+    const second = listing.ingest(
+      raw([row('1000000001', 850000), row('1000000002', 990000), row('1000000004', 870000)]),
+      first.state,
+      '2026-10-24'
+    );
+    const since = second.sinceLast;
+    assert.equal(since.date, '2026-10-18');
+    assert.deepEqual(
+      since.fresh.map(item => item.listingId),
+      ['1000000004']
+    );
+    assert.equal(since.drops.length, 1);
+    assert.equal(since.drops[0].from, 900000);
+    assert.equal(since.drops[0].record.price, 850000);
+    assert.equal(since.rises, 1);
+    assert.equal(since.gone, 1);
+    const page = second.state.pages.find(item => item.url === url);
+    assert.deepEqual(page.lastIds, [
+      'comparable-sh-1000000001',
+      'comparable-sh-1000000002',
+      'comparable-sh-1000000004'
+    ]);
+    assert.equal(page.listingIds.length, 4);
+  }
 });

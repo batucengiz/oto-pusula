@@ -228,7 +228,8 @@
     const listingId = plain(value.listingId);
     const price = number(value.price);
     if (!/^\d{6,13}$/.test(listingId) || !date(value.firstSeen) || !(price >= 10000 && price <= 100000000)) return null;
-    return { listingId, firstSeen: date(value.firstSeen), price: Math.round(price) };
+    const lastId = /^\d{6,13}$/.test(plain(value.lastId)) ? plain(value.lastId) : listingId;
+    return { listingId, firstSeen: date(value.firstSeen), price: Math.round(price), lastId };
   }
 
   // İlan kaynaklı kayıtların ek alanları; CSV kayıtlarında boş kalır.
@@ -397,7 +398,9 @@
     return {
       listingId: origin?.listingId || best.listingId,
       firstSeen: origin?.firstSeen || best.firstSeen || best.date,
-      price: origin?.price || best.priceHistory?.[0]?.price || best.price
+      price: origin?.price || best.priceHistory?.[0]?.price || best.price,
+      // Hemen önceki ilan; piyasa hesabında aynı araç iki kez sayılmasın diye havuzdan çıkarılır.
+      lastId: best.listingId
     };
   }
 

@@ -2,6 +2,11 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.8.0 — 2026-10-24
+
+- Son ziyaretten beri: aynı arama sayfasını tekrar analiz edince popup, önceki okumaya göre kaç yeni ilan geldiğini, kaç ilanın indirim ya da zam yaptığını ve kaç ilanın artık görünmediğini yazar. En büyük 3 indirim eski → yeni fiyatla listelenir, tıklanınca ilan açılır. Okunan sayfa kaydı son okumadaki ilanları (`lastIds`) tutar.
+- Yeniden yayınlanan aracın eski ilanı piyasa hesabından çıkarılır; aynı araç benzer ilanlar arasında iki kez sayılmaz.
+
 ## 7.7.0 — 2026-10-24
 
 - Ani fiyat düşüşü: aynı ilan en fazla 14 gün arayla görülüp tek seferde %5+ ucuzladıysa "Ani fiyat düşüşü (%X)" uyarısı çıkar ("satıcı acil satmak istiyor olabilir"); popup analiz özetinde de kaç ilanda ani indirim olduğu yazılır. Fırsat puanına +2.

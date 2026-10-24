@@ -86,7 +86,8 @@ button:focus-visible {
 .result p {
   margin: 0;
 }
-.stats {
+.stats,
+.since-summary {
   font-weight: 700;
 }
 .deal {
