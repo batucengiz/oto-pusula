@@ -39,7 +39,7 @@ class FakeNode {
 
 test('eklenti yalnızca kullanıcı tıklayınca açık sekmeye erişir; arka plan veya kalıcı site izni yok', () => {
   const manifest = JSON.parse(fs.readFileSync(require.resolve('./manifest.json'), 'utf8'));
-  assert.deepEqual([...manifest.permissions].sort(), ['activeTab', 'scripting']);
+  assert.deepEqual([...manifest.permissions].sort(), ['activeTab', 'scripting', 'storage', 'unlimitedStorage']);
   assert.equal(manifest.host_permissions, undefined);
   assert.equal(manifest.content_scripts, undefined);
   assert.equal(manifest.background, undefined);

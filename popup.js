@@ -567,10 +567,15 @@
     }
   }
 
+  const storeReady = store.ready().catch(() => false);
+  store.onWriteError(() =>
+    showResult([element('p', '', 'Kayıt tarayıcı deposuna yazılamadı. Diskte yer açıp tekrar deneyin.')], true)
+  );
   $('analyze').addEventListener('click', analyze);
   $('forget-page').addEventListener('click', forgetPage);
   // Eski sürümdeki gibi tek tıkla Excel: tüm toplanan ilanlar, fırsatlar üstte.
-  $('export-excel').addEventListener('click', () => {
+  $('export-excel').addEventListener('click', async () => {
+    if (store.usesExtensionStorage()) await storeReady;
     const table = listing.marketTable(store.load());
     if (!table.rows.length) {
       showResult([element('p', '', 'Excel’e aktarılacak ilan yok. Önce bir sahibinden sayfasını analiz edin.')], true);
@@ -599,8 +604,9 @@
     window.close();
   });
 
-  chrome.tabs
-    .query({ active: true, currentWindow: true })
+  // Kayıtlar eklenti deposundan okunmadan analiz düğmesi açılmaz; eski localStorage kaydı burada aktarılır.
+  storeReady
+    .then(() => chrome.tabs.query({ active: true, currentWindow: true }))
     .then(([tab]) => {
       activeTab = tab && isSahibinden(tab.url) ? tab : null;
       $('analyze').disabled = !activeTab;

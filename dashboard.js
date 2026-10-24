@@ -1325,11 +1325,13 @@
   $('import-close').addEventListener('click', () => $('import-dialog').close());
   $('import-cancel').addEventListener('click', () => $('import-dialog').close());
   // Popup yeni ilan kaydettiğinde açık panel kendini günceller.
-  window.addEventListener('storage', event => {
-    if (event.key !== store.KEY) return;
+  store.subscribe(() => {
     state = store.load();
     render();
   });
+  store.onWriteError(() =>
+    notice('Değişiklik tarayıcı deposuna yazılamadı. Diskte yer açın ve JSON yedek indirin.', true)
+  );
   $('print-report').addEventListener('click', () => {
     if (selectedVehicle) window.print();
   });
@@ -1440,6 +1442,16 @@
   });
   paintThemeButton();
 
-  render();
-  if (globalThis.location?.hash === '#firsat') showDeals();
+  function begin() {
+    state = store.load();
+    render();
+    if (globalThis.location?.hash === '#firsat') showDeals();
+  }
+  // Eklenti deposu eşzamansız okunur; okunamazsa localStorage'daki kayıtla devam edilir.
+  if (store.usesExtensionStorage())
+    store
+      .ready()
+      .catch(() => false)
+      .then(begin);
+  else begin();
 })();
