@@ -434,9 +434,13 @@
       }
     }
 
+    // compact: model bağlamı kaldıramadığında kısaltılmış bilgiyle açılan oturum.
+    let compact = false;
     async function session() {
       if (chatSession) return chatSession;
-      const system = assistant.withContext(assistant.systemPrompt(lines), { history: pastTurns, saved: savedFacts() });
+      const system = compact
+        ? assistant.systemPrompt(assistant.compactFacts(lines))
+        : assistant.withContext(assistant.systemPrompt(lines), { history: pastTurns, saved: savedFacts() });
       if (mode.kind === 'remote') {
         chatSession = globalThis.OtoRemoteAI.createSession(mode.key, system);
         return chatSession;
@@ -490,13 +494,25 @@
         reply.textContent = text;
       };
       try {
-        const answer = await assistant.ask(await session(), question, show);
+        let answer;
+        try {
+          answer = await assistant.ask(await session(), question, show);
+        } catch (error) {
+          // Karmaşık soruda tıkanmasın: bağlam küçültülüp bir kez daha denenir.
+          if (compact || !assistant.retryable(error)) throw error;
+          closeChat();
+          compact = true;
+          status.textContent = 'Soru karmaşık; kısaltılmış bilgiyle tekrar deneniyor…';
+          answer = await assistant.ask(await session(), question, show);
+          status.textContent = '';
+        }
         show(answer || 'Cevap üretilemedi; soruyu farklı ya da daha kısa sorun.');
         if (answer) history?.add(recordId, question, answer).catch?.(() => {});
         if (mode.kind === 'builtin' && assistant.weakAnswer(answer)) status.textContent = upgradeHint;
       } catch (error) {
-        // Oturum kapatılır; bir sonraki soru temiz bir oturumla başlar.
+        // Oturum kapatılır; bir sonraki soru temiz (tam bilgili) bir oturumla başlar.
         closeChat();
+        compact = false;
         show(assistant.errorText(error, mode.kind));
         reply.className = 'chat-ai chat-error';
         status.textContent = mode.kind === 'builtin' ? upgradeHint : '';

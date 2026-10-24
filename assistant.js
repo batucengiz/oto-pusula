@@ -150,6 +150,14 @@
     return reasons;
   }
 
+  // Yıllık km'nin Türkiye'deki binek araç kullanımına göre hazır yorumu; küçük model hesap yapmak zorunda kalmaz.
+  function kmVerdict(perYear) {
+    if (perYear < 8000) return 'ortalamanın altında (az kullanılmış; km geçmişi servis kayıtlarından doğrulanmalı)';
+    if (perYear <= 20000) return 'normal aralıkta (yılda 10-20 bin km)';
+    if (perYear <= 30000) return 'ortalamanın üstünde (yoğun kullanım)';
+    return 'çok yüksek (ticari ya da uzun yol kullanımı olabilir)';
+  }
+
   // Eklentinin bu ilan için hesapladığı her şey, modele düz Türkçe cümleler olarak verilir.
   // Model hesap yapmaz; yalnızca bu bilgileri yorumlar.
   function facts({ record, result, body, deal, advice, textFlags = [], description, today = new Date() }) {
@@ -159,7 +167,7 @@
     // core.js'teki yoğun kullanım hesabıyla aynı: model yılının ortasından bugüne.
     const years = Math.max(0.5, today.getUTCFullYear() - record.year + 0.5);
     lines.push(
-      `Model yılı ${record.year}, ${record.km.toLocaleString('tr-TR')} km (yılda ortalama yaklaşık ${Math.round(record.km / years).toLocaleString('tr-TR')} km).`
+      `Model yılı ${record.year}, ${record.km.toLocaleString('tr-TR')} km (yılda ortalama yaklaşık ${Math.round(record.km / years).toLocaleString('tr-TR')} km). Yıllık kullanım ${kmVerdict(record.km / years)}.`
     );
     const extra = [
       record.fuel && `yakıt ${record.fuel}`,
@@ -234,14 +242,17 @@
   function systemPrompt(lines) {
     return [
       'Sen Oto Pusula adlı ikinci el araç fiyat eklentisinin asistanısın; otomobiller konusunda bilgili, dürüst bir danışmansın. Kullanıcı sahibinden.com’da bir araç ilanına bakıyor.',
-      'Her zaman Türkçe, kısa (en fazla 5-6 cümle) ve sade cevap ver.',
+      'Her zaman Türkçe ve sade cevap ver. Önce tek cümlelik net sonucu söyle, sonra gerekçeyi ver. Basit sorularda 3-5 cümle yeter; çok parçalı sorularda her parçaya kalın olmayan kısa bir başlık ve 1-3 madde yaz, toplamda 12 maddeyi geçme.',
       'Araçla ilgili her soruya cevap verebilirsin: bu ilan, bu model ve motorun bilinen kronik sorunları, bakım ve masrafları, yakıt tüketimi, yedek parça, sigorta/kasko, ekspertiz, alım-satım süreci, araç karşılaştırması gibi.',
       'Bu ilana dair sorularda aşağıdaki İLAN BİLGİLERİ’ne dayan. Fiyat yorumunda eklentinin piyasa tahminini ve fırsat puanını kullan; kendin yeni fiyat hesaplama ve piyasa fiyatı uydurma.',
       'Genel bilgilerde emin olmadığın ayrıntıyı (rakam, arıza oranı, parça fiyatı) kesinmiş gibi verme; “genelde”, “kontrol ettirin” gibi ifadelerle belirsizliği söyle ve gerekirse yetkili servis ya da ekspertize yönlendir.',
-      'Benzer ilanlarla kıyas sorulursa aşağıdaki benzer ilanları yıl, km ve düzeltilmiş fiyatlarıyla karşılaştır.',
+      'Benzer ilanlarla kıyas sorulursa aşağıdaki benzer ilanları yıl, km ve düzeltilmiş fiyatlarıyla karşılaştır; fark varsa nedenini (yıl, km, donanım, kaporta, satıcı tipi) söyle. Fiyat yorumunda piyasa ortasına göre yüzde farkı ve güven düzeyini kullan.',
+      'Kilometre sorulursa toplam km’yi değil, yıllık ortalamayı ve İLAN BİLGİLERİ’ndeki km yorumunu kullan; yüksek km’de triger/zincir, debriyaj, şanzıman ve yürüyen aksam bakımını, düşük km’de km müdahalesi kontrolünü hatırlat.',
+      'Soru yazım hatalı, kısa ya da dağınık olsa da en olası anlamıyla cevapla; gerçekten anlaşılmıyorsa tek kısa soruyla netleştir.',
       'Teklif sorulursa eklentinin açılış ve hedef rakamlarını gerekçeleriyle söyle; başka rakam uydurma. Satıcıya ne sorulacağı sorulursa önerilen soruları madde madde ver.',
       'Ekspertiz sorulursa “Ekspertizde baktırılması önerilenler” maddelerini ver ve bu marka/modelin bilinen kronik noktalarını (emin değilsen belirterek) ekle. Pazarlıkta ne denileceği sorulursa gerekçelere dayanan, kibar ve kısa örnek cümleler öner. İlan açıklamasındaki şüpheli ifadeler sorulursa “İlan açıklamasında dikkat” maddelerini açıkla; madde yoksa belirgin bir risk ifadesi bulunmadığını ama ekspertizin yine gerekli olduğunu söyle.',
       'Kaporta bilgisi satıcı beyanıdır; gerektiğinde ekspertiz ve tramer kaydı öner. Kesin satın al / alma demek yerine artıları ve riskleri söyle.',
+      'Birden çok parçalı ya da karmaşık sorularda soruyu parçalara ayır ve her parçaya kısa maddelerle cevap ver; bir kısmını bilmiyorsan diğer kısımları yine cevapla.',
       'Araçlarla ilgisi olmayan konulardaki soruları kibarca geri çevir.',
       '',
       'İLAN BİLGİLERİ:',
@@ -259,7 +270,7 @@
       const years = Math.max(0.5, today.getUTCFullYear() - record.year + 0.5);
       const parts = [
         `İlan ${index + 1}: ${[record.brand, record.model, record.engine, record.trim].filter(Boolean).join(' ')}`,
-        `${record.year} model, ${Number(record.km).toLocaleString('tr-TR')} km (yılda ~${Math.round(record.km / years).toLocaleString('tr-TR')} km)`,
+        `${record.year} model, ${Number(record.km).toLocaleString('tr-TR')} km (yılda ~${Math.round(record.km / years).toLocaleString('tr-TR')} km, ${kmVerdict(record.km / years)})`,
         `fiyat ${lira(record.price)}`,
         result?.center
           ? `piyasa ortası ${lira(result.center)}, ilan bunun ${percent(result.gap)} ${result.gap < 0 ? 'altında' : 'üstünde'} (${result.status}, güven ${result.confidence})`
@@ -319,6 +330,21 @@
         ...recent.map(turn => `- Soru: ${clean(turn.q, 200)} / Cevap: ${clean(turn.a, 400)}`)
       );
     return parts.join('\n');
+  }
+
+  // Karmaşık soruda model bağlamı kaldıramazsa kullanılan kısa bilgi: ağır satırlar atılır, satırlar kısaltılır.
+  const BULKY =
+    /^(Benzer ilan:|Satıcının ilan açıklamasından|Ekspertizde baktırılması|Satıcıya sorulması|İlan açıklamasında dikkat)/;
+  function compactFacts(lines, max = 12) {
+    return lines
+      .filter(line => !BULKY.test(line))
+      .map(line => clean(line, 260))
+      .slice(0, max);
+  }
+
+  // Kısaltılmış bilgiyle bir kez daha denemeye değer hata mı? (Anahtar, izin ve süre hataları değil.)
+  function retryable(error) {
+    return !['RemoteAIError', 'NotAllowedError', 'TimeoutError', 'AbortError'].includes(error?.name);
   }
 
   function question(value) {
@@ -419,6 +445,9 @@
   }
 
   const api = {
+    kmVerdict,
+    compactFacts,
+    retryable,
     withContext,
     inspectionChecklist,
     COMPARE_MIN,
