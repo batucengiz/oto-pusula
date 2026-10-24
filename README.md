@@ -103,7 +103,7 @@ listing.js  (DOM'dan bağımsız: ham metin → araç kaydı; marka/model/motor,
 core.js     (fiyat motoru: eşleştirme, düzeltme, ortanca/aralık, güven; fiyat geçmişi birleştirme)
     │
     ▼
-store.js ◀── dashboard.js  (panel: piyasa, stok, karşılaştırmalar; storage olayıyla canlı güncellenir)
+store.js ◀── dashboard.js  (panel: piyasa, stok, karşılaştırmalar; chrome.storage değişikliğiyle canlı güncellenir)
 
 assistant.js (ilan sohbeti: core.js sonuçlarını yapay zekaya bağlam olarak verir; satıcı soruları, teklif gerekçesi; ağ isteği yok)
 remote-ai.js (isteğe bağlı: kullanıcının kendi Gemini API anahtarıyla bulut yapay zekası; anahtar yoksa hiç çalışmaz)
@@ -152,7 +152,7 @@ Ticari kullanımda (galeri) satıcı numaralarının saklanması kişisel veri i
 - Sonuçlar ekspertiz, resmi değerleme veya satış fiyatı garantisi değildir. Hasar bilgisi satıcının beyanıdır.
 - Kişisel kullanım içindir. Toplanan verileri yeniden yayınlamayın ve sitenin kullanım koşullarına uyun.
 - Seçiciler sahibinden.com'un sayfa yapısına bağlıdır. Site değişirse `extract.js` güncellenmelidir.
-- **Kapasite:** En fazla 5.000 ilan saklanır; panel 5.000 ilanla yaklaşık 1 saniyede açılır. Her tahmin, yıl ve km olarak en yakın 120 benzer ilanla yapılır. Tarayıcı deposu (~5 milyon karakter) dolarsa takipte olmayan ve numarası kaydedilmemiş, en uzun süredir görülmeyen ilanlar silinerek yeni analize yer açılır ve bu açıkça bildirilir.
+- **Kapasite:** En fazla 5.000 ilan saklanır; panel 5.000 ilanla yaklaşık 1 saniyede açılır. Her tahmin, yıl ve km olarak en yakın 120 benzer ilanla yapılır. Kayıtlar eklentinin kendi deposunda (`chrome.storage.local`, `unlimitedStorage`) tutulur; eski sürümlerin `localStorage` kaydı ilk açılışta otomatik aktarılır. Eklenti dışı ortamda (testler) depo dolarsa takipte olmayan ve numarası kaydedilmemiş, en uzun süredir görülmeyen ilanlar silinerek yer açılır.
 - Ayrıntılı gizlilik politikası: [docs/GIZLILIK.md](docs/GIZLILIK.md)
 
 ## Geliştirme

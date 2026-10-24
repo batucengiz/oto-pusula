@@ -1,6 +1,6 @@
 # Oto Pusula Gizlilik Politikası
 
-Son güncelleme: 24 Ekim 2026 · Geliştiren: Batuhan Cengiz ([github.com/batucengiz](https://github.com/batucengiz))
+Son güncelleme: 24 Ekim 2026 (7.4) · Geliştiren: Batuhan Cengiz ([github.com/batucengiz](https://github.com/batucengiz))
 
 Oto Pusula, sahibinden.com ilanlarını kullanıcının kendi bilgisayarında analiz eden bir tarayıcı eklentisidir. Bu belge hangi verinin nasıl işlendiğini açıklar.
 
@@ -8,7 +8,7 @@ Oto Pusula, sahibinden.com ilanlarını kullanıcının kendi bilgisayarında an
 
 | Veri | Ne zaman | Nerede saklanır |
 |---|---|---|
-| İlan bilgileri (marka, model, yıl, km, fiyat, şehir, ilan no, ilan bağlantısı, satıcının boya/değişen beyanı, ilan metnindeki hasar ifadesi) | Yalnızca siz "Bu sayfayı analiz et" düğmesine bastığınızda, açık olan sekmeden | Yalnızca tarayıcınızın yerel deposunda (localStorage) |
+| İlan bilgileri (marka, model, yıl, km, fiyat, şehir, ilan no, ilan bağlantısı, satıcının boya/değişen beyanı, ilan metnindeki hasar ifadesi) | Yalnızca siz "Bu sayfayı analiz et" düğmesine bastığınızda, açık olan sekmeden | Yalnızca tarayıcınızdaki eklenti deposunda (`chrome.storage.local`); 7.4 öncesi sürümlerin `localStorage` kaydı ilk açılışta buraya aktarılır |
 | Fiyat geçmişi | Aynı ilanı tekrar analiz ettiğinizde | Yerel depoda |
 | Satıcının telefon numarası | **Yalnızca** siz bir ilanda "Numarayı kaydet" dediğinizde, o tek ilan için | Yerel depoda; panelden tek tuşla silinebilir |
 | Kendi araç stoğunuz (galeri) | Siz eklediğinizde veya CSV yüklediğinizde | Yerel depoda |
@@ -34,6 +34,7 @@ Oto Pusula, sahibinden.com ilanlarını kullanıcının kendi bilgisayarında an
 ## İzinler
 
 - `activeTab` ve `scripting`: Yalnızca düğmeye bastığınız anda, açık olan sekmeyi bir kez okumak için.
+- `storage` ve `unlimitedStorage`: Kayıtları bilgisayarınızdaki eklenti deposunda tutmak için (5 MB sınırı olmadan). Veri hiçbir yere gönderilmez; bu izinler hiçbir siteye erişim vermez.
 - Kalıcı site izni, arka plan betiği veya sayfaya otomatik eklenen betik yoktur.
 
 ## Verilerin silinmesi

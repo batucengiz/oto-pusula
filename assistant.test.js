@@ -198,7 +198,11 @@ test('sohbet kodu ağ isteği yapmaz; tek dış adres kullanıcının isteğe ba
   );
   assert.doesNotMatch(remote, /sahibinden\.com|XMLHttpRequest|WebSocket|sendBeacon/);
   const manifest = JSON.parse(fs.readFileSync(require.resolve('./manifest.json'), 'utf8'));
-  assert.deepEqual([...manifest.permissions].sort(), ['activeTab', 'scripting'], 'sohbet için yeni izin gerekmez');
+  assert.deepEqual(
+    [...manifest.permissions].sort(),
+    ['activeTab', 'scripting', 'storage', 'unlimitedStorage'],
+    'sohbet için yeni izin gerekmez'
+  );
   const html = fs.readFileSync(require.resolve('./popup.html'), 'utf8');
   assert.ok(html.indexOf('assistant.js') < html.indexOf('popup.js'), 'assistant.js popup.js’ten önce yüklenmeli');
 });
