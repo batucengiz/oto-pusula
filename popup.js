@@ -172,6 +172,20 @@
       button.addEventListener('click', () => openListing(record));
       nodes.push(button);
     }
+    // Arama sayfası sohbeti: sayfadaki tüm ilanlar hakkında serbest soru. Yalnızca okunan veri kullanılır.
+    try {
+      if (outcome.evaluated.length >= 2 && assistant?.listContext) {
+        const entries = outcome.evaluated.map(({ record, result }) => ({
+          record,
+          result,
+          deal: core.dealScore(record, result),
+          advice: core.advise(record, result)
+        }));
+        nodes.push(chatSection({ kind: 'list', entries }));
+      }
+    } catch {
+      /* sohbet açılamasa da sonuç gösterilir */
+    }
     return nodes;
   }
 
@@ -291,7 +305,8 @@
       const builtin = assistant?.languageModel();
       const remote = globalThis.OtoRemoteAI;
       if (!assistant || (!builtin && !remote)) return section;
-      const chat = { section, context, lines: assistant.facts(context), found: { status: 'unavailable' } };
+      const lines = context.kind === 'list' ? [] : assistant.facts(context);
+      const chat = { section, context, lines, found: { status: 'unavailable' } };
       assistant
         .availability(builtin)
         .then(found => {
@@ -382,6 +397,109 @@
     );
   }
 
+  // Cevap metni güvenli DOM düğümlerine çevrilir (innerHTML kullanılmaz). Liste sohbetinde "İlan 3" ilanı açan bağlantı olur.
+  function spanNodes(spans, linkFor) {
+    const nodes = [];
+    for (const span of spans) {
+      const parts = linkFor ? span.text.split(/(İlan \d{1,2})/) : [span.text];
+      parts.forEach((part, index) => {
+        if (!part) return;
+        const record = index % 2 === 1 ? linkFor(Number(part.slice(5))) : null;
+        if (!record) {
+          nodes.push(element(span.bold ? 'strong' : 'span', '', part));
+          return;
+        }
+        const link = element('button', 'chat-ref', part);
+        link.type = 'button';
+        link.title = 'İlanı yeni sekmede aç';
+        link.addEventListener('click', () => openListing(record));
+        nodes.push(link);
+      });
+    }
+    return nodes;
+  }
+
+  function richNodes(text, linkFor) {
+    return assistant.formatBlocks(text).map((block, index) => {
+      if (block.type === 'h') return element('h4', 'chat-h', block.text);
+      if (block.type === 'p') {
+        const lead = index === 0 && block.spans[0]?.bold && /^(Kısa cevap|Özet|Sonuç)/i.test(block.spans[0].text);
+        const paragraph = element('p', lead ? 'chat-lead' : '');
+        paragraph.append(...spanNodes(block.spans, linkFor));
+        return paragraph;
+      }
+      const list = element(block.type);
+      for (const item of block.items) {
+        const entry = element('li');
+        entry.append(...spanNodes(item, linkFor));
+        list.append(entry);
+      }
+      return list;
+    });
+  }
+
+  // Liste sohbetinde cevabın altında, sözü geçen ilanların eklentinin hesapladığı ayrıntıları (yapay zekasız).
+  function pickNodes(answer, view) {
+    const numbers = [...new Set([...String(answer).matchAll(/İlan (\d{1,2})/g)].map(match => Number(match[1])))];
+    const picks = (numbers.length ? numbers.map(n => view.shown[n - 1]) : view.shown.slice(0, 3)).filter(Boolean);
+    const box = element('div', 'chat-picks');
+    box.append(
+      element(
+        'p',
+        'chat-meta',
+        `${view.total} ilan okundu${view.filter.labels.length ? ` · şartlara uyan ${view.matched}` : ''} · en iyi ${view.shown.length} ilan incelendi`
+      )
+    );
+    for (const entry of picks.slice(0, 5)) {
+      const { record, result, deal, advice } = entry;
+      const number = view.shown.indexOf(entry) + 1;
+      const body = core.bodyReport(record);
+      const card = element('button', 'chat-pick');
+      card.type = 'button';
+      card.title = 'İlanı yeni sekmede aç';
+      const years = Math.max(0.5, new Date().getUTCFullYear() - record.year + 0.5);
+      const head = element('span', 'chat-pick-head');
+      head.append(
+        element(
+          'strong',
+          '',
+          `İlan ${number} · ${[record.brand, record.model, record.engine].filter(Boolean).join(' ')}`
+        ),
+        element('span', 'chat-pick-price', lira(record.price))
+      );
+      card.append(
+        head,
+        element(
+          'span',
+          '',
+          `${record.year} · ${Number(record.km).toLocaleString('tr-TR')} km (yılda ~${Math.round(record.km / years).toLocaleString('tr-TR')} km)${record.city ? ` · ${record.city}` : ''}${record.sellerType ? ` · ${record.sellerType}` : ''}`
+        ),
+        element(
+          'span',
+          '',
+          [
+            result?.center
+              ? `Piyasanın %${Math.abs(Math.round(result.gap * 100))} ${result.gap < 0 ? 'altında' : 'üstünde'}`
+              : 'Piyasa tahmini yok',
+            deal ? `Fırsat ${deal.score}/100` : '',
+            body.known ? `Kaporta ${body.score}/100` : 'Kaporta okunmadı'
+          ]
+            .filter(Boolean)
+            .join(' · ')
+        )
+      );
+      if (advice?.offer)
+        card.append(
+          element('span', '', `Pazarlık: açılış ${lira(advice.offer.open)}, hedef ${lira(advice.offer.target)}`)
+        );
+      const warnings = (advice?.flags || []).filter(flag => flag.level === 'bad' || flag.level === 'warn');
+      if (warnings.length) card.append(element('em', 'warning', `⚠ ${warnings.map(flag => flag.label).join(', ')}`));
+      card.addEventListener('click', () => openListing(record));
+      box.append(card);
+    }
+    return box;
+  }
+
   function renderChat(chat, mode) {
     const { lines } = chat;
     const log = element('div', 'chat-log');
@@ -391,7 +509,7 @@
     const input = element('input');
     input.type = 'text';
     input.maxLength = assistant.MAX_QUESTION;
-    input.placeholder = 'Araç hakkında sorun…';
+    input.placeholder = chat.context.kind === 'list' ? 'Bu listedeki ilanlar hakkında sorun…' : 'Araç hakkında sorun…';
     input.setAttribute('aria-label', 'Yapay zekaya soru');
     const send = element('button', 'chat-send', '↑');
     send.setAttribute('aria-label', 'Sor');
@@ -410,8 +528,13 @@
       });
     };
 
-    const history = globalThis.OtoChatHistory;
-    const recordId = chat.context.record.id;
+    const listMode = chat.context.kind === 'list';
+    const history = listMode ? null : globalThis.OtoChatHistory;
+    const recordId = listMode ? null : chat.context.record.id;
+    // Liste sohbeti: her soruda ilanlar soruya göre süzülür; önceki sorular yalnızca bu pencerede tutulur.
+    let listView = null;
+    const listTurns = [];
+    const linkFor = listMode ? number => listView?.shown[number - 1]?.record : null;
     let pastTurns = [];
     let savedList = [];
 
@@ -436,11 +559,17 @@
 
     // compact: model bağlamı kaldıramadığında kısaltılmış bilgiyle açılan oturum.
     let compact = false;
-    async function session() {
-      if (chatSession) return chatSession;
-      const system = compact
-        ? assistant.systemPrompt(assistant.compactFacts(lines))
-        : assistant.withContext(assistant.systemPrompt(lines), { history: pastTurns, saved: savedFacts() });
+    async function session(question) {
+      let system;
+      if (listMode) {
+        closeChat();
+        listView = assistant.listContext(question, chat.context.entries, new Date(), compact ? 8 : assistant.LIST_MAX);
+        system = assistant.withContext(assistant.listSystemPrompt(listView.lines), { history: listTurns });
+      } else if (chatSession) return chatSession;
+      else
+        system = compact
+          ? assistant.systemPrompt(assistant.compactFacts(lines))
+          : assistant.withContext(assistant.systemPrompt(lines), { history: pastTurns, saved: savedFacts() });
       if (mode.kind === 'remote') {
         chatSession = globalThis.OtoRemoteAI.createSession(mode.key, system);
         return chatSession;
@@ -461,13 +590,44 @@
 
     function bubble(role, text) {
       const node = element('div', `chat-msg ${role}`);
-      node.append(element('p', role === 'me' ? 'chat-me' : 'chat-ai', text));
+      if (role === 'me') node.append(element('p', 'chat-me', text));
+      else {
+        const rich = element('div', 'chat-ai chat-rich');
+        rich.append(...richNodes(text));
+        node.append(rich, actions(text));
+      }
       return node;
+    }
+
+    // Cevabın altındaki küçük düğmeler: düz metin olarak kopyala, aynı soruyu yeniden sor.
+    function actions(answer, question) {
+      const row = element('div', 'chat-actions');
+      const copy = element('button', 'chat-action', 'Kopyala');
+      copy.type = 'button';
+      copy.addEventListener('click', async () => {
+        try {
+          await globalThis.navigator.clipboard.writeText(assistant.plainText(answer));
+          copy.textContent = 'Kopyalandı ✓';
+        } catch {
+          copy.textContent = 'Kopyalanamadı';
+        }
+        setTimeout(() => {
+          copy.textContent = 'Kopyala';
+        }, 1600);
+      });
+      row.append(copy);
+      if (question) {
+        const again = element('button', 'chat-action', 'Yeniden sor');
+        again.type = 'button';
+        again.addEventListener('click', () => submit(question));
+        row.append(again);
+      }
+      return row;
     }
 
     function typing() {
       const node = element('div', 'chat-msg ai');
-      const dots = element('p', 'chat-ai chat-typing');
+      const dots = element('div', 'chat-ai chat-typing');
       dots.setAttribute('aria-label', 'Yapay zeka yazıyor');
       dots.append(element('span'), element('span'), element('span'));
       node.append(dots);
@@ -489,31 +649,39 @@
       log.append(holder);
       const reply = holder.children[0];
       const show = text => {
-        reply.className = 'chat-ai';
-        reply.replaceChildren?.();
-        reply.textContent = text;
+        reply.className = 'chat-ai chat-rich';
+        reply.replaceChildren(...richNodes(text, linkFor));
       };
       try {
         let answer;
         try {
-          answer = await assistant.ask(await session(), question, show);
+          answer = await assistant.ask(await session(question), question, show);
         } catch (error) {
           // Karmaşık soruda tıkanmasın: bağlam küçültülüp bir kez daha denenir.
           if (compact || !assistant.retryable(error)) throw error;
           closeChat();
           compact = true;
           status.textContent = 'Soru karmaşık; kısaltılmış bilgiyle tekrar deneniyor…';
-          answer = await assistant.ask(await session(), question, show);
+          answer = await assistant.ask(await session(question), question, show);
           status.textContent = '';
         }
         show(answer || 'Cevap üretilemedi; soruyu farklı ya da daha kısa sorun.');
-        if (answer) history?.add(recordId, question, answer).catch?.(() => {});
+        if (answer) {
+          holder.append(actions(answer, question));
+          if (listMode) {
+            holder.append(pickNodes(answer, listView));
+            listTurns.push({ q: question, a: answer });
+            listTurns.splice(0, Math.max(0, listTurns.length - 2));
+          }
+          history?.add(recordId, question, answer).catch?.(() => {});
+        }
         if (mode.kind === 'builtin' && assistant.weakAnswer(answer)) status.textContent = upgradeHint;
       } catch (error) {
         // Oturum kapatılır; bir sonraki soru temiz (tam bilgili) bir oturumla başlar.
         closeChat();
         compact = false;
-        show(assistant.errorText(error, mode.kind));
+        reply.replaceChildren();
+        reply.textContent = assistant.errorText(error, mode.kind);
         reply.className = 'chat-ai chat-error';
         status.textContent = mode.kind === 'builtin' ? upgradeHint : '';
       } finally {
@@ -522,7 +690,7 @@
       }
     }
 
-    for (const text of assistant.SUGGESTIONS) {
+    for (const text of listMode ? assistant.LIST_SUGGESTIONS : assistant.SUGGESTIONS) {
       const chip = element('button', 'chat-chip', text);
       chip.type = 'button';
       chip.addEventListener('click', () => submit(text));
@@ -544,7 +712,7 @@
       else if (!mode.found.turkish)
         status.textContent = 'Chrome’un yapay zekası Türkçeyi resmi olarak desteklemiyor; cevaplar kusurlu olabilir.';
       if (globalThis.OtoRemoteAI) {
-        const tip = element('div', 'chat-tip');
+        const tip = element('details', 'chat-tip');
         const upgrade = element('button', 'chat-tip-action', 'Ücretsiz anahtar ekle →');
         upgrade.type = 'button';
         upgrade.addEventListener('click', () => {
@@ -552,10 +720,11 @@
           renderKeyForm(chat);
         });
         tip.append(
+          element('summary', '', 'Önerimiz: daha güçlü cevaplar için ücretsiz Gemini anahtarı'),
           element(
             'p',
             '',
-            'Önerimiz: Chrome’un yerleşik yapay zekası küçük bir model; genel araba bilgisi ve Türkçesi sınırlı. Ücretsiz Gemini API anahtarıyla kronik arıza, bakım, karşılaştırma gibi karmaşık sorulara çok daha doğru cevap alırsınız. İsteğe bağlıdır; eklerseniz sorularınız ve ilan bilgileri Google’a gönderilir.'
+            'Neden? Chrome’un yerleşik yapay zekası küçük bir model; genel araba bilgisi ve Türkçesi sınırlı. Ücretsiz Gemini API anahtarıyla kronik arıza, bakım, karşılaştırma gibi karmaşık sorulara çok daha doğru cevap alırsınız. İsteğe bağlıdır; eklerseniz sorularınız ve ilan bilgileri Google’a gönderilir.'
           ),
           upgrade
         );
@@ -592,7 +761,11 @@
     title.append(element('span', 'chat-logo', '✦'), element('div', '', ''));
     title.children[1].append(
       element('h2', '', 'Oto Pusula Asistanı'),
-      element('small', `chat-mode ${mode.kind}`, mode.kind === 'remote' ? 'Gemini · bulut' : 'Cihazda · gizli')
+      element(
+        'small',
+        `chat-mode ${mode.kind}`,
+        `${mode.kind === 'remote' ? 'Gemini · bulut' : 'Cihazda · gizli'}${listMode ? ` · bu sayfadaki ${chat.context.entries.length} ilan` : ''}`
+      )
     );
     head.append(title, saveButton);
 
@@ -657,13 +830,57 @@
     }
     if (history) restore();
     else saveButton.hidden = true;
+    if (listMode) savedStrip.hidden = true;
 
     const composer = element('div', 'chat-composer');
     composer.append(chips, form, element('p', 'chat-fineprint', fineprint.join(' ')));
+    // Boş durum: karşılama ve dört başlangıç kartı. Bütçe kartı soruyu kutuya yazar, kullanıcı tamamlar.
     const empty = element('div', 'chat-empty');
+    const name = listMode ? '' : [chat.context.record.brand, chat.context.record.model].filter(Boolean).join(' ');
+    const starters = listMode
+      ? [
+          ['★', 'En mantıklı 3 ilan', 'Bu listede en mantıklı 3 ilan hangisi?'],
+          ['₺', 'Bütçeme göre', 'Bütçem ', true],
+          ['⚠', 'Uzak durulacaklar', 'Hangi ilanlardan uzak durmalıyım?'],
+          ['⇅', 'Fiyat/performans', 'Fiyat/performans sıralaması yap']
+        ]
+      : [
+          ['₺', 'Fiyat değerlendirmesi', 'Bu fiyata değer mi?'],
+          ['⚙', 'Ekspertiz rehberi', 'Ekspertizde nelere baktırmalıyım?'],
+          ['⇅', 'Pazarlık ve teklif', 'Ne kadar teklif vermeliyim?'],
+          ['⚠', 'Riskler', 'Açıklamada şüpheli bir şey var mı?']
+        ];
+    const cards = element('div', 'chat-starters');
+    for (const [icon, label, text, fill] of starters) {
+      const card = element('button', 'chat-card');
+      card.type = 'button';
+      card.append(element('span', 'chat-card-icon', icon), element('span', 'chat-card-label', label));
+      card.addEventListener('click', () => {
+        if (!fill) return submit(text);
+        input.value = text;
+        input.placeholder = 'Bütçem 800 bin, otomatik vites, 2019 sonrası…';
+        input.focus?.();
+      });
+      chipButtons.push(card);
+      cards.append(card);
+    }
     empty.append(
-      element('p', 'chat-hello', 'Bu ilan hakkında ne öğrenmek istersiniz?'),
-      element('p', 'muted', 'Fiyat, kaporta, pazarlık, kronik arızalar ya da kaydettiğiniz ilanlarla karşılaştırma.')
+      element('span', 'chat-hello-logo', '✦'),
+      element(
+        'p',
+        'chat-hello',
+        listMode
+          ? `Bu sayfadaki ${chat.context.entries.length} ilan hakkında ne öğrenmek istersiniz?`
+          : `${name || 'Bu ilan'} hakkında ne öğrenmek istersiniz?`
+      ),
+      element(
+        'p',
+        'muted',
+        listMode
+          ? 'İstediğinizi yazın: bütçe, km, yıl, vites, yakıt ya da “en az riskli hangisi?”. Uygun ilanları süzüp karşılaştırırım.'
+          : 'Fiyat, km, kaporta, ekspertiz, pazarlık, kronik arızalar ya da kaydettiğiniz ilanlarla karşılaştırma.'
+      ),
+      cards
     );
     chat.section.replaceChildren(head, savedStrip, ...notices, empty, log, status, composer);
   }
