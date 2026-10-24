@@ -242,6 +242,18 @@
     return lines;
   }
 
+  // Tüm sohbet türlerinde ortak: genel araç uzmanlığı ve cevap biçimi.
+  const EXPERT_RULES = [
+    'UZMAN BİLGİSİ (genel kurallar; araca özel kesin rakam gibi sunma):',
+    '- Ekspertiz: fabrika boyası genelde 80-160 mikron; 200 üstü boya, 400 üstü macun şüphesi. Lokal boya kozmetiktir; değişen parça ve tavan, direk, şasi, podye, bagaj havuzu işlemi ağır hasar işaretidir. Yol testi, OBD arıza taraması, motor/şanzıman testi ve alt kontrol yaptırılmalı.',
+    '- Tramer: hasar kaydı e-Devlet ya da şasi numarasıyla SMS (HASAR boşluk şasi no, 5664) üzerinden sorgulanır; kayıt tutarı ile boyalı/değişen parçalar uyumlu olmalı. Haciz/rehin e-Devlet’ten, muayene TÜVTÜRK’ten, km geçmişi servis kayıtlarından kontrol edilir.',
+    '- Mekanik: dizelde DPF, EGR, enjektör, turbo ve çift kütleli volan; benzinli turbo motorlarda yağ eksiltme ve zincir; otomatiklerde kuru kavramalı çift kavrama (DSG/EDC/Powershift) titreme-vuruntu, CVT’de kayma; LPG’de montaj belgesi ve supap; hibritte batarya sağlığı. Tanımadığın modelde genel risklerden konuş, kronik sorun uydurma.',
+    '- Bakım: yağ genelde 10-15 bin km ya da yılda bir; triger kayışı üreticiye göre 60-120 bin km; otomatik şanzıman yağı, fren hidroliği ve antifriz de takip edilir. Bakım kayıtları ve faturalar fiyatı etkiler.',
+    '- Alım süreci: aracı görmeden kapora gönderme; satış noterde yapılır; ruhsat, şasi ve motor numarası eşleşmeli; ödeme noterde ya da güvenli ödeme ile yapılmalı. MTV ve trafik cezası borcu sorulmalı.',
+    '- Masraf ve değer: kasko değeri, sigorta primi, yakıt tüketimi ve yedek parça bulunurluğu aracın toplam maliyetini belirler; ikinci el değeri en çok marka/model talebi, km, kaporta ve tramerle değişir.',
+    'BİÇİM: Cevaba “**Kısa cevap:**” ile başlayan tek cümleyle başla. Gerekirse ardından “## ” ile 2-4 kelimelik başlıklar ve “- ” ile kısa maddeler yaz; sıralı adımlarda “1. ” kullan. Önemli rakam ve uyarıları **kalın** yaz. Tablo, kod bloğu, bağlantı ve emoji kullanma.'
+  ];
+
   function systemPrompt(lines) {
     return [
       'Sen Oto Pusula adlı ikinci el araç fiyat eklentisinin asistanısın; otomobiller konusunda bilgili, dürüst bir danışmansın. Kullanıcı sahibinden.com’da bir araç ilanına bakıyor.',
@@ -256,13 +268,7 @@
       'Ekspertiz sorulursa “Ekspertizde baktırılması önerilenler” maddelerini ver ve bu marka/modelin bilinen kronik noktalarını (emin değilsen belirterek) ekle. Pazarlıkta ne denileceği sorulursa gerekçelere dayanan, kibar ve kısa örnek cümleler öner. İlan açıklamasındaki şüpheli ifadeler sorulursa “İlan açıklamasında dikkat” maddelerini açıkla; madde yoksa belirgin bir risk ifadesi bulunmadığını ama ekspertizin yine gerekli olduğunu söyle.',
       'Kaporta bilgisi satıcı beyanıdır; gerektiğinde ekspertiz ve tramer kaydı öner. Kesin satın al / alma demek yerine artıları ve riskleri söyle.',
       'Birden çok parçalı ya da karmaşık sorularda soruyu parçalara ayır ve her parçaya kısa maddelerle cevap ver; bir kısmını bilmiyorsan diğer kısımları yine cevapla.',
-      'UZMAN BİLGİSİ (genel kurallar; araca özel kesin rakam gibi sunma):',
-      '- Ekspertiz: fabrika boyası genelde 80-160 mikron; 200 üstü boya, 400 üstü macun şüphesi. Lokal boya kozmetiktir; değişen parça ve tavan, direk, şasi, podye, bagaj havuzu işlemi ağır hasar işaretidir. Yol testi, OBD arıza taraması, motor/şanzıman testi ve alt kontrol yaptırılmalı.',
-      '- Tramer: hasar kaydı e-Devlet ya da şasi numarasıyla SMS (HASAR boşluk şasi no, 5664) üzerinden sorgulanır; kayıt tutarı ile boyalı/değişen parçalar uyumlu olmalı. Haciz/rehin e-Devlet’ten, muayene TÜVTÜRK’ten, km geçmişi servis kayıtlarından kontrol edilir.',
-      '- Mekanik: dizelde DPF, EGR, enjektör, turbo ve çift kütleli volan; benzinli turbo motorlarda yağ eksiltme ve zincir; otomatiklerde kuru kavramalı çift kavrama (DSG/EDC/Powershift) titreme-vuruntu, CVT’de kayma; LPG’de montaj belgesi ve supap; hibritte batarya sağlığı. Tanımadığın modelde genel risklerden konuş, kronik sorun uydurma.',
-      '- Bakım: yağ genelde 10-15 bin km ya da yılda bir; triger kayışı üreticiye göre 60-120 bin km; otomatik şanzıman yağı, fren hidroliği ve antifriz de takip edilir. Bakım kayıtları ve faturalar fiyatı etkiler.',
-      '- Alım süreci: aracı görmeden kapora gönderme; satış noterde yapılır; ruhsat, şasi ve motor numarası eşleşmeli; ödeme noterde ya da güvenli ödeme ile yapılmalı. MTV ve trafik cezası borcu sorulmalı.',
-      '- Masraf ve değer: kasko değeri, sigorta primi, yakıt tüketimi ve yedek parça bulunurluğu aracın toplam maliyetini belirler; ikinci el değeri en çok marka/model talebi, km, kaporta ve tramerle değişir.',
+      ...EXPERT_RULES,
       'Araçlarla ilgisi olmayan konulardaki soruları kibarca geri çevir.',
       '',
       'İLAN BİLGİLERİ:',
@@ -274,8 +280,8 @@
   const COMPARE_MAX = 5;
 
   // Karşılaştırma için her ilanın kısa özeti. Yalnızca eklentinin kayıtlı verisi kullanılır.
-  function compareFacts(entries, today = new Date()) {
-    return entries.slice(0, COMPARE_MAX).map(({ record, result, deal, advice }, index) => {
+  function compareFacts(entries, today = new Date(), max = COMPARE_MAX) {
+    return entries.slice(0, max).map(({ record, result, deal, advice }, index) => {
       const body = bodyOf(record);
       const years = Math.max(0.5, today.getUTCFullYear() - record.year + 0.5);
       const parts = [
@@ -289,6 +295,7 @@
         deal ? `fırsat puanı ${deal.score}/100` : 'fırsat puanı yok',
         record.sellerType ? `satıcı: ${record.sellerType}` : '',
         record.city || '',
+        advice?.offer ? `pazarlık önerisi: açılış ${lira(advice.offer.open)}, hedef ${lira(advice.offer.target)}` : '',
         (advice?.flags || []).length ? `uyarılar: ${advice.flags.map(flag => flag.label).join(', ')}` : 'uyarı yok'
       ].filter(Boolean);
       return `${parts.join('; ')}.`;
@@ -311,6 +318,7 @@
       'Önce en mantıklı seçeneği numarasıyla söyle, sonra her ilan için bir-iki cümlelik artı/eksi ver, en sonda kısa bir gerekçe yaz (en fazla 10-12 cümle).',
       'Fiyat yorumunda eklentinin piyasa tahminini, fırsat puanını, kaporta puanını ve uyarıları kullan; yeni fiyat uydurma. Model ve motorların genel bilinen güçlü/zayıf yanlarını belirsizlik payıyla ekleyebilirsin.',
       'Kaporta bilgisi satıcı beyanıdır; kesin “al” demek yerine ekspertiz ve tramer kontrolünü hatırlat.',
+      ...EXPERT_RULES,
       '',
       'İLANLAR:',
       ...lines.map(line => `- ${line}`)
@@ -321,6 +329,136 @@
   function rankForCompare(entries) {
     const score = entry => (entry.deal ? entry.deal.score : entry.result?.center ? 40 - entry.result.gap * 100 : -1);
     return [...entries].sort((a, b) => score(b) - score(a));
+  }
+
+  // Arama sonuçları sayfası: küçük modele sığması için ilanlar fırsat puanına göre sıralanıp ilk LIST_MAX tanesi verilir.
+  const LIST_MAX = 15;
+  const LIST_SUGGESTIONS = [
+    'Bu listede en mantıklı 3 ilan hangisi?',
+    'En düşük km’li uygun fiyatlı hangisi?',
+    'Hangi ilanlardan uzak durmalıyım?',
+    'Fiyat/performans sıralaması yap',
+    'En az riskli seçenek hangisi?',
+    'Bu listede fiyatlar genel olarak nasıl?'
+  ];
+
+  function listFacts(entries, today = new Date(), max = LIST_MAX) {
+    const ranked = rankForCompare(entries);
+    const lines = compareFacts(ranked, today, max);
+    const priced = entries.filter(entry => entry.result?.center);
+    const cheap = priced.filter(entry => entry.result.gap < 0).length;
+    lines.unshift(
+      `Sayfada ${entries.length} ilan okundu${entries.length > max ? `; fırsat puanına göre en iyi ${max} tanesi aşağıda` : ''}. Piyasa tahmini olan ${priced.length} ilanın ${cheap} tanesi piyasa ortasının altında.`
+    );
+    return { lines, shown: ranked.slice(0, max) };
+  }
+
+  // Serbest sorudaki bütçe, km, yıl, vites, yakıt ve marka/model isteklerini kurala dayalı okur ("bütçem 800 bin,
+  // otomatik, 2019 sonrası"). Model hesap yapmak zorunda kalmaz; süzme eklentide yapılır.
+  const fold = text =>
+    String(text ?? '')
+      .toLocaleLowerCase('tr-TR')
+      .replace(/[’']/g, ' ');
+
+  function amount(number, unit) {
+    const value = Number(String(number).replace(/\./g, '').replace(',', '.'));
+    if (!Number.isFinite(value)) return NaN;
+    if (/^milyon/.test(unit)) return value * 1e6;
+    if (/^bin|^k$/.test(unit)) return value * 1e3;
+    return value;
+  }
+
+  function listFilter(question, entries = []) {
+    const text = fold(question);
+    const filter = { labels: [] };
+    const pattern =
+      /(\d{1,3}(?:[.]\d{3})+|\d+(?:,\d+)?)\s*(milyon|bin|k\b)?\s*(km|kilometre|tl|lira|₺)?\s*([a-zçğıöşü' ]{0,24})/g;
+    for (const [, number, unit = '', kind = '', after] of text.matchAll(pattern)) {
+      const value = amount(number, unit);
+      const next = after.trim();
+      const kmNear = kind.startsWith('k') || /^km|^kilometre/.test(next);
+      if (!unit && !kind && value >= 1990 && value <= 2035) {
+        if (/^(öncesi|ve öncesi|ten eski|den eski|altı)/.test(next)) filter.maxYear = value;
+        else if (/^model(?! ve| sonra|den|ten| üstü)/.test(next)) filter.minYear = filter.maxYear = value;
+        else filter.minYear = value;
+      } else if (kmNear) filter.maxKm = value;
+      else if (value >= 50000) filter.maxPrice = value;
+    }
+    if (/otomatik|dsg|cvt|edc|tiptronik/.test(text)) filter.transmission = /otomatik|yarı/;
+    else if (/manuel|düz vites/.test(text)) filter.transmission = /manuel|düz/;
+    if (/dizel|mazot/.test(text)) filter.fuel = /dizel/;
+    else if (/hibrit|hybrid/.test(text)) filter.fuel = /hibrit|hybrid/;
+    else if (/elektrik/.test(text)) filter.fuel = /elektrik/;
+    else if (/lpg/.test(text)) filter.fuel = /lpg/;
+    else if (/benzin/.test(text)) filter.fuel = /benzin/;
+    const names = new Set();
+    for (const { record } of entries)
+      for (const name of [record.brand, record.model])
+        if (
+          name &&
+          name.length > 1 &&
+          new RegExp(`(^|[^a-zçğıöşü])${fold(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^a-zçğıöşü])`).test(text)
+        )
+          names.add(fold(name));
+    if (names.size) filter.names = names;
+    const lira = value => `${Math.round(value).toLocaleString('tr-TR')} TL`;
+    if (filter.maxPrice) filter.labels.push(`en fazla ${lira(filter.maxPrice)}`);
+    if (filter.maxKm) filter.labels.push(`en fazla ${Math.round(filter.maxKm).toLocaleString('tr-TR')} km`);
+    if (filter.minYear && filter.minYear === filter.maxYear) filter.labels.push(`${filter.minYear} model`);
+    else {
+      if (filter.minYear) filter.labels.push(`${filter.minYear} ve sonrası`);
+      if (filter.maxYear) filter.labels.push(`${filter.maxYear} ve öncesi`);
+    }
+    if (filter.transmission)
+      filter.labels.push(String(filter.transmission).includes('otomatik') ? 'otomatik vites' : 'manuel vites');
+    if (filter.fuel) filter.labels.push(String(filter.fuel).slice(1).split(/[|/]/)[0]);
+    if (filter.names) filter.labels.push([...filter.names].join(', '));
+    return filter;
+  }
+
+  // Bilinmeyen alan (ör. arama listesinde vites sütunu yoksa) ilanı elemez.
+  function applyListFilter(entries, filter) {
+    return entries.filter(({ record }) => {
+      if (filter.maxPrice && record.price > filter.maxPrice) return false;
+      if (filter.maxKm && record.km > filter.maxKm) return false;
+      if (filter.minYear && record.year < filter.minYear) return false;
+      if (filter.maxYear && record.year > filter.maxYear) return false;
+      if (filter.transmission && record.transmission && !filter.transmission.test(fold(record.transmission)))
+        return false;
+      if (filter.fuel && record.fuel && !filter.fuel.test(fold(record.fuel))) return false;
+      if (filter.names && ![record.brand, record.model].some(name => filter.names.has(fold(name)))) return false;
+      return true;
+    });
+  }
+
+  // Soruya göre süzülmüş, sıralanmış ve kısaltılmış liste; popup her soruda bunu yeniden kurar.
+  function listContext(question, entries, today = new Date(), max = LIST_MAX) {
+    const filter = listFilter(question, entries);
+    let pool = filter.labels.length ? applyListFilter(entries, filter) : entries;
+    const noMatch = filter.labels.length && !pool.length;
+    if (noMatch) pool = entries;
+    const { lines, shown } = listFacts(pool, today, max);
+    const head = filter.labels.length
+      ? noMatch
+        ? `Sorudaki şartlara (${filter.labels.join(', ')}) uyan ilan yok; bunu söyle ve en yakın seçenekleri öner.`
+        : `Sorudaki şartlara (${filter.labels.join(', ')}) uyan ${pool.length} ilan var (sayfadaki ${entries.length} ilandan).`
+      : '';
+    if (head) lines.unshift(head);
+    return { lines, shown, total: entries.length, matched: noMatch ? 0 : pool.length, filter, noMatch };
+  }
+
+  function listSystemPrompt(lines) {
+    return [
+      'Sen Oto Pusula adlı ikinci el araç eklentisinin asistanısın; otomobiller konusunda uzman, dürüst bir danışmansın.',
+      'Kullanıcı sahibinden.com’da bir arama sonuçları sayfasına bakıyor; aşağıda o sayfadaki ilanlar var. Her zaman Türkçe ve sade yaz.',
+      'İlanlardan söz ederken numarasını ve kısa adını yaz (ör. “İlan 2 · Egea 2021, 850.000 TL”). Listede olmayan ilan, fiyat ya da özellik uydurma.',
+      'Seçim sorularında fırsat puanını, piyasa ortasına göre farkı, km yorumunu, kaporta puanını ve uyarıları birlikte tart; neden seçtiğini her ilan için tek cümleyle söyle. Uyarısı olan ilanları neden riskli olduğuyla belirt.',
+      'Listedeki bilgi yetmiyorsa (ör. kaporta şeması okunmamış) ilanı açıp analiz etmeyi öner. Kesin “al” deme; ekspertiz ve tramer kontrolünü hatırlat.',
+      ...EXPERT_RULES,
+      '',
+      'SAYFADAKİ İLANLAR:',
+      ...lines.map(line => `- ${line}`)
+    ].join('\n');
   }
 
   // Önceki sohbet ve kullanıcının kaydettiği diğer ilanlar sistem talimatına eklenir (kısaltılmış).
@@ -440,6 +578,58 @@
     return text.length < 25 || /^(üzgünüm|bilmiyorum|bu konuda yardımcı olamam|i('|’)m sorry|sorry)/i.test(text);
   }
 
+  // Cevaptaki basit Markdown'ı (başlık, madde, numaralı madde, **kalın**) bloklara ayırır. HTML üretmez;
+  // popup bu bloklardan güvenli DOM düğümleri kurar. Akış sırasında kapanmamış ** işaretleri görünmez.
+  function inline(text) {
+    const spans = [];
+    const parts = String(text).split(/\*\*(.+?)\*\*/);
+    parts.forEach((part, index) => {
+      const value = part.replace(/\*\*|__/g, '');
+      if (value) spans.push({ text: value, bold: index % 2 === 1 });
+    });
+    return spans;
+  }
+
+  function formatBlocks(text) {
+    const blocks = [];
+    let paragraph = [];
+    const flush = () => {
+      if (paragraph.length) blocks.push({ type: 'p', spans: inline(paragraph.join(' ')) });
+      paragraph = [];
+    };
+    for (const raw of String(text ?? '').split('\n')) {
+      const line = raw.trim();
+      let match;
+      if (!line) flush();
+      else if ((match = line.match(/^#{1,6}\s+(.+)$/)) || (match = line.match(/^\*\*([^*]{1,60}?):?\*\*:?$/))) {
+        flush();
+        blocks.push({ type: 'h', text: match[1].replace(/\*\*|:$/g, '').trim() });
+      } else if ((match = line.match(/^(?:[-*•–])\s+(.+)$/)) || (match = line.match(/^\d{1,2}[.)]\s+(.+)$/))) {
+        flush();
+        const type = /^\d/.test(line) ? 'ol' : 'ul';
+        const last = blocks[blocks.length - 1];
+        if (last?.type === type) last.items.push(inline(match[1]));
+        else blocks.push({ type, items: [inline(match[1])] });
+      } else paragraph.push(line);
+    }
+    flush();
+    return blocks.filter(block => (block.type === 'h' ? block.text : true));
+  }
+
+  // Kopyalama için işaretsiz düz metin.
+  function plainText(text) {
+    return formatBlocks(text)
+      .map(block => {
+        const join = spans => spans.map(span => span.text).join('');
+        if (block.type === 'h') return block.text;
+        if (block.type === 'p') return join(block.spans);
+        return block.items
+          .map((item, index) => `${block.type === 'ol' ? `${index + 1}.` : '•'} ${join(item)}`)
+          .join('\n');
+      })
+      .join('\n\n');
+  }
+
   // Popup'ta gösterilecek kısa Türkçe hata metni.
   function errorText(error, mode) {
     if (error?.name === 'RemoteAIError') return error.message;
@@ -455,6 +645,15 @@
   }
 
   const api = {
+    listFilter,
+    applyListFilter,
+    listContext,
+    LIST_MAX,
+    LIST_SUGGESTIONS,
+    listFacts,
+    listSystemPrompt,
+    formatBlocks,
+    plainText,
     kmVerdict,
     compactFacts,
     retryable,

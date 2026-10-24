@@ -2,6 +2,12 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.6.0 — 2026-10-24
+
+- Arama sonuçları sayfasında asistan: sayfadaki tüm ilanlar hakkında serbest soru sorulur ("bütçem 800 bin, otomatik, 2019 sonrası en iyisi hangisi?"). Bütçe, km, yıl, vites, yakıt ve marka/model şartları sorudan okunup ilanlar eklentide süzülür, fırsat puanına göre en iyi 15 tanesi asistana verilir. Cevaptaki "İlan 3" gibi adlar tıklanınca ilan yeni sekmede açılır; altında sözü geçen ilanların fiyat/piyasa farkı, km, kaporta, fırsat puanı, pazarlık ve uyarı kartları ile kaç ilanın incelendiği gösterilir.
+- Profesyonel cevap biçimi: "Kısa cevap" kutusu, başlıklar, maddeler ve kalın vurgular (güvenli biçimde, HTML kullanılmadan).
+- Cevabın altında "Kopyala" ve "Yeniden sor"; boş sohbette ilana göre karşılama ve dört başlangıç kartı; mesajlarda yumuşak geçiş animasyonu (hareket azaltma ayarına uyar); Gemini önerisi katlanır karta taşındı.
+
 ## 7.5.0 — 2026-10-24
 
 - Yeni asistan tasarımı: Oto Pusula Asistanı; balon mesajlar, alta sabit yazma kutusu, "yazıyor" animasyonu, açık/koyu tema uyumlu.

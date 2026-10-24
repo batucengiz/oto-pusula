@@ -493,3 +493,43 @@ button:active:not(:disabled) {
     background: #0891b2;
   }
 }
+
+/* v7.6 sohbet öğeleri, açık tema */
+:root[data-theme='light'] .chat-ai {
+  background: none;
+}
+:root[data-theme='light'] .chat-rich .chat-h {
+  color: #0e7490;
+}
+:root[data-theme='light'] .chat-rich .chat-lead strong:first-child,
+:root[data-theme='light'] .chat-pick-price,
+:root[data-theme='light'] .chat-card-icon {
+  color: #047857;
+}
+:root[data-theme='light'] .chat-ref {
+  color: #0e7490;
+  background: #ecfeff;
+}
+:root[data-theme='light'] .chat-pick .warning {
+  color: #b45309;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) .chat-ai {
+    background: none;
+  }
+  :root:not([data-theme='dark']) .chat-rich .chat-h {
+    color: #0e7490;
+  }
+  :root:not([data-theme='dark']) .chat-rich .chat-lead strong:first-child,
+  :root:not([data-theme='dark']) .chat-pick-price,
+  :root:not([data-theme='dark']) .chat-card-icon {
+    color: #047857;
+  }
+  :root:not([data-theme='dark']) .chat-ref {
+    color: #0e7490;
+    background: #ecfeff;
+  }
+  :root:not([data-theme='dark']) .chat-pick .warning {
+    color: #b45309;
+  }
+}

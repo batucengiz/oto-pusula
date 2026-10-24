@@ -241,7 +241,7 @@ const walk = (node, found = []) => {
 
 async function popupWithModel(
   LanguageModel,
-  { remote = false, storage = new Map(), fetch, opened = [], description = 'Temiz araç.' } = {}
+  { remote = false, storage = new Map(), fetch, opened = [], description = 'Temiz araç.', page, clipboard } = {}
 ) {
   const nodes = new Map();
   const get = id => {
@@ -281,9 +281,10 @@ async function popupWithModel(
       removeItem: k => storage.delete(k)
     },
     window: { close() {} },
+    ...(clipboard ? { navigator: { clipboard } } : {}),
     chrome: {
-      tabs: { query: async () => [{ id: 1, url: detail.url }], create: ({ url }) => opened.push(url) },
-      scripting: { executeScript: async () => [{ result: detail }] },
+      tabs: { query: async () => [{ id: 1, url: (page || detail).url }], create: ({ url }) => opened.push(url) },
+      scripting: { executeScript: async () => [{ result: page || detail }] },
       runtime: { getURL: path => path }
     }
   });
@@ -789,4 +790,182 @@ test('uzman talimatları: ekspertiz, tramer, mekanik, bakım ve alım süreci bi
   for (const word of ['Ekspertiz', 'Tramer', 'DPF', 'DSG', 'triger', 'noterde', 'kasko', 'uydurma'])
     assert.match(text, new RegExp(word), word);
   assert.ok(assistant.SUGGESTIONS.includes('Alırken nelere dikkat etmeliyim?'));
+});
+
+test('cevap biçimi: başlık, madde, numaralı madde ve kalın yazı güvenli bloklara ayrılır', () => {
+  const text =
+    '**Kısa cevap:** Uygun.\n\n## Riskler\n- **Kapora** istemi\n- LPG\n1. Tramer\n2. Ekspertiz\n**Öneri:**\nYarım **kalın';
+  const blocks = assistant.formatBlocks(text);
+  assert.deepEqual(
+    blocks.map(block => block.type),
+    ['p', 'h', 'ul', 'ol', 'h', 'p']
+  );
+  assert.deepEqual(blocks[0].spans, [
+    { text: 'Kısa cevap:', bold: true },
+    { text: ' Uygun.', bold: false }
+  ]);
+  assert.equal(blocks[1].text, 'Riskler');
+  assert.equal(blocks[2].items.length, 2);
+  assert.equal(blocks[4].text, 'Öneri');
+  assert.equal(blocks[5].spans.map(span => span.text).join(''), 'Yarım kalın', 'kapanmamış ** görünmez');
+  assert.equal(assistant.plainText(text).includes('**'), false);
+  assert.match(assistant.plainText(text), /• Kapora istemi\n• LPG/);
+  assert.match(assistant.plainText(text), /1\. Tramer\n2\. Ekspertiz/);
+  assert.deepEqual(
+    assistant.formatBlocks('<img src=x onerror=alert(1)>')[0].spans[0].text,
+    '<img src=x onerror=alert(1)>'
+  );
+});
+
+test('popup: cevap biçimli gösterilir, kopyalanır, yeniden sorulur; başlangıç kartları ve katlanır öneri', async () => {
+  const copied = [];
+  const prompts = [];
+  const api = {
+    availability: async () => 'available',
+    create: async () => ({
+      prompt: async text => {
+        prompts.push(text);
+        return '**Kısa cevap:** Fiyat uygun.\n## Riskler\n- Kapora istemi';
+      },
+      destroy() {}
+    })
+  };
+  const chat = await popupWithModel(api, { remote: true, clipboard: { writeText: async text => copied.push(text) } });
+  const tip = walk(chat).find(node => node.className === 'chat-tip');
+  assert.equal(tip.tag, 'details', 'öneri katlanır kartta');
+  assert.ok(walk(tip).some(node => node.tag === 'summary' && /Önerimiz/.test(node.textContent)));
+  const cards = walk(chat).filter(node => node.className === 'chat-card');
+  assert.equal(cards.length, 4);
+  assert.ok(walk(chat).some(node => /Fiat Egea hakkında/.test(node.textContent)));
+  await cards[0].click();
+  assert.deepEqual(prompts, ['Bu fiyata değer mi?']);
+  const rich = walk(chat).find(node => /chat-rich/.test(node.className));
+  assert.ok(walk(rich).some(node => node.className === 'chat-lead'));
+  assert.ok(walk(rich).some(node => node.tag === 'h4' && node.textContent === 'Riskler'));
+  assert.ok(walk(rich).some(node => node.tag === 'li'));
+  assert.equal(
+    walk(rich).some(node => /\*\*|##/.test(node.textContent)),
+    false,
+    'işaretler görünmez'
+  );
+  const copy = walk(chat).find(node => node.className === 'chat-action' && node.textContent === 'Kopyala');
+  await copy.click();
+  assert.equal(copied[0], 'Kısa cevap: Fiyat uygun.\n\nRiskler\n\n• Kapora istemi');
+  assert.equal(copy.textContent, 'Kopyalandı ✓');
+  await walk(chat)
+    .find(node => node.textContent === 'Yeniden sor')
+    .click();
+  assert.deepEqual(prompts, ['Bu fiyata değer mi?', 'Bu fiyata değer mi?']);
+});
+
+const SEARCH_HEADERS = ['', 'Model', 'İlan Başlığı', 'Yıl', 'KM', 'Renk', 'Fiyat', 'İlan Tarihi', 'İl / İlçe'];
+function searchPage(rows) {
+  return {
+    kind: 'search',
+    url: 'https://www.sahibinden.com/fiat-egea',
+    pageTitle: 'Fiat Egea',
+    headers: SEARCH_HEADERS,
+    rows: rows.map(([model, year, km, price], i) => {
+      const id = `12345670${i}1`;
+      return {
+        id,
+        title: 'EGEA',
+        titleIndex: 2,
+        href: `https://www.sahibinden.com/ilan/vasita-otomobil-fiat-${id}/detay`,
+        cells: ['', model, 'EGEA', String(year), km, 'Beyaz', price, '20 Ekim 2026', 'İstanbul\nKadıköy'],
+        price,
+        location: 'İstanbul\nKadıköy'
+      };
+    })
+  };
+}
+
+test('arama sayfası: listedeki tüm ilanlar hakkında serbest soru; soru şartlara göre süzülür, ilanlar bağlantı olur', async () => {
+  const page = searchPage([
+    ['1.4 Fire Urban', 2021, '90.000', '850.000 TL'],
+    ['1.4 Fire Urban', 2020, '110.000', '760.000 TL'],
+    ['1.3 Multijet Easy', 2019, '150.000', '720.000 TL'],
+    ['1.4 Fire Easy', 2022, '45.000', '935.000 TL'],
+    ['1.4 Fire Urban', 2020, '95.000', '790.000 TL']
+  ]);
+  const systems = [];
+  const opened = [];
+  const api = {
+    availability: async () => 'available',
+    create: async options => {
+      systems.push(options.initialPrompts[0].content);
+      return { prompt: async () => '**Kısa cevap:** İlan 1 en mantıklısı, sonra İlan 2.', destroy() {} };
+    }
+  };
+  const chat = await popupWithModel(api, { page, opened });
+  assert.ok(chat, 'arama sayfasında da sohbet açılır');
+  assert.equal(chat.hidden, false);
+  assert.ok(walk(chat).some(node => /Bu sayfadaki 5 ilan/.test(node.textContent)));
+  assert.ok(walk(chat).some(node => node.className === 'chat-chip' && /en mantıklı 3 ilan/.test(node.textContent)));
+  assert.ok(
+    walk(chat).every(node => node.className !== 'chat-save' || node.hidden),
+    'liste modunda kaydet düğmesi yok'
+  );
+
+  const form = walk(chat).find(node => node.tag === 'form');
+  form.children.find(node => node.tag === 'input').value = 'Bütçem 800 bin, 2020 sonrası en iyisi hangisi?';
+  await form.listeners.submit({ preventDefault() {} });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(systems.length, 1);
+  assert.match(systems[0], /SAYFADAKİ İLANLAR/);
+  assert.match(systems[0], /en fazla 800\.000 TL, 2020 ve sonrası/);
+  assert.match(systems[0], /uyan 2 ilan var \(sayfadaki 5 ilandan\)/);
+  assert.equal(systems[0].match(/İlan \d+:/g).length, 2);
+  assert.doesNotMatch(systems[0], /2019 model|2021 model|2022 model/, 'şarta uymayanlar modele verilmez');
+  assert.match(systems[0], /UZMAN BİLGİSİ/);
+
+  const refs = walk(chat).filter(node => node.className === 'chat-ref');
+  assert.deepEqual(
+    refs.map(node => node.textContent),
+    ['İlan 1', 'İlan 2']
+  );
+  refs[0].click();
+  assert.equal(opened.length, 1);
+  assert.match(opened[0], /^https:\/\/www\.sahibinden\.com\/ilan\//);
+  const picks = walk(chat).filter(node => node.className === 'chat-pick');
+  assert.equal(picks.length, 2, 'sözü geçen ilanların ayrıntı kartları');
+  assert.ok(
+    walk(chat).some(node => /5 ilan okundu · şartlara uyan 2 · en iyi 2 ilan incelendi/.test(node.textContent))
+  );
+
+  // Şartsız ikinci soru: tüm liste, önceki soru bağlamda.
+  form.children.find(node => node.tag === 'input').value = 'En az riskli hangisi?';
+  await form.listeners.submit({ preventDefault() {} });
+  assert.equal(systems.length, 2, 'her soruda liste yeniden süzülür');
+  assert.match(systems[1], /Sayfada 5 ilan okundu/);
+  assert.match(systems[1], /ÖNCEKİ SOHBET/);
+});
+
+test('liste süzgeci: bütçe, km, yıl, vites, yakıt ve model sorudan okunur; uymayan yoksa en yakınlar önerilir', () => {
+  const entries = [
+    { record: { brand: 'Fiat', model: 'Egea', year: 2021, km: 90000, price: 850000, transmission: 'Manuel' } },
+    { record: { brand: 'Renault', model: 'Clio', year: 2018, km: 150000, price: 700000, fuel: 'Dizel' } }
+  ];
+  const labels = question => assistant.listFilter(question, entries).labels;
+  assert.deepEqual(labels('bütçem 800 bin, otomatik'), ['en fazla 800.000 TL', 'otomatik vites']);
+  assert.deepEqual(labels('2019 sonrası 100 bin km altı'), ['en fazla 100.000 km', '2019 ve sonrası']);
+  assert.deepEqual(labels('1,2 milyon TL’ye kadar dizel'), ['en fazla 1.200.000 TL', 'dizel']);
+  assert.deepEqual(labels('2020 model clio'), ['2020 model', 'clio']);
+  assert.deepEqual(labels('en mantıklı 3 ilan hangisi?'), []);
+  const pick = question =>
+    assistant.applyListFilter(entries, assistant.listFilter(question, entries)).map(entry => entry.record.model);
+  assert.deepEqual(pick('bütçem 800 bin, otomatik'), ['Clio'], 'vitesi bilinmeyen ilan elenmez');
+  assert.deepEqual(pick('100 bin km altı'), ['Egea']);
+  const none = assistant.listContext('bütçem 300 bin', entries);
+  assert.equal(none.noMatch, true);
+  assert.match(none.lines[0], /uyan ilan yok/);
+  assert.equal(none.shown.length, 2);
+  const many = Array.from({ length: 30 }, (_, i) => ({
+    record: { brand: 'Fiat', model: 'Egea', year: 2020, km: 80000, price: 800000 + i },
+    deal: { score: i }
+  }));
+  const big = assistant.listContext('en iyisi?', many);
+  assert.equal(big.shown.length, assistant.LIST_MAX);
+  assert.equal(big.shown[0].deal.score, 29, 'fırsat puanına göre ön eleme');
+  assert.match(big.lines[0], /30 ilan okundu; fırsat puanına göre en iyi 15/);
 });
