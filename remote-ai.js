@@ -36,27 +36,38 @@
     return 'Bulut yapay zekası şu an cevap veremedi. Biraz sonra tekrar deneyin.';
   }
 
+  function remoteError(message) {
+    const error = new Error(message);
+    error.name = 'RemoteAIError';
+    return error;
+  }
+
   // LanguageModel oturumuyla aynı biçimde (prompt / destroy) çalışan, konuşma geçmişini tutan oturum.
   function createSession(key, systemText, fetcher = root.fetch?.bind(root)) {
     const history = [];
     let closed = false;
     return {
       remote: true,
-      async prompt(text) {
+      async prompt(text, { signal } = {}) {
         if (closed) throw new Error('Oturum kapalı.');
         const contents = [...history, { role: 'user', parts: [{ text }] }];
-        const response = await fetcher(ENDPOINT, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-          body: JSON.stringify({ systemInstruction: { parts: [{ text: systemText }] }, contents, generationConfig: { temperature: 0.3, maxOutputTokens: 600 } })
-        });
-        if (!response.ok) {
-          const error = new Error(errorMessage(response.status));
-          error.name = 'RemoteAIError';
-          throw error;
+        let response;
+        try {
+          response = await fetcher(ENDPOINT, {
+            method: 'POST', signal,
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+            body: JSON.stringify({ systemInstruction: { parts: [{ text: systemText }] }, contents, generationConfig: { temperature: 0.3, maxOutputTokens: 800 } })
+          });
+        } catch (cause) {
+          if (cause?.name === 'AbortError') throw cause;
+          throw remoteError('Google’a bağlanılamadı. İnternet bağlantınızı kontrol edin.');
         }
-        const data = await response.json();
+        if (!response.ok) throw remoteError(errorMessage(response.status));
+        let data;
+        try { data = await response.json(); } catch { throw remoteError(errorMessage(0)); }
         const answer = (data?.candidates?.[0]?.content?.parts || []).map(part => part?.text || '').join('').trim();
+        // Güvenlik filtresi vb. yüzünden boş dönen cevap geçmişe yazılmaz.
+        if (!answer) return '';
         history.push({ role: 'user', parts: [{ text }] }, { role: 'model', parts: [{ text: answer }] });
         history.splice(0, Math.max(0, history.length - MAX_TURNS * 2));
         return answer;

@@ -169,7 +169,7 @@ async function popupWithModel(LanguageModel, { remote = false, storage = new Map
     description: 'Temiz araç.', phoneText: ''
   };
   const context = vm.createContext({
-    Node: FakeNode, console, URL,
+    Node: FakeNode, console, URL, setTimeout, clearTimeout, AbortController,
     ...(LanguageModel ? { LanguageModel } : {}),
     ...(fetch ? { fetch } : {}),
     document: { getElementById: get, createElement: tag => new FakeNode(tag) },
@@ -317,14 +317,86 @@ test('popup: yerleşik yapay zeka yokken anahtar girilmedikçe hiçbir istek at�
   assert.ok(walk(chat).some(node => node.tag === 'form' && node.children.some(child => child.type === 'password')));
 });
 
-test('popup: yerleşik yapay zeka varken kayıtlı anahtar olsa bile veri dışarı gitmez', async () => {
+test('popup: yerleşik yapay zeka varken anahtarsız veri dışarı gitmez; öneri gösterilir, anahtar girilince bulut kullanılır', async () => {
   const requests = [];
-  const storage = new Map([['otoPusula_aiKey', 'AIza' + 'z'.repeat(35)]]);
+  const storage = new Map();
+  const opened = [];
   const { api, calls } = fakeModel();
-  const chat = await popupWithModel(api, { remote: true, storage, fetch: async url => { requests.push(url); } });
+  const fetch = async url => { requests.push(url); return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: 'Bulut cevabı, ayrıntılı.' }] } }] }) }; };
+  const chat = await popupWithModel(api, { remote: true, storage, fetch, opened });
   await walk(chat).find(node => node.className === 'chat-chip').click();
   assert.equal(calls.prompts.length, 1);
-  assert.equal(requests.length, 0);
+  assert.equal(requests.length, 0, 'anahtar yokken istek atılmaz');
+  assert.ok(walk(chat).some(node => /Önerimiz/.test(node.textContent)), 'Gemini anahtarı önerisi görünür');
+
+  walk(chat).find(node => /Gemini anahtarı ekle/.test(node.textContent)).click();
+  walk(chat).find(node => /Ücretsiz anahtar al/.test(node.textContent)).click();
+  assert.deepEqual(opened, ['https://aistudio.google.com/app/apikey']);
+  const form = walk(chat).find(node => node.tag === 'form');
+  form.children.find(node => node.tag === 'input').value = 'AIza' + 'z'.repeat(35);
+  form.listeners.submit({ preventDefault() {} });
+  assert.equal(walk(chat).some(node => /Önerimiz/.test(node.textContent)), false, 'anahtar girilince öneri kaybolur');
+  await walk(chat).find(node => node.className === 'chat-chip').click();
+  assert.deepEqual(requests, [remoteAI.ENDPOINT]);
+
+  walk(chat).find(node => /API anahtarını sil/.test(node.textContent)).click();
+  assert.ok(walk(chat).some(node => /Önerimiz/.test(node.textContent)), 'anahtar silinince cihazdaki yapay zekaya dönülür');
+});
+
+test('popup: yapay zeka hata verirse, takılırsa ya da boş cevap verirse popup çalışmaya devam eder', async () => {
+  const scenarios = [
+    { name: 'model hatası', session: { prompt: async () => { throw new Error('boom'); } }, expect: /cevap veremedi/ },
+    { name: 'kapasite', session: { prompt: async () => { const e = new Error('x'); e.name = 'QuotaExceededError'; throw e; } }, expect: /kapasitesini aştı/ },
+    { name: 'boş cevap', session: { prompt: async () => '' }, expect: /Cevap üretilemedi/ },
+    { name: 'akış ortasında hata', session: { promptStreaming: () => (async function* () { yield 'Yarım'; throw new Error('kesildi'); })() }, expect: /cevap veremedi/ }
+  ];
+  for (const { name, session, expect } of scenarios) {
+    let created = 0;
+    const api = { availability: async () => 'available', create: async () => { created += 1; return session; } };
+    const chat = await popupWithModel(api);
+    const chip = walk(chat).find(node => node.className === 'chat-chip');
+    await chip.click();
+    assert.ok(walk(chat).some(node => expect.test(node.textContent)), name);
+    assert.equal(chip.disabled, false, `${name}: düğmeler tekrar kullanılabilir`);
+    assert.ok(walk(chat).some(node => /Gemini anahtarı/.test(node.textContent)), `${name}: daha güçlü model önerilir`);
+    await chip.click();
+    assert.equal(created, name === 'boş cevap' ? 1 : 2, `${name}: hatadan sonra yeni oturum açılır`);
+  }
+  const broken = { availability: async () => { throw new Error('x'); }, create() {} };
+  const hidden = await popupWithModel(broken);
+  assert.ok(hidden.siblings.some(node => node.className === 'seller-questions'), 'analiz sonucu bozulmaz');
+});
+
+test('süre sınırı: takılan yapay zeka iptal edilir; aşırı uzun cevap kesilir', async () => {
+  let aborted = false;
+  const hanging = { prompt: (text, { signal }) => new Promise(() => signal.addEventListener('abort', () => { aborted = true; })) };
+  await assert.rejects(assistant.ask(hanging, 'soru', null, { timeoutMs: 20 }), error => error.name === 'TimeoutError');
+  assert.equal(aborted, true, 'istek iptal edilir');
+  assert.match(assistant.errorText({ name: 'TimeoutError' }, 'builtin'), /uzun sürdü/);
+
+  const long = { promptStreaming: () => (async function* () { for (let i = 0; ; i += 1) yield `${i} ${'a'.repeat(500)} `; })() };
+  const answer = await assistant.ask(long, 'soru', null, { maxChars: 1200 });
+  assert.equal(answer.length, 1201);
+  assert.ok(answer.endsWith('…'));
+  const longPlain = { prompt: async () => 'b'.repeat(5000) };
+  assert.equal((await assistant.ask(longPlain, 'soru')).length, assistant.MAX_ANSWER + 1);
+
+  assert.equal(assistant.weakAnswer(''), true);
+  assert.equal(assistant.weakAnswer('Üzgünüm, bu konuda bilgim yok.'), true);
+  assert.equal(assistant.weakAnswer('Fiyat piyasa ortasının biraz altında; kaporta bilgisi eksik, ekspertiz isteyin.'), false);
+});
+
+test('bulut: bağlantı yoksa, cevap bozuksa ya da boşsa Türkçe hata verir, geçmişi bozmaz', async () => {
+  const key = 'AIza' + 'k'.repeat(35);
+  const offline = remoteAI.createSession(key, 'S', async () => { throw new TypeError('Failed to fetch'); });
+  await assert.rejects(offline.prompt('soru'), /bağlanılamadı/);
+  const garbage = remoteAI.createSession(key, 'S', async () => ({ ok: true, json: async () => { throw new SyntaxError('x'); } }));
+  await assert.rejects(garbage.prompt('soru'), error => error.name === 'RemoteAIError');
+  const bodies = [];
+  const empty = remoteAI.createSession(key, 'S', async (url, init) => { bodies.push(JSON.parse(init.body)); return { ok: true, json: async () => ({ candidates: [] }) }; });
+  assert.equal(await empty.prompt('soru'), '');
+  await empty.prompt('ikinci');
+  assert.equal(bodies[1].contents.length, 1, 'boş cevap geçmişe yazılmaz');
 });
 
 test('popup: satıcıya sorulacaklar yapay zeka olmadan da ilan sayfasında gösterilir', async () => {

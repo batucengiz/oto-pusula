@@ -161,25 +161,67 @@
     });
   }
 
-  // Cevabı parça parça üretir; akış desteklenmiyorsa tek seferde ister. Her adımda o ana kadarki metni bildirir.
-  async function ask(session, text, onText) {
-    const input = question(text);
-    if (!input) return '';
-    if (typeof session.promptStreaming === 'function') {
-      let answer = '';
-      const stream = session.promptStreaming(input);
-      for await (const chunk of stream) {
-        answer = appendChunk(answer, chunk);
-        if (typeof onText === 'function') onText(answer);
-      }
-      return answer.trim();
-    }
-    const answer = String(await session.prompt(input)).trim();
-    if (typeof onText === 'function') onText(answer);
-    return answer;
+  const TIMEOUT_MS = 60000;
+  const MAX_ANSWER = 3000;
+
+  function timeoutError() {
+    const error = new Error('Cevap çok uzun sürdü.');
+    error.name = 'TimeoutError';
+    return error;
   }
 
-  const api = { MAX_QUESTION, SUGGESTIONS, comparableLines, sellerQuestions, offerReasons, languageModel, availability, facts, systemPrompt, question, appendChunk, createSession, ask };
+  // Cevabı parça parça üretir; akış desteklenmiyorsa tek seferde ister. Her adımda o ana kadarki metni bildirir.
+  // Süre sınırını aşan istek iptal edilir; aşırı uzun cevap kesilir. Hata, çağırana tek bir istisna olarak döner.
+  async function ask(session, text, onText, { timeoutMs = TIMEOUT_MS, maxChars = MAX_ANSWER } = {}) {
+    const input = question(text);
+    if (!input) return '';
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    const options = controller ? { signal: controller.signal } : undefined;
+    let timer;
+    const expired = new Promise((_, reject) => {
+      timer = setTimeout(() => { controller?.abort(); reject(timeoutError()); }, timeoutMs);
+    });
+    let shown;
+    const notify = value => { if (value !== shown && typeof onText === 'function') onText(shown = value); };
+    const work = (async () => {
+      if (typeof session.promptStreaming === 'function') {
+        let answer = '';
+        for await (const chunk of session.promptStreaming(input, options)) {
+          answer = appendChunk(answer, chunk);
+          if (answer.length >= maxChars) { controller?.abort(); return `${answer.slice(0, maxChars).trim()}…`; }
+          notify(answer);
+        }
+        return answer.trim();
+      }
+      const answer = String(await session.prompt(input, options) ?? '').trim();
+      return answer.length > maxChars ? `${answer.slice(0, maxChars).trim()}…` : answer;
+    })();
+    try {
+      const answer = await Promise.race([work, expired]);
+      notify(answer);
+      return answer;
+    } finally {
+      clearTimeout(timer);
+      work.catch(() => { /* süre dolduktan sonra gelen hata yok sayılır */ });
+    }
+  }
+
+  // Cevap kısa veya kaçamaksa (küçük yerleşik modelde olabilir) kullanıcıya daha güçlü model önerilir.
+  function weakAnswer(answer) {
+    const text = String(answer ?? '').trim();
+    return text.length < 25 || /^(üzgünüm|bilmiyorum|bu konuda yardımcı olamam|i('|’)m sorry|sorry)/i.test(text);
+  }
+
+  // Popup'ta gösterilecek kısa Türkçe hata metni.
+  function errorText(error, mode) {
+    if (error?.name === 'RemoteAIError') return error.message;
+    if (error?.name === 'TimeoutError' || error?.name === 'AbortError') return 'Cevap çok uzun sürdü ve durduruldu. Soruyu kısaltıp tekrar deneyin.';
+    if (error?.name === 'NotAllowedError') return 'Chrome yapay zekayı başlatmaya izin vermedi. Bir kez “Sor”a tıklayarak tekrar deneyin.';
+    if (error?.name === 'QuotaExceededError') return 'Soru ve ilan bilgileri yapay zekanın kapasitesini aştı. Daha kısa bir soru sorun.';
+    return mode === 'builtin' ? 'Chrome’un yapay zekası bu soruya cevap veremedi. Soruyu sadeleştirip tekrar deneyin.' : 'Yapay zeka şu an cevap veremedi. Biraz sonra tekrar deneyin.';
+  }
+
+  const api = { MAX_QUESTION, MAX_ANSWER, TIMEOUT_MS, weakAnswer, errorText, SUGGESTIONS, comparableLines, sellerQuestions, offerReasons, languageModel, availability, facts, systemPrompt, question, appendChunk, createSession, ask };
   root.OtoAssistant = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);
