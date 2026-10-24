@@ -5,7 +5,18 @@
   // toplar. Saf fonksiyonlardır; popup metni kopyalar, report.html yazdırılabilir sayfa olarak çizer.
   const lira = value => `₺${Math.round(value).toLocaleString('tr-TR')}`;
 
-  function build({ record, result, body, deal, advice, questions = [], checklist = [], textFlags = [], today }) {
+  function build({
+    record,
+    result,
+    body,
+    deal,
+    advice,
+    questions = [],
+    checklist = [],
+    textFlags = [],
+    pace = [],
+    today
+  }) {
     const name = [record.brand, record.model, record.engine, record.trim].filter(Boolean).join(' ');
     const facts = [
       ['İlan no', record.listingId ? `#${record.listingId}` : ''],
@@ -22,6 +33,7 @@
           `İlan piyasa ortasının %${Math.abs(Math.round(result.gap * 100))} ${result.gap < 0 ? 'altında' : 'üstünde'} · ${result.status} · güven ${result.confidence}, ${result.count} benzer ilan`
         ]
       : ['Piyasa tahmini yok: yeterli benzer ilan toplanmamış.'];
+    market.push(...pace);
     if (deal) market.push(`Fırsat puanı ${deal.score}/100${deal.label ? ` (${deal.label})` : ''}`);
     if (advice?.offer)
       market.push(

@@ -272,3 +272,38 @@ test('arama sayfası: son ziyaretten beri yeni, indirim, zam ve kaybolan ilanlar
     assert.equal(page.listingIds.length, 4);
   }
 });
+
+test('model temposu: kalkan ilanların süresi/indirimi ve aynı ilanların aylık fiyat eğilimi', () => {
+  const now = new Date('2026-10-24T12:00:00Z');
+  const gone = (id, firstSeen, last, from, to) =>
+    make(id, {
+      price: to,
+      date: last,
+      firstSeen,
+      priceHistory: [
+        { date: firstSeen, price: from },
+        { date: last, price: to }
+      ]
+    });
+  const records = [
+    gone('1000000001', '2026-08-01', '2026-08-21', 1000000, 950000),
+    gone('1000000002', '2026-08-10', '2026-09-09', 900000, 900000),
+    gone('1000000003', '2026-09-01', '2026-09-25', 980000, 931000),
+    make('1000000004', { date: '2026-10-24', firstSeen: '2026-10-20' })
+  ];
+  const pace = core.modelPace(make('2000000000'), records, now);
+  assert.deepEqual(pace.sold, { count: 3, medianDays: 24, medianDiscount: 0.05 });
+  assert.equal(pace.drift.count, 3);
+  assert.ok(pace.drift.monthly < -0.02 && pace.drift.monthly > -0.1);
+  const lines = core.paceLines(pace, make('2000000000'));
+  assert.match(lines[0], /3 Renault Clio ilanı .* ortalama 24 gün .* %5 indi/);
+  assert.match(lines[1], /ayda ortalama %\d+(,\d)? düşüyor/);
+
+  // Az veri: hiçbir şey gösterilmez; başka model veya 2+ yıl farklı ilan sayılmaz.
+  assert.equal(core.modelPace(make('2000000000'), records.slice(0, 2), now), null);
+  const other = records.map(item => ({ ...item, model: 'Megane' }));
+  assert.equal(core.modelPace(make('2000000000'), other, now), null);
+  const old = records.map(item => ({ ...item, year: 2018 }));
+  assert.equal(core.modelPace(make('2000000000'), old, now), null);
+  assert.deepEqual(core.paceLines(null, make('2000000000')), []);
+});

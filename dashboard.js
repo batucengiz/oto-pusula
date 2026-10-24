@@ -982,6 +982,9 @@
     }
     content.append(element('h3', '', 'Fiyat nasıl hesaplandı?'));
     content.append(element('p', 'detail-text', result.reason));
+    core
+      .paceLines(core.modelPace(vehicle, state.comparables), vehicle)
+      .forEach(line => content.append(element('p', 'detail-text', line)));
     if (Number.isFinite(result.position)) {
       const rank =
         result.position === 0

@@ -89,7 +89,7 @@
   }
 
   // "Ekspertize götür" raporu: yazdırılabilir sayfa (yeni sekmede) veya WhatsApp'a yapıştırılacak düz metin.
-  function reportNodes({ record, result, body, deal, advice, textFlags }) {
+  function reportNodes({ record, result, body, deal, advice, textFlags, paceLines }) {
     const report = globalThis.OtoReport;
     const box = element('div', 'report-actions');
     const open = element('button', 'secondary', 'Ekspertiz raporunu aç');
@@ -109,6 +109,7 @@
           questions: assistant.sellerQuestions({ record, body, advice }),
           checklist: assistant.inspectionChecklist({ record, body, advice, textFlags }),
           textFlags,
+          pace: paceLines,
           today: core.localDate()
         })
       );
@@ -180,6 +181,9 @@
             : 'Henüz yeterli benzer ilan yok. Aynı modelin arama sonuçlarını da analiz edin.'
         )
       );
+      // Aynı modelin yerel kayıtlardaki satış süresi ve fiyat eğilimi (veri azsa hiç gösterilmez).
+      const paceLines = core.paceLines(core.modelPace(record, outcome.state?.comparables || []), record);
+      paceLines.forEach(line => nodes.push(element('p', 'muted', line)));
       if (record.condition)
         nodes.push(
           element('p', 'muted', `Beyan: ${record.condition} — “${record.conditionNote}”. Ekspertiz yerine geçmez.`)
@@ -237,7 +241,7 @@
       }
       try {
         if (raw?.kind === 'detail' && assistant && globalThis.OtoReport)
-          nodes.push(reportNodes({ record, result, body, deal, advice, textFlags }));
+          nodes.push(reportNodes({ record, result, body, deal, advice, textFlags, paceLines }));
       } catch {
         /* rapor düğmeleri gösterilemedi */
       }

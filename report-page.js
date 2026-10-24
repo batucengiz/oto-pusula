@@ -38,6 +38,7 @@
     questions: assistant.sellerQuestions({ record, body, advice }),
     checklist: assistant.inspectionChecklist({ record, body, advice, textFlags: flags }),
     textFlags: flags,
+    pace: core.paceLines(core.modelPace(record, comparables), record),
     today: core.localDate()
   });
 
