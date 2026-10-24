@@ -890,3 +890,15 @@ details.chat-tip:not([open]) .chat-tip-action {
   gap: 6px;
   margin-top: 8px;
 }
+.link-button {
+  display: block;
+  margin: -2px 0 8px auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+  opacity: 0.8;
+}

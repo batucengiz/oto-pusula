@@ -147,3 +147,19 @@ test('rapor dosyaları uzak betik ve dinamik kod içermez', () => {
       /\beval\(|new Function\(|\.innerHTML\s*=|fetch\(|XMLHttpRequest/
     );
 });
+
+test('panel ve arama sonucundan ilana girmeden rapor açılır; kaporta bilinmiyorsa ilanı açma önerilir', () => {
+  const html = fs.readFileSync(path.join(__dirname, 'dashboard.html'), 'utf8');
+  assert.match(html, /id="expert-report"/);
+  assert.match(html, /<script src="report\.js"><\/script>/);
+  assert.match(fs.readFileSync(path.join(__dirname, 'popup.js'), 'utf8'), /reportLink\(record\)/);
+  const bare = core.normalizeRecord({ ...record, damage: undefined }, 'comparable');
+  const data = report.build({
+    record: bare,
+    result: null,
+    body: core.bodyReport(bare),
+    advice: core.advise(bare, null, today),
+    today: '2026-10-24'
+  });
+  assert.match(data.sections.find(section => section.id === 'body').items[0], /ilanı bir kez açıp/);
+});

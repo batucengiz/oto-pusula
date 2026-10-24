@@ -34,7 +34,9 @@
           ...(body.painted.length ? [`Boyalı: ${body.painted.join(', ')}`] : []),
           ...(body.local.length ? [`Lokal boyalı: ${body.local.join(', ')}`] : [])
         ]
-      : ['Satıcı boya/değişen şemasını doldurmamış; kaporta bilinmiyor, temiz sayılmamalı.'];
+      : [
+          'Kaporta bilinmiyor, temiz sayılmamalı. Bu ilan sayfası henüz açılıp analiz edilmediyse ilanı bir kez açıp eklentiye basın; boya/değişen şeması ve açıklama uyarıları rapora eklenir (eklenti sahibinden’e kendisi istek atmaz).'
+        ];
     const warnings = [
       ...(advice?.flags || []).map(flag => ({ level: flag.level, text: `${flag.label}: ${flag.text}` })),
       ...textFlags.map(flag => ({

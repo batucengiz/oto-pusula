@@ -74,6 +74,20 @@
     return nodes;
   }
 
+  function openReport(record, textFlags = []) {
+    chrome.tabs.create({
+      url: chrome.runtime.getURL('report.html') + globalThis.OtoReport.encodeHash(record.id, textFlags)
+    });
+  }
+
+  // Arama sonucundaki aday için ilana girmeden rapor (kaporta okunmadıysa raporda "bilinmiyor" yazar).
+  function reportLink(record) {
+    const link = element('button', 'link-button', 'Ekspertiz raporu ↗');
+    link.type = 'button';
+    link.addEventListener('click', () => openReport(record));
+    return link;
+  }
+
   // "Ekspertize götür" raporu: yazdırılabilir sayfa (yeni sekmede) veya WhatsApp'a yapıştırılacak düz metin.
   function reportNodes({ record, result, body, deal, advice, textFlags }) {
     const report = globalThis.OtoReport;
@@ -81,9 +95,7 @@
     const open = element('button', 'secondary', 'Ekspertiz raporunu aç');
     open.type = 'button';
     open.title = 'Fiyat, uyarılar, satıcı soruları ve ekspertiz listesi tek sayfada; yazdırılabilir.';
-    open.addEventListener('click', () =>
-      chrome.tabs.create({ url: chrome.runtime.getURL('report.html') + report.encodeHash(record.id, textFlags) })
-    );
+    open.addEventListener('click', () => openReport(record, textFlags));
     const copy = element('button', 'secondary', 'Raporu kopyala');
     copy.type = 'button';
     copy.addEventListener('click', async () => {
@@ -271,6 +283,7 @@
       );
       button.addEventListener('click', () => openListing(record));
       nodes.push(button);
+      if (globalThis.OtoReport) nodes.push(reportLink(record));
     }
     // Arama sayfası sohbeti: sayfadaki tüm ilanlar hakkında serbest soru. Yalnızca okunan veri kullanılır.
     try {
