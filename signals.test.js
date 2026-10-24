@@ -307,3 +307,19 @@ test('model temposu: kalkan ilanların süresi/indirimi ve aynı ilanların ayl�
   assert.equal(core.modelPace(make('2000000000'), old, now), null);
   assert.deepEqual(core.paceLines(null, make('2000000000')), []);
 });
+
+test('Excel tramer ve ilanda kalma süresini, WhatsApp km düşüşünde kilometre kaydını içerir', () => {
+  const record = {
+    ...make('1234567890', { tramer: 12500, firstSeen: '2026-10-14', date: '2026-10-24' }),
+    relistOf: { listingId: '1111111111', firstSeen: '2026-09-24', price: 950000, lastId: '1111111111' }
+  };
+  const table = listing.marketTable({ comparables: [record] }, today);
+  const col = title => table.columns.findIndex(column => column.title === title);
+  assert.equal(table.rows[0][col('Tramer (TL, satıcı beyanı)')], 12500);
+  assert.equal(table.rows[0][col('İlanda (gün)')], 30);
+  const zero = listing.marketTable({ comparables: [{ ...record, tramer: 0 }] }, today);
+  assert.equal(zero.rows[0][col('Tramer (TL, satıcı beyanı)')], 'yok');
+  const text = decodeURIComponent(listing.whatsappLink('905321112233', { ...record, kmPrevious: 120000 }));
+  assert.match(text, /TÜVTÜRK muayene raporunu/);
+  assert.doesNotMatch(decodeURIComponent(listing.whatsappLink('905321112233', record)), /TÜVTÜRK/);
+});

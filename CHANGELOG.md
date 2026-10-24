@@ -2,6 +2,11 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.10.1 — 2026-10-24
+
+- Excel: "Tramer (TL, satıcı beyanı)" ve "İlanda (gün)" sütunları (yeniden yayınlanan araçta ilk ilanın tarihinden). Uyarılar sütununda 7.7'nin yeni uyarıları da yer alır.
+- WhatsApp hazır mesajı: takip sırasında km'si düşen ilanda kibarca TÜVTÜRK muayene raporu veya servis kaydı da istenir.
+
 ## 7.10.0 — 2026-10-24
 
 - Model temposu: aynı model (±1 yıl) için kayıtlarınızdan, yayından kalkan ilanların ortalama yayında kalma süresi ve ilk fiyattan indirimi ("satılmış ya da kaldırılmış olabilir" notuyla) ile aynı ilanların son 90 gündeki aylık fiyat eğilimi. Popup ilan analizinde, panelde ilan detayında ve ekspertiz raporunun fiyat bölümünde görünür; en az 3 ilan yoksa gösterilmez. Yalnızca yerel kayıtlar kullanılır.
