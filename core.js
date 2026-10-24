@@ -57,7 +57,9 @@
     median: parts.median,
     daysSince: parts.daysSince,
     estimate: parts.estimate,
-    summary: parts.summary
+    summary: parts.summary,
+    modelPace: parts.modelPace,
+    paceLines: parts.paceLines
   };
   root.OtoCore = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

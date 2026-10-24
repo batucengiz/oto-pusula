@@ -458,7 +458,84 @@
     };
   }
 
-  const api = { fuelSet, estimate, summary };
+  // --- Model temposu (yalnızca yerel kayıtlardan) ---
+  // Aynı model ve ±1 yıl ilanlardan iki ölçü:
+  // 1) Satış süresi: modelin en son görüldüğü günden en az 7 gün önce son kez görülen ilan "kalkmış" sayılır
+  //    (satılmış ya da kaldırılmış olabilir; eklenti bunu ayırt edemez). Süre ilk görülmeden son görülmeye,
+  //    yeniden yayında ilk ilanın tarihinden ölçülür; indirim ilk fiyattan son fiyata.
+  // 2) Fiyat eğilimi: son 90 günde en az 7 gün arayla iki kez görülen aynı ilanların fiyat değişimi, 30 güne
+  //    oranlanır. Aynı ilanı kendisiyle karşılaştırdığı için km/yıl karışımından etkilenmez.
+  const PACE_MIN = 3;
+
+  function modelPace(vehicle, comparables, today = new Date()) {
+    const group = (comparables || []).filter(
+      item =>
+        item.source === 'sahibinden' &&
+        item.date &&
+        brandKey(item.brand) === brandKey(vehicle.brand) &&
+        key(item.model) === key(vehicle.model) &&
+        Math.abs(item.year - vehicle.year) <= 1
+    );
+    if (group.length < PACE_MIN) return null;
+    const latest = group.reduce((max, item) => (item.date > max ? item.date : max), '');
+    const latestDay = new Date(`${latest}T12:00:00Z`);
+    const days = [];
+    const discounts = [];
+    for (const item of group) {
+      const gap = daysSince(item.date, latestDay);
+      if (gap === null || gap < 7) continue;
+      const start = item.relistOf?.firstSeen || item.firstSeen;
+      const listed = daysSince(start, new Date(`${item.date}T12:00:00Z`));
+      if (listed === null) continue;
+      days.push(listed);
+      const first = item.relistOf?.price || item.priceHistory?.[0]?.price || item.price;
+      discounts.push(Math.max(0, (first - item.price) / first));
+    }
+    const drifts = [];
+    for (const item of group) {
+      const history = (item.priceHistory || []).filter(entry => {
+        const age = daysSince(entry.date, today);
+        return age !== null && age <= 90;
+      });
+      if (history.length < 2) continue;
+      const first = history[0];
+      const last = history[history.length - 1];
+      const span = daysSince(first.date, new Date(`${last.date}T12:00:00Z`));
+      if (!span || span < 7) continue;
+      drifts.push(((last.price - first.price) / first.price) * (30 / span));
+    }
+    const sold =
+      days.length >= PACE_MIN
+        ? { count: days.length, medianDays: Math.round(median(days)), medianDiscount: median(discounts) }
+        : null;
+    const drift =
+      drifts.length >= PACE_MIN ? { count: drifts.length, monthly: clamp(median(drifts), -0.3, 0.3) } : null;
+    return sold || drift ? { sold, drift } : null;
+  }
+
+  // Kullanıcıya gösterilecek kısa cümleler (en fazla iki).
+  function paceLines(pace, vehicle) {
+    if (!pace) return [];
+    const name = `${vehicle.brand} ${vehicle.model}`;
+    const lines = [];
+    if (pace.sold) {
+      const discount = Math.round(pace.sold.medianDiscount * 100);
+      lines.push(
+        `Kaydınızdaki ${pace.sold.count} ${name} ilanı yayından kalkmadan önce ortalama ${pace.sold.medianDays} gün yayında kaldı${discount >= 1 ? ` ve ilk fiyatından ortalama %${discount} indi` : ''} (satılmış ya da kaldırılmış olabilir).`
+      );
+    }
+    if (pace.drift) {
+      const pct = Math.round(pace.drift.monthly * 1000) / 10;
+      const text =
+        Math.abs(pct) < 0.5
+          ? 'fiyatlar yatay seyrediyor'
+          : `aynı ilanların fiyatı ayda ortalama %${Math.abs(pct).toLocaleString('tr-TR')} ${pct < 0 ? 'düşüyor' : 'artıyor'}`;
+      lines.push(`Fiyat eğilimi (${pace.drift.count} ilan, son 90 gün): ${text}.`);
+    }
+    return lines;
+  }
+
+  const api = { fuelSet, estimate, summary, modelPace, paceLines };
   root.OtoCorePrice = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);
