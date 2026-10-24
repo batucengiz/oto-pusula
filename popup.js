@@ -179,6 +179,12 @@
     save.type = 'submit';
     form.append(input, save);
     const note = element('p', 'muted chat-status', '');
+    const steps = element('ol', 'key-steps');
+    ['Aşağıdaki düğmeyle Google AI Studio’yu açın, Google hesabınızla girin.', '“Create API key / API anahtarı oluştur”a basın (kart bilgisi istenmez).', 'Oluşan “AIza…” ile başlayan anahtarı kopyalayıp buraya yapıştırın, Kaydet’e basın.']
+      .forEach(text => steps.append(element('li', '', text)));
+    const getKey = element('button', 'secondary key-link', 'Ücretsiz anahtar al (Google AI Studio) ↗');
+    getKey.type = 'button';
+    getKey.addEventListener('click', () => chrome.tabs.create({ url: 'https://aistudio.google.com/app/apikey' }));
     form.addEventListener('submit', event => {
       event.preventDefault();
       try {
@@ -193,7 +199,7 @@
     section.replaceChildren(element('h2', '', 'YAPAY ZEKAYA SOR'),
       element('p', 'muted', 'Bu tarayıcıda Chrome’un yerleşik yapay zekası yok. İsterseniz kendi Google Gemini API anahtarınızla (Google AI Studio’dan ücretsiz alınır) sohbeti açabilirsiniz.'),
       element('p', 'warning-line', 'Anahtar girerseniz sorduğunuz sorular ve bu ilanın bilgileri cevap için Google’a gönderilir; ücretsiz anahtarlarda Google bu içerikleri ürünlerini geliştirmek için kullanabilir. Anahtar yalnızca bu bilgisayarda saklanır.'),
-      form, note);
+      steps, getKey, form, note);
   }
 
   function renderChat(section, lines, mode) {

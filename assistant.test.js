@@ -159,7 +159,7 @@ class FakeNode {
 }
 const walk = (node, found = []) => { found.push(node); (node.children || []).forEach(child => walk(child, found)); return found; };
 
-async function popupWithModel(LanguageModel, { remote = false, storage = new Map(), fetch } = {}) {
+async function popupWithModel(LanguageModel, { remote = false, storage = new Map(), fetch, opened = [] } = {}) {
   const nodes = new Map();
   const get = id => { if (!nodes.has(id)) nodes.set(id, new FakeNode(id)); return nodes.get(id); };
   const detail = {
@@ -176,7 +176,7 @@ async function popupWithModel(LanguageModel, { remote = false, storage = new Map
     localStorage: { getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v), removeItem: k => storage.delete(k) },
     window: { close() {} },
     chrome: {
-      tabs: { query: async () => [{ id: 1, url: detail.url }], create() {} },
+      tabs: { query: async () => [{ id: 1, url: detail.url }], create: ({ url }) => opened.push(url) },
       scripting: { executeScript: async () => [{ result: detail }] },
       runtime: { getURL: path => path }
     }
@@ -287,10 +287,14 @@ test('popup: yerleşik yapay zeka yokken anahtar girilmedikçe hiçbir istek at�
     return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: 'Bulut cevabı.' }] } }] }) };
   };
   const storage = new Map();
-  const chat = await popupWithModel(null, { remote: true, storage, fetch });
+  const opened = [];
+  const chat = await popupWithModel(null, { remote: true, storage, fetch, opened });
   assert.equal(chat.hidden, false, 'anahtar seçeneği gösterilir');
   assert.ok(walk(chat).some(node => /Google’a gönderilir/.test(node.textContent)), 'veri paylaşımı açıkça yazılır');
   assert.equal(walk(chat).some(node => node.className === 'chat-chip'), false, 'anahtar yokken sohbet açılmaz');
+  const getKey = walk(chat).find(node => /Ücretsiz anahtar al/.test(node.textContent));
+  getKey.click();
+  assert.deepEqual(opened, ['https://aistudio.google.com/app/apikey'], 'anahtar alma sayfası yeni sekmede açılır');
   assert.equal(requests.length, 0);
 
   const form = walk(chat).find(node => node.tag === 'form');

@@ -47,3 +47,6 @@ small { display: block; margin-top: 12px; color: #86a39a; font-size: 11px; }
 .seller-questions summary { cursor: pointer; font-weight: 700; }
 .seller-questions ul { margin: 6px 0 0; padding-left: 18px; }
 .seller-questions li { margin-bottom: 3px; }
+.key-steps { margin: 8px 0 0; padding-left: 18px; font-size: 12px; }
+.key-steps li { margin-bottom: 2px; }
+.key-link { margin: 8px 0 0; padding: 8px; font-size: 12px; }
