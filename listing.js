@@ -777,7 +777,11 @@
     const askReport = !body.known || core.bodyConflict(record) || body.changed.length || record.damageChanged;
     const message =
       `Merhaba, sahibinden.com'daki "${name}" ilanınız (ilan no: ${record.listingId}) için yazıyorum. Araç hâlâ satılık mı?` +
-      (askReport ? ' Mümkünse ekspertiz raporunu ve tramer kaydını paylaşabilir misiniz?' : '');
+      (askReport ? ' Mümkünse ekspertiz raporunu ve tramer kaydını paylaşabilir misiniz?' : '') +
+      // Km takip sırasında düştüyse kilometre kaydı da istenir (suçlamadan, belge olarak).
+      (record.kmPrevious > record.km
+        ? ' Kilometre için son TÜVTÜRK muayene raporunu veya servis kaydını da görebilir miyim?'
+        : '');
     return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
   }
 
@@ -909,6 +913,7 @@
       { title: 'Lokal boyalı', width: 22 },
       { title: 'Hasar bilgisi', width: 18 },
       { title: 'Hasar ifadesi', width: 30 },
+      { title: 'Tramer (TL, satıcı beyanı)', width: 16, type: 'money' },
       { title: 'Güven', width: 8 },
       { title: 'Yöntem', width: 14 },
       { title: 'Satıcı tipi', width: 15 },
@@ -917,6 +922,7 @@
       { title: 'Takipte', width: 8 },
       { title: 'İlk görülme', width: 12 },
       { title: 'Son görülme', width: 12 },
+      { title: 'İlanda (gün)', width: 11 },
       { title: 'İlan no', width: 12 },
       { title: 'Başlık', width: 40 }
     ];
@@ -975,6 +981,7 @@
         body.known ? body.local.join(', ') : '',
         CONDITION_TEXT[record.condition] || '',
         record.conditionNote,
+        record.tramer > 0 ? record.tramer : record.tramer === 0 ? 'yok' : '',
         result.confidence,
         result.method === 'model' ? 'fiyat modeli' : result.method === 'benzer' ? 'benzer ilanlar' : '',
         record.sellerType || '',
@@ -983,6 +990,8 @@
         record.watched ? 'evet' : '',
         record.firstSeen,
         record.date,
+        // Yeniden yayınlanan araçta ilk ilanın tarihinden sayılır.
+        core.daysSince(record.relistOf?.firstSeen || record.firstSeen, today) ?? '',
         record.listingId,
         url ? { link: url, text: record.title || [record.brand, record.model].join(' ') } : record.title
       ];
