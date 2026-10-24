@@ -34,26 +34,70 @@ function wellFormed(name, text) {
 test('xlsx: geçerli zip ve XML, sayılar sayı, metin kaçırılmış, bağlantı HYPERLINK', () => {
   const bytes = xlsx.build({
     sheetName: 'Piyasa ilanları',
-    columns: [{ title: 'Marka' }, { title: 'Fiyat (TL)', type: 'money' }, { title: 'Fark %' }, { title: 'Not' }, { title: 'İlan' }],
-    rows: [['Volkswagen', 1485000, -16, 'A & B <c> "d"', { link: 'https://www.sahibinden.com/ilan/x-1344784723/detay', text: 'İlana git' }]]
+    columns: [
+      { title: 'Marka' },
+      { title: 'Fiyat (TL)', type: 'money' },
+      { title: 'Fark %' },
+      { title: 'Not' },
+      { title: 'İlan' }
+    ],
+    rows: [
+      [
+        'Volkswagen',
+        1485000,
+        -16,
+        'A & B <c> "d"',
+        { link: 'https://www.sahibinden.com/ilan/x-1344784723/detay', text: 'İlana git' }
+      ]
+    ]
   });
   const files = unzip(bytes);
-  assert.deepEqual(Object.keys(files).sort(), ['[Content_Types].xml', '_rels/.rels', 'xl/_rels/workbook.xml.rels', 'xl/styles.xml', 'xl/workbook.xml', 'xl/worksheets/sheet1.xml']);
+  assert.deepEqual(Object.keys(files).sort(), [
+    '[Content_Types].xml',
+    '_rels/.rels',
+    'xl/_rels/workbook.xml.rels',
+    'xl/styles.xml',
+    'xl/workbook.xml',
+    'xl/worksheets/sheet1.xml'
+  ]);
   for (const [name, text] of Object.entries(files)) wellFormed(name, text);
   const sheet = files['xl/worksheets/sheet1.xml'];
   assert.match(sheet, /<c r="B2" s="2"><v>1485000<\/v><\/c>/, 'fiyat binlik ayraçlı sayı');
   assert.match(sheet, /<c r="C2"><v>-16<\/v><\/c>/, 'eksi yüzde metne dönüşmemeli');
   assert.match(sheet, /A &amp; B &lt;c&gt; &quot;d&quot;/);
-  assert.match(sheet, /HYPERLINK\(&quot;https:\/\/www\.sahibinden\.com\/ilan\/x-1344784723\/detay&quot;,&quot;İlana git&quot;\)/);
+  assert.match(
+    sheet,
+    /HYPERLINK\(&quot;https:\/\/www\.sahibinden\.com\/ilan\/x-1344784723\/detay&quot;,&quot;İlana git&quot;\)/
+  );
   assert.match(sheet, /<autoFilter ref="A1:E2"\/>/);
   assert.match(files['xl/workbook.xml'], /name="Piyasa ilanları"/);
 });
 
 test('piyasa tablosu: fırsatlar üstte, bağlantı yalnızca güvenli sahibinden adresi', () => {
-  const make = (i, price, url) => core.normalizeRecord({ id: `sh-12345678${i}0`, source: 'sahibinden', listingId: `12345678${i}0`, url,
-    brand: 'Fiat', model: 'Egea', engine: '1.4 Fire', year: 2021, km: 80000, price, date: '2026-10-08' }, 'comparable');
-  const comparables = [make(1, 900000, 'https://www.sahibinden.com/ilan/a-1234567810/detay'), make(2, 700000, 'javascript:alert(1)'),
-    make(3, 905000), make(4, 910000), make(5, 895000)];
+  const make = (i, price, url) =>
+    core.normalizeRecord(
+      {
+        id: `sh-12345678${i}0`,
+        source: 'sahibinden',
+        listingId: `12345678${i}0`,
+        url,
+        brand: 'Fiat',
+        model: 'Egea',
+        engine: '1.4 Fire',
+        year: 2021,
+        km: 80000,
+        price,
+        date: '2026-10-08'
+      },
+      'comparable'
+    );
+  const comparables = [
+    make(1, 900000, 'https://www.sahibinden.com/ilan/a-1234567810/detay'),
+    make(2, 700000, 'javascript:alert(1)'),
+    make(3, 905000),
+    make(4, 910000),
+    make(5, 895000)
+  ];
   const table = listing.marketTable({ comparables }, new Date('2026-10-08'));
   const col = title => table.columns.findIndex(column => column.title === title);
   assert.equal(table.rows.length, 5);
@@ -62,9 +106,15 @@ test('piyasa tablosu: fırsatlar üstte, bağlantı yalnızca güvenli sahibinde
   assert.equal(table.rows[0][col('Fiyat (TL)')], 700000);
   // Güvensiz adres (javascript:) asla kullanılmaz; ilan numarasından güvenli adres üretilir.
   assert.equal(table.rows[0][0].link, 'https://www.sahibinden.com/ilan/1234567820/detay');
-  assert.ok(table.rows.every(row => /^https:\/\/www\.sahibinden\.com\/ilan\//.test(row[0].link)), 'her satırda bağlantı olmalı');
+  assert.ok(
+    table.rows.every(row => /^https:\/\/www\.sahibinden\.com\/ilan\//.test(row[0].link)),
+    'her satırda bağlantı olmalı'
+  );
   assert.ok(table.rows.some(row => row[0].link === 'https://www.sahibinden.com/ilan/a-1234567810/detay'));
-  assert.ok(table.rows.every(row => row[col('Başlık')]?.link), 'başlık da tıklanabilir olmalı');
+  assert.ok(
+    table.rows.every(row => row[col('Başlık')]?.link),
+    'başlık da tıklanabilir olmalı'
+  );
   assert.ok(xlsx.build(table).length > 1000);
 });
 
@@ -74,17 +124,47 @@ test('sütun adları: A, Z, AA, AZ', () => {
 
 test('çok uzun ilan adresi Excel sınırına (255) takılmasın diye kısa adrese çevrilir', () => {
   const longUrl = `https://www.sahibinden.com/ilan/vasita-otomobil-${'cok-uzun-baslik-'.repeat(20)}1234567810/detay`;
-  const record = core.normalizeRecord({ id: 'sh-1234567810', source: 'sahibinden', listingId: '1234567810', url: longUrl,
-    brand: 'Fiat', model: 'Egea', year: 2021, km: 80000, price: 800000, date: '2026-10-08' }, 'comparable');
+  const record = core.normalizeRecord(
+    {
+      id: 'sh-1234567810',
+      source: 'sahibinden',
+      listingId: '1234567810',
+      url: longUrl,
+      brand: 'Fiat',
+      model: 'Egea',
+      year: 2021,
+      km: 80000,
+      price: 800000,
+      date: '2026-10-08'
+    },
+    'comparable'
+  );
   const table = listing.marketTable({ comparables: [record] }, new Date('2026-10-08'));
   assert.equal(table.rows[0][0].link, 'https://www.sahibinden.com/ilan/1234567810/detay');
 });
 
 test('WhatsApp: numarası kayıtlı ilanda hazır mesajlı bağlantı, uzun adres sayfa bağlantısı olarak yazılır', () => {
-  const make = (i, extra) => core.normalizeRecord({ id: `sh-12345678${i}0`, source: 'sahibinden', listingId: `12345678${i}0`,
-    title: 'SAHİBİNDEN HATASIZ BOYASIZ TRAMERSİZ ÇOK TEMİZ AİLE ARACI DEĞİŞENSİZ ŞIK & "ÖZEL"', brand: 'Fiat', model: 'Egea',
-    year: 2021, km: 80000, price: 800000 + i * 1000, date: '2026-10-08', ...extra }, 'comparable');
-  const table = listing.marketTable({ comparables: [make(1, { sellerPhone: '905321234567' }), make(2)] }, new Date('2026-10-08'));
+  const make = (i, extra) =>
+    core.normalizeRecord(
+      {
+        id: `sh-12345678${i}0`,
+        source: 'sahibinden',
+        listingId: `12345678${i}0`,
+        title: 'SAHİBİNDEN HATASIZ BOYASIZ TRAMERSİZ ÇOK TEMİZ AİLE ARACI DEĞİŞENSİZ ŞIK & "ÖZEL"',
+        brand: 'Fiat',
+        model: 'Egea',
+        year: 2021,
+        km: 80000,
+        price: 800000 + i * 1000,
+        date: '2026-10-08',
+        ...extra
+      },
+      'comparable'
+    );
+  const table = listing.marketTable(
+    { comparables: [make(1, { sellerPhone: '905321234567' }), make(2)] },
+    new Date('2026-10-08')
+  );
   const col = table.columns.findIndex(column => column.title === 'WhatsApp');
   assert.ok(col > 0, 'WhatsApp sütunu olmalı');
   const withPhone = table.rows.find(row => row[col]);
@@ -100,7 +180,7 @@ test('WhatsApp: numarası kayıtlı ilanda hazır mesajlı bağlantı, uzun adre
   assert.match(sheet, new RegExp(`<hyperlink ref="${ref}" r:id="rId1"/>`));
   assert.ok(!new RegExp(`<c r="${ref}"[^>]*><f>`).test(sheet), 'uzun adres HYPERLINK formülüyle yazılmamalı');
   const rels = files['xl/worksheets/_rels/sheet1.xml.rels'];
-  const doc = new (new (require('jsdom').JSDOM)('').window.DOMParser)().parseFromString(rels, 'application/xml');
+  const doc = new new (require('jsdom').JSDOM)('').window.DOMParser().parseFromString(rels, 'application/xml');
   const relation = doc.getElementsByTagName('Relationship')[0];
   assert.equal(relation.getAttribute('Target'), withPhone[col].link, 'adres bozulmadan yazılmalı');
   assert.equal(relation.getAttribute('TargetMode'), 'External');

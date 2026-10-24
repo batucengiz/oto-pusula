@@ -4,5 +4,7 @@
   try {
     const choice = localStorage.getItem('otoPusula_theme');
     if (choice === 'light' || choice === 'dark') document.documentElement.dataset.theme = choice;
-  } catch { /* Depo kapalıysa bilgisayarın ayarı kullanılır. */ }
+  } catch {
+    /* Depo kapalıysa bilgisayarın ayarı kullanılır. */
+  }
 })();

@@ -55,21 +55,37 @@ function zip(entries) {
     const nameBytes = Buffer.from(name, 'utf8');
     const crc = crc32(data);
     const local = Buffer.alloc(30);
-    local.writeUInt32LE(0x04034b50, 0); local.writeUInt16LE(20, 4); local.writeUInt16LE(0x0800, 6);
-    local.writeUInt16LE(0, 8); local.writeUInt16LE(0x0021, 12); local.writeUInt32LE(crc, 14);
-    local.writeUInt32LE(data.length, 18); local.writeUInt32LE(data.length, 22); local.writeUInt16LE(nameBytes.length, 26);
+    local.writeUInt32LE(0x04034b50, 0);
+    local.writeUInt16LE(20, 4);
+    local.writeUInt16LE(0x0800, 6);
+    local.writeUInt16LE(0, 8);
+    local.writeUInt16LE(0x0021, 12);
+    local.writeUInt32LE(crc, 14);
+    local.writeUInt32LE(data.length, 18);
+    local.writeUInt32LE(data.length, 22);
+    local.writeUInt16LE(nameBytes.length, 26);
     parts.push(local, nameBytes, data);
     const entry = Buffer.alloc(46);
-    entry.writeUInt32LE(0x02014b50, 0); entry.writeUInt16LE(20, 4); entry.writeUInt16LE(20, 6); entry.writeUInt16LE(0x0800, 8);
-    entry.writeUInt16LE(0x0021, 14); entry.writeUInt32LE(crc, 16); entry.writeUInt32LE(data.length, 20);
-    entry.writeUInt32LE(data.length, 24); entry.writeUInt16LE(nameBytes.length, 28); entry.writeUInt32LE(offset, 42);
+    entry.writeUInt32LE(0x02014b50, 0);
+    entry.writeUInt16LE(20, 4);
+    entry.writeUInt16LE(20, 6);
+    entry.writeUInt16LE(0x0800, 8);
+    entry.writeUInt16LE(0x0021, 14);
+    entry.writeUInt32LE(crc, 16);
+    entry.writeUInt32LE(data.length, 20);
+    entry.writeUInt32LE(data.length, 24);
+    entry.writeUInt16LE(nameBytes.length, 28);
+    entry.writeUInt32LE(offset, 42);
     central.push(entry, nameBytes);
     offset += 30 + nameBytes.length + data.length;
   }
   const centralSize = central.reduce((sum, part) => sum + part.length, 0);
   const end = Buffer.alloc(22);
-  end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(entries.length, 8); end.writeUInt16LE(entries.length, 10);
-  end.writeUInt32LE(centralSize, 12); end.writeUInt32LE(offset, 16);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(entries.length, 8);
+  end.writeUInt16LE(entries.length, 10);
+  end.writeUInt32LE(centralSize, 12);
+  end.writeUInt32LE(offset, 16);
   return Buffer.concat([...parts, ...central, end]);
 }
 
@@ -81,7 +97,10 @@ function build() {
   const entries = [
     ...files.map(file => ({ name: `${folder}/${file}`, data: fs.readFileSync(path.join(root, file)) })),
     // BOM: eski Not Defteri ve PowerShell sürümleri de Türkçe karakterleri doğru göstersin.
-    { name: `${folder}/KURULUM.txt`, data: Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(INSTALL.replace(/\n/g, '\r\n'), 'utf8')]) }
+    {
+      name: `${folder}/KURULUM.txt`,
+      data: Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(INSTALL.replace(/\n/g, '\r\n'), 'utf8')])
+    }
   ];
   return { folder, files, bytes: zip(entries) };
 }
@@ -94,5 +113,7 @@ if (require.main === module) {
   fs.mkdirSync(dist, { recursive: true });
   const target = path.join(dist, `${folder}.zip`);
   fs.writeFileSync(target, bytes);
-  console.log(`${files.length} dosya + KURULUM.txt → ${path.relative(root, target)} (${Math.round(bytes.length / 1024)} KB)`);
+  console.log(
+    `${files.length} dosya + KURULUM.txt → ${path.relative(root, target)} (${Math.round(bytes.length / 1024)} KB)`
+  );
 }

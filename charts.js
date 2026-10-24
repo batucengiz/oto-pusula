@@ -11,7 +11,11 @@
   };
   // Nokta halkası kart zemininin rengindedir; açık/koyu temaya göre CSS değişkeninden okunur.
   const surface = () => {
-    try { return getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() || '#ffffff'; } catch { return '#ffffff'; }
+    try {
+      return getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() || '#ffffff';
+    } catch {
+      return '#ffffff';
+    }
   };
 
   function svg(tag, attrs = {}, text) {
@@ -47,7 +51,9 @@
   // Piyasa haritası: x = tahmini piyasa değeri, y = ilan fiyatı. Köşegen "adil fiyat" çizgisidir;
   // altındaki noktalar piyasadan ucuz. Model, motor veya yıl fark etmeksizin tüm ilanlar aynı ölçekte okunur.
   function fairValueChart(entries, { onSelect, tooltip, label }) {
-    const points = entries.filter(entry => entry.result.center && !['az veri', 'hasar riski'].includes(entry.result.status));
+    const points = entries.filter(
+      entry => entry.result.center && !['az veri', 'hasar riski'].includes(entry.result.status)
+    );
     if (points.length < 3) return null;
     const W = 640;
     const H = 340;
@@ -58,7 +64,12 @@
     const x = value => m.left + ((value - min) / (max - min)) * (W - m.left - m.right);
     const y = value => H - m.bottom - ((value - min) / (max - min)) * (H - m.top - m.bottom);
 
-    const chart = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: 'chart', role: 'img', 'aria-label': `${points.length} ilanın fiyatı ile tahmini piyasa değeri karşılaştırması. Ayrıntılar aşağıdaki tabloda.` });
+    const chart = svg('svg', {
+      viewBox: `0 0 ${W} ${H}`,
+      class: 'chart',
+      role: 'img',
+      'aria-label': `${points.length} ilanın fiyatı ile tahmini piyasa değeri karşılaştırması. Ayrıntılar aşağıdaki tabloda.`
+    });
     const clipId = `plot-${Math.random().toString(36).slice(2, 8)}`;
     const defs = svg('defs');
     const clip = svg('clipPath', { id: clipId });
@@ -77,27 +88,72 @@
 
     // ±%10 bandı ve adil fiyat çizgisi (y = x).
     const plot = svg('g', { 'clip-path': `url(#${clipId})` });
-    plot.append(svg('polygon', {
-      class: 'band',
-      points: [[min, min * 0.9], [max, max * 0.9], [max, max * 1.1], [min, min * 1.1]].map(([a, b]) => `${x(a)},${y(b)}`).join(' ')
-    }));
+    plot.append(
+      svg('polygon', {
+        class: 'band',
+        points: [
+          [min, min * 0.9],
+          [max, max * 0.9],
+          [max, max * 1.1],
+          [min, min * 1.1]
+        ]
+          .map(([a, b]) => `${x(a)},${y(b)}`)
+          .join(' ')
+      })
+    );
     plot.append(svg('line', { x1: x(min), y1: y(min), x2: x(max), y2: y(max), class: 'fair' }));
     chart.append(plot);
     // Etiket, çizginin altında ve sağ üst köşeden içeride durur; çizgiyle çakışmaz.
     const labelValue = min + (max - min) * 0.8;
-    chart.append(svg('text', { x: x(labelValue) + 8, y: y(labelValue) + 22, class: 'note', 'text-anchor': 'start' }, 'adil fiyat çizgisi'));
-    chart.append(svg('text', { x: (m.left + W - m.right) / 2, y: H - 6, class: 'axis-label', 'text-anchor': 'middle' }, 'Tahmini piyasa değeri'));
-    chart.append(svg('text', { x: 14, y: (m.top + H - m.bottom) / 2, class: 'axis-label', 'text-anchor': 'middle', transform: `rotate(-90 14 ${(m.top + H - m.bottom) / 2})` }, 'İlan fiyatı'));
+    chart.append(
+      svg(
+        'text',
+        { x: x(labelValue) + 8, y: y(labelValue) + 22, class: 'note', 'text-anchor': 'start' },
+        'adil fiyat çizgisi'
+      )
+    );
+    chart.append(
+      svg(
+        'text',
+        { x: (m.left + W - m.right) / 2, y: H - 6, class: 'axis-label', 'text-anchor': 'middle' },
+        'Tahmini piyasa değeri'
+      )
+    );
+    chart.append(
+      svg(
+        'text',
+        {
+          x: 14,
+          y: (m.top + H - m.bottom) / 2,
+          class: 'axis-label',
+          'text-anchor': 'middle',
+          transform: `rotate(-90 14 ${(m.top + H - m.bottom) / 2})`
+        },
+        'İlan fiyatı'
+      )
+    );
 
     const marks = svg('g');
     for (const entry of points) {
       const { record, result } = entry;
       const cx = x(result.center);
       const cy = y(record.price);
-      const group = svg('g', { class: 'point', tabindex: 0, role: 'button', 'aria-label': `${label(record)}, ${lira(record.price)}` });
+      const group = svg('g', {
+        class: 'point',
+        tabindex: 0,
+        role: 'button',
+        'aria-label': `${label(record)}, ${lira(record.price)}`
+      });
       group.append(
         svg('circle', { cx, cy, r: 11, class: 'hit' }),
-        svg('circle', { cx, cy, r: 5, fill: GROUPS[groupOf(result.status)].color, stroke: surface(), 'stroke-width': 2 })
+        svg('circle', {
+          cx,
+          cy,
+          r: 5,
+          fill: GROUPS[groupOf(result.status)].color,
+          stroke: surface(),
+          'stroke-width': 2
+        })
       );
       const text = `${label(record)} · ${record.year} · ${record.km.toLocaleString('tr-TR')} km\nİlan ${lira(record.price)} · piyasa ${lira(result.center)} (${result.gap > 0 ? '+' : ''}${Math.round(result.gap * 100)}%)`;
       group.addEventListener('mouseenter', event => tooltip.show(text, event));
@@ -106,14 +162,24 @@
       group.addEventListener('focus', event => tooltip.show(text, event));
       group.addEventListener('blur', () => tooltip.hide());
       group.addEventListener('click', () => onSelect(record));
-      group.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(record); } });
+      group.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onSelect(record);
+        }
+      });
       marks.append(group);
     }
     chart.append(marks);
 
     const counts = { below: 0, range: 0, above: 0 };
-    points.forEach(entry => { counts[groupOf(entry.result.status)]++; });
-    const legend = Object.entries(GROUPS).map(([key, { color, label: name }]) => ({ color, text: `${name} (${counts[key]})` }));
+    points.forEach(entry => {
+      counts[groupOf(entry.result.status)]++;
+    });
+    const legend = Object.entries(GROUPS).map(([key, { color, label: name }]) => ({
+      color,
+      text: `${name} (${counts[key]})`
+    }));
     return { chart, legend, skipped: entries.length - points.length };
   }
 
@@ -132,20 +198,36 @@
     const pMax = Math.max(...prices);
     const x = t => m.left + (tMax === tMin ? 0.5 : (t - tMin) / (tMax - tMin)) * (W - m.left - m.right);
     const y = p => H - m.bottom - (pMax === pMin ? 0.5 : (p - pMin) / (pMax - pMin)) * (H - m.top - m.bottom);
-    const chart = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: 'chart history', role: 'img', 'aria-label': `Fiyat ${lira(prices[0])} değerinden ${lira(prices[prices.length - 1])} değerine` });
+    const chart = svg('svg', {
+      viewBox: `0 0 ${W} ${H}`,
+      class: 'chart history',
+      role: 'img',
+      'aria-label': `Fiyat ${lira(prices[0])} değerinden ${lira(prices[prices.length - 1])} değerine`
+    });
     // Fiyat ilan sitesinde basamaklı değişir; çizgi de basamaklı çizilir.
     let d = `M${x(times[0])},${y(prices[0])}`;
     for (let i = 1; i < points.length; i++) d += ` H${x(times[i])} V${y(prices[i])}`;
     chart.append(svg('path', { d, class: 'history-line' }));
     points.forEach((point, i) => {
-      const dot = svg('circle', { cx: x(times[i]), cy: y(prices[i]), r: 4, class: 'history-dot', stroke: surface(), 'stroke-width': 2 });
+      const dot = svg('circle', {
+        cx: x(times[i]),
+        cy: y(prices[i]),
+        r: 4,
+        class: 'history-dot',
+        stroke: surface(),
+        'stroke-width': 2
+      });
       dot.append(svg('title', {}, `${point.date} · ${lira(point.price)}`));
       chart.append(dot);
     });
     const last = points.length - 1;
     chart.append(
       svg('text', { x: x(times[0]), y: y(prices[0]) - 10, class: 'tick', 'text-anchor': 'start' }, lira(prices[0])),
-      svg('text', { x: x(times[last]), y: y(prices[last]) - 10, class: 'tick strong', 'text-anchor': 'end' }, lira(prices[last])),
+      svg(
+        'text',
+        { x: x(times[last]), y: y(prices[last]) - 10, class: 'tick strong', 'text-anchor': 'end' },
+        lira(prices[last])
+      ),
       svg('text', { x: m.left, y: H - 6, class: 'tick', 'text-anchor': 'start' }, points[0].date),
       svg('text', { x: W - m.right, y: H - 6, class: 'tick', 'text-anchor': 'end' }, points[last].date)
     );

@@ -64,14 +64,24 @@
     const all = [...parts, ...central, new Uint8Array(end.buffer)];
     const out = new Uint8Array(all.reduce((sum, part) => sum + part.length, 0));
     let position = 0;
-    for (const part of all) { out.set(part, position); position += part.length; }
+    for (const part of all) {
+      out.set(part, position);
+      position += part.length;
+    }
     return out;
   }
 
   // XML'de geçersiz kontrol karakterleri atılır, özel karakterler kaçırılır.
   function xml(value) {
-    return String(value ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return (
+      String(value ?? '')
+        // eslint-disable-next-line no-control-regex -- kontrol karakterlerini silmek bu ifadenin amacı
+        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+    );
   }
 
   function columnName(index) {
@@ -112,15 +122,32 @@
   }
 
   function build({ sheetName = 'Sayfa1', columns, rows }) {
-    const name = String(sheetName).replace(/[\\/?*[\]:]/g, ' ').slice(0, 31) || 'Sayfa1';
+    const name =
+      String(sheetName)
+        .replace(/[\\/?*[\]:]/g, ' ')
+        .slice(0, 31) || 'Sayfa1';
     const lastColumn = columnName(columns.length - 1);
     const lastRow = rows.length + 1;
     const header = `<row r="1">${columns.map((column, i) => `<c r="${columnName(i)}1" t="inlineStr" s="1"><is><t>${xml(column.title)}</t></is></c>`).join('')}</row>`;
     const links = [];
-    const body = rows.map((row, r) => `<row r="${r + 2}">${row.map((value, i) => cell(`${columnName(i)}${r + 2}`, value, columns[i] || {}, links)).join('')}</row>`).join('');
-    const hyperlinks = links.length ? `\n<hyperlinks>${links.map((link, i) => `<hyperlink ref="${link.ref}" r:id="rId${i + 1}"/>`).join('')}</hyperlinks>` : '';
-    const sheetRels = links.length ? [{ name: 'xl/worksheets/_rels/sheet1.xml.rels', content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${links.map((link, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${xml(link.target)}" TargetMode="External"/>`).join('')}</Relationships>` }] : [];
+    const body = rows
+      .map(
+        (row, r) =>
+          `<row r="${r + 2}">${row.map((value, i) => cell(`${columnName(i)}${r + 2}`, value, columns[i] || {}, links)).join('')}</row>`
+      )
+      .join('');
+    const hyperlinks = links.length
+      ? `\n<hyperlinks>${links.map((link, i) => `<hyperlink ref="${link.ref}" r:id="rId${i + 1}"/>`).join('')}</hyperlinks>`
+      : '';
+    const sheetRels = links.length
+      ? [
+          {
+            name: 'xl/worksheets/_rels/sheet1.xml.rels',
+            content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${links.map((link, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${xml(link.target)}" TargetMode="External"/>`).join('')}</Relationships>`
+          }
+        ]
+      : [];
     const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
 <sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
@@ -134,13 +161,22 @@
 <definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">'${xml(name.replace(/'/g, "''"))}'!$A$1:$${lastColumn}$${lastRow}</definedName></definedNames>
 </workbook>`;
     return zip([
-      { name: '[Content_Types].xml', content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>` },
-      { name: '_rels/.rels', content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>` },
+      {
+        name: '[Content_Types].xml',
+        content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`
+      },
+      {
+        name: '_rels/.rels',
+        content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`
+      },
       { name: 'xl/workbook.xml', content: workbook },
-      { name: 'xl/_rels/workbook.xml.rels', content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>` },
+      {
+        name: 'xl/_rels/workbook.xml.rels',
+        content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`
+      },
       { name: 'xl/worksheets/sheet1.xml', content: sheet },
       ...sheetRels,
       { name: 'xl/styles.xml', content: STYLES }

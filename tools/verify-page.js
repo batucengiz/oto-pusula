@@ -18,7 +18,9 @@ function guessUrl(html) {
   ];
   const found = candidates.find(url => /^https:\/\/(www\.)?sahibinden\.com\//.test(url || ''));
   if (found) return found;
-  return /classifiedInfoList/.test(html) ? 'https://www.sahibinden.com/ilan/kayitli-sayfa-1000000000/detay' : 'https://www.sahibinden.com/kayitli-arama';
+  return /classifiedInfoList/.test(html)
+    ? 'https://www.sahibinden.com/ilan/kayitli-sayfa-1000000000/detay'
+    : 'https://www.sahibinden.com/kayitli-arama';
 }
 
 function extractFromHtml(html, url = guessUrl(html)) {
@@ -52,19 +54,31 @@ function analyze(html, url) {
       const missing = records.filter(record => !record[field]).length;
       if (missing) say(`  ${field} boş: ${missing}/${records.length}`);
     }
-    records.slice(0, 5).forEach(r => say(`  • ${r.brand} ${r.model} ${r.engine} ${r.trim} · ${r.year} · ${r.km} km · ₺${r.price.toLocaleString('tr-TR')} · ${r.city || '-'} · ${r.condition || 'beyan yok'}`));
+    records
+      .slice(0, 5)
+      .forEach(r =>
+        say(
+          `  • ${r.brand} ${r.model} ${r.engine} ${r.trim} · ${r.year} · ${r.km} km · ₺${r.price.toLocaleString('tr-TR')} · ${r.city || '-'} · ${r.condition || 'beyan yok'}`
+        )
+      );
   } else if (raw?.kind === 'detail') {
     say(`İlan detay sayfası: ilan no ${raw.listingId || '(yok)'}, bilgi listesinde ${raw.info.length} alan.`);
     say(`  alanlar: ${raw.info.map(([label]) => label).join(', ') || '(bulunamadı)'}`);
-    say(`  fiyat metni: ${raw.priceText ? raw.priceText.split('\n')[0] : '(bulunamadı)'} · konum: ${raw.location ? raw.location.replace(/\s+/g, ' ') : '(bulunamadı)'}`);
+    say(
+      `  fiyat metni: ${raw.priceText ? raw.priceText.split('\n')[0] : '(bulunamadı)'} · konum: ${raw.location ? raw.location.replace(/\s+/g, ' ') : '(bulunamadı)'}`
+    );
     say(`  açıklama: ${raw.description ? `${raw.description.length} karakter` : '(bulunamadı)'}`);
     try {
       const record = listing.parseDetailPage(raw);
       report.ok = true;
       report.records = [record];
-      say(`  okunan kayıt: ${record.brand} ${record.model} ${record.engine} ${record.trim} · ${record.year} · ${record.km} km · ₺${record.price.toLocaleString('tr-TR')} · yakıt ${record.fuel || '-'} · vites ${record.transmission || '-'}`);
+      say(
+        `  okunan kayıt: ${record.brand} ${record.model} ${record.engine} ${record.trim} · ${record.year} · ${record.km} km · ₺${record.price.toLocaleString('tr-TR')} · yakıt ${record.fuel || '-'} · vites ${record.transmission || '-'}`
+      );
       const body = core.bodyReport(record);
-      say(`  gövde (şema): ${body.known ? `${body.label} · puan ${body.score}/100${body.changed.length ? ` · değişen: ${body.changed.join(', ')}` : ''}${body.painted.length ? ` · boyalı: ${body.painted.join(', ')}` : ''}${body.local.length ? ` · lokal: ${body.local.join(', ')}` : ''}` : 'şema bulunamadı'}`);
+      say(
+        `  gövde (şema): ${body.known ? `${body.label} · puan ${body.score}/100${body.changed.length ? ` · değişen: ${body.changed.join(', ')}` : ''}${body.painted.length ? ` · boyalı: ${body.painted.join(', ')}` : ''}${body.local.length ? ` · lokal: ${body.local.join(', ')}` : ''}` : 'şema bulunamadı'}`
+      );
       say(`  hasar bilgisi: ${record.condition || 'yok'}${record.conditionNote ? ` (“${record.conditionNote}”)` : ''}`);
     } catch (error) {
       // Kategori kuralıyla bilerek atlanan ilan (ör. motosiklet) okuyucunun doğru çalıştığını gösterir.
@@ -72,7 +86,9 @@ function analyze(html, url) {
       say(`  ${error.skipped ? 'atlandı' : 'HATA'}: ${error.message}`);
     }
     const phone = listing.findMobile(raw.phoneText, raw.description);
-    say(`  telefon: ${phone ? `bulundu (${maskPhone(phone)}) → WhatsApp düğmesi çalışır` : 'bulunamadı (sayfayı “Telefonu göster”e bastıktan sonra kaydedin)'}`);
+    say(
+      `  telefon: ${phone ? `bulundu (${maskPhone(phone)}) → WhatsApp düğmesi çalışır` : 'bulunamadı (sayfayı “Telefonu göster”e bastıktan sonra kaydedin)'}`
+    );
   } else {
     say(`Sayfa türü tanınmadı (${report.kind}). sahibinden arama sonucu veya ilan detay sayfası mı?`);
   }
