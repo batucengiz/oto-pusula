@@ -783,3 +783,10 @@ test('bulut oturumu: geçici sunucu hatası ve kopan bağlantıda bir kez daha d
   await assert.rejects(denied.prompt('soru'), /RemoteAIError|anahtar/);
   assert.equal(calls, 1);
 });
+
+test('uzman talimatları: ekspertiz, tramer, mekanik, bakım ve alım süreci bilgisi sistem metninde', () => {
+  const text = assistant.systemPrompt(['Araç: X.']);
+  for (const word of ['Ekspertiz', 'Tramer', 'DPF', 'DSG', 'triger', 'noterde', 'kasko', 'uydurma'])
+    assert.match(text, new RegExp(word), word);
+  assert.ok(assistant.SUGGESTIONS.includes('Alırken nelere dikkat etmeliyim?'));
+});

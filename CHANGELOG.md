@@ -11,6 +11,7 @@ Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-p
 - Panelde "Seç ve karşılaştır": 2–5 kayıtlı ilan yan yana tablo + yapay zekanın "hangisi daha mantıklı?" yorumu.
 - Sohbet geçmişi: aynı ilana dönünce önceki sorular/cevaplar görünür (yalnızca bu bilgisayarda, ilan başına 10 soru, 90 gün; tek tuşla silinir).
 - Karmaşık sorular: asistan çok parçalı soruları maddelere ayırıp cevaplar; yazım hatalı/dağınık soruları en olası anlamıyla yorumlar. Model hata verirse ya da bilgi sığmazsa kısaltılmış bilgiyle otomatik bir kez daha dener; Gemini'de geçici sunucu hatası ve kopan bağlantıda da bir kez yeniden denenir.
+- Uzman asistan: ekspertiz (boya kalınlığı, ağır hasar noktaları), tramer/haciz/muayene sorgusu, motor-şanzıman riskleri (DPF, DSG/EDC, CVT, LPG, hibrit batarya), bakım aralıkları, noterde güvenli alım ve toplam masraf hakkında genel uzman bilgisi; tanımadığı modelde kronik sorun uydurmaz. Yeni hazır sorular: tramer kontrolü, bakım/yakıt, alırken dikkat edilecekler.
 - Uzmanlık: km yorumu yıllık ortalamaya göre hazır verilir (az / normal / yoğun / çok yüksek), fiyat kıyasında farkın nedeni (yıl, km, donanım, kaporta, satıcı) açıklanır.
 - Yeni hazır sorular: pazarlık, açıklamada şüpheli ifade, ekspertiz, kaydedilenlerle karşılaştırma.
 

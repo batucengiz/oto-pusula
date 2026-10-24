@@ -17,7 +17,10 @@
     'Açıklamada şüpheli bir şey var mı?',
     'Ekspertizde nelere baktırmalıyım?',
     'Kilometresi normal mi?',
-    'Bu modelin kronik sorunları neler?'
+    'Bu modelin kronik sorunları neler?',
+    'Tramer ve hasar kaydını nasıl kontrol ederim?',
+    'Bakım masrafı ve yakıt tüketimi nasıl?',
+    'Alırken nelere dikkat etmeliyim?'
   ];
   // Türkçe Gemini Nano'nun resmi dil listesinde olmayabilir; önce Türkçe istenir, olmazsa dil belirtmeden denenir.
   const LANGUAGE_OPTIONS = [
@@ -253,6 +256,13 @@
       'Ekspertiz sorulursa “Ekspertizde baktırılması önerilenler” maddelerini ver ve bu marka/modelin bilinen kronik noktalarını (emin değilsen belirterek) ekle. Pazarlıkta ne denileceği sorulursa gerekçelere dayanan, kibar ve kısa örnek cümleler öner. İlan açıklamasındaki şüpheli ifadeler sorulursa “İlan açıklamasında dikkat” maddelerini açıkla; madde yoksa belirgin bir risk ifadesi bulunmadığını ama ekspertizin yine gerekli olduğunu söyle.',
       'Kaporta bilgisi satıcı beyanıdır; gerektiğinde ekspertiz ve tramer kaydı öner. Kesin satın al / alma demek yerine artıları ve riskleri söyle.',
       'Birden çok parçalı ya da karmaşık sorularda soruyu parçalara ayır ve her parçaya kısa maddelerle cevap ver; bir kısmını bilmiyorsan diğer kısımları yine cevapla.',
+      'UZMAN BİLGİSİ (genel kurallar; araca özel kesin rakam gibi sunma):',
+      '- Ekspertiz: fabrika boyası genelde 80-160 mikron; 200 üstü boya, 400 üstü macun şüphesi. Lokal boya kozmetiktir; değişen parça ve tavan, direk, şasi, podye, bagaj havuzu işlemi ağır hasar işaretidir. Yol testi, OBD arıza taraması, motor/şanzıman testi ve alt kontrol yaptırılmalı.',
+      '- Tramer: hasar kaydı e-Devlet ya da şasi numarasıyla SMS (HASAR boşluk şasi no, 5664) üzerinden sorgulanır; kayıt tutarı ile boyalı/değişen parçalar uyumlu olmalı. Haciz/rehin e-Devlet’ten, muayene TÜVTÜRK’ten, km geçmişi servis kayıtlarından kontrol edilir.',
+      '- Mekanik: dizelde DPF, EGR, enjektör, turbo ve çift kütleli volan; benzinli turbo motorlarda yağ eksiltme ve zincir; otomatiklerde kuru kavramalı çift kavrama (DSG/EDC/Powershift) titreme-vuruntu, CVT’de kayma; LPG’de montaj belgesi ve supap; hibritte batarya sağlığı. Tanımadığın modelde genel risklerden konuş, kronik sorun uydurma.',
+      '- Bakım: yağ genelde 10-15 bin km ya da yılda bir; triger kayışı üreticiye göre 60-120 bin km; otomatik şanzıman yağı, fren hidroliği ve antifriz de takip edilir. Bakım kayıtları ve faturalar fiyatı etkiler.',
+      '- Alım süreci: aracı görmeden kapora gönderme; satış noterde yapılır; ruhsat, şasi ve motor numarası eşleşmeli; ödeme noterde ya da güvenli ödeme ile yapılmalı. MTV ve trafik cezası borcu sorulmalı.',
+      '- Masraf ve değer: kasko değeri, sigorta primi, yakıt tüketimi ve yedek parça bulunurluğu aracın toplam maliyetini belirler; ikinci el değeri en çok marka/model talebi, km, kaporta ve tramerle değişir.',
       'Araçlarla ilgisi olmayan konulardaki soruları kibarca geri çevir.',
       '',
       'İLAN BİLGİLERİ:',
