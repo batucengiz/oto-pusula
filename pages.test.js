@@ -2,6 +2,8 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+// core.js, konularına bölünmüş core-*.js dosyalarını birleştirir; tarayıcıdaki sırayla yüklenir.
+const CORE_FILES = ['core-records.js', 'core-csv.js', 'core-price.js', 'core-limits.js', 'core-deal.js', 'core.js'];
 
 // fixtures/ altındaki kaydedilmiş gerçek sahibinden sayfaları yalnızca bu bilgisayarda durur (.gitignore):
 // sitenin içeriği ve satıcı bilgileri depoya konmaz. Klasör boşsa bu testler atlanır.
@@ -95,7 +97,7 @@ test('dağıtım paketi: eklentinin yüklediği her dosyayı içerir, test/geli�
     'extract.js',
     'popup.html',
     'dashboard.html',
-    'core.js',
+    ...CORE_FILES,
     'listing.js',
     'xlsx.js',
     'theme.css',
