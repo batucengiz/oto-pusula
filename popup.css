@@ -884,3 +884,9 @@ details.chat-tip:not([open]) .chat-tip-action {
     animation: none;
   }
 }
+.report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}

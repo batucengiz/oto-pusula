@@ -7,12 +7,14 @@ const { crc32 } = require('../xlsx.js');
 const root = path.join(__dirname, '..');
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'));
 
-// Eklentinin çalışması için gereken dosyalar: manifest + iki sayfa + sayfaların yüklediği her şey + simgeler.
+// Eklentinin çalışması için gereken dosyalar: manifest + sayfalar (popup, panel, ekspertiz raporu) + sayfaların
+// yüklediği her şey + simgeler.
 function runtimeFiles() {
-  const files = new Set(['manifest.json', 'extract.js', manifest.action.default_popup, manifest.options_page]);
+  const pages = [manifest.action.default_popup, manifest.options_page, 'report.html'];
+  const files = new Set(['manifest.json', 'extract.js', ...pages]);
   Object.values(manifest.icons).forEach(file => files.add(file));
   Object.values(manifest.action.default_icon).forEach(file => files.add(file));
-  for (const page of [manifest.action.default_popup, manifest.options_page]) {
+  for (const page of pages) {
     const html = fs.readFileSync(path.join(root, page), 'utf8');
     for (const [, ref] of html.matchAll(/(?:src|href)="([^"#:]+)"/g)) files.add(ref);
   }

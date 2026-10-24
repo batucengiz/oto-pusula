@@ -74,6 +74,43 @@
     return nodes;
   }
 
+  // "Ekspertize götür" raporu: yazdırılabilir sayfa (yeni sekmede) veya WhatsApp'a yapıştırılacak düz metin.
+  function reportNodes({ record, result, body, deal, advice, textFlags }) {
+    const report = globalThis.OtoReport;
+    const box = element('div', 'report-actions');
+    const open = element('button', 'secondary', 'Ekspertiz raporunu aç');
+    open.type = 'button';
+    open.title = 'Fiyat, uyarılar, satıcı soruları ve ekspertiz listesi tek sayfada; yazdırılabilir.';
+    open.addEventListener('click', () =>
+      chrome.tabs.create({ url: chrome.runtime.getURL('report.html') + report.encodeHash(record.id, textFlags) })
+    );
+    const copy = element('button', 'secondary', 'Raporu kopyala');
+    copy.type = 'button';
+    copy.addEventListener('click', async () => {
+      const text = report.toText(
+        report.build({
+          record,
+          result,
+          body,
+          deal,
+          advice,
+          questions: assistant.sellerQuestions({ record, body, advice }),
+          checklist: assistant.inspectionChecklist({ record, body, advice, textFlags }),
+          textFlags,
+          today: core.localDate()
+        })
+      );
+      try {
+        await navigator.clipboard.writeText(text);
+        copy.textContent = 'Kopyalandı';
+      } catch {
+        copy.textContent = 'Kopyalanamadı';
+      }
+    });
+    box.append(open, copy);
+    return box;
+  }
+
   function describe(outcome, raw) {
     const nodes = [];
     const { stats, skipped } = outcome;
@@ -185,6 +222,12 @@
           );
       } catch {
         /* ek bilgi gösterilemedi */
+      }
+      try {
+        if (raw?.kind === 'detail' && assistant && globalThis.OtoReport)
+          nodes.push(reportNodes({ record, result, body, deal, advice, textFlags }));
+      } catch {
+        /* rapor düğmeleri gösterilemedi */
       }
       if (raw?.kind === 'detail') nodes.push(...whatsappNodes(raw, record));
       if (raw?.kind === 'detail')
