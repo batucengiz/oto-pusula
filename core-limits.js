@@ -116,7 +116,11 @@
         url: safeSahibindenUrl(page.url),
         listingIds: Array.isArray(page.listingIds)
           ? page.listingIds.filter(id => typeof id === 'string').slice(0, 300)
-          : []
+          : [],
+        // Son okumada sayfada görünen ilanlar; "son ziyaretten beri" karşılaştırması için.
+        ...(Array.isArray(page.lastIds)
+          ? { lastIds: page.lastIds.filter(id => typeof id === 'string').slice(0, 300) }
+          : {})
       }));
   }
 
@@ -128,7 +132,8 @@
           ...existing,
           date: entry.date,
           title: entry.title || existing.title,
-          listingIds: [...new Set([...existing.listingIds, ...entry.listingIds])]
+          listingIds: [...new Set([...existing.listingIds, ...entry.listingIds])],
+          ...(entry.lastIds ? { lastIds: entry.lastIds } : {})
         }
       : entry;
     return [merged, ...pages.filter(page => page !== existing)].slice(0, MAX_PAGES);
@@ -139,7 +144,11 @@
   function prunePages(pages, comparables) {
     const existing = new Set((comparables || []).map(item => item.id));
     return (pages || [])
-      .map(page => ({ ...page, listingIds: page.listingIds.filter(id => existing.has(id)) }))
+      .map(page => ({
+        ...page,
+        listingIds: page.listingIds.filter(id => existing.has(id)),
+        ...(page.lastIds ? { lastIds: page.lastIds.filter(id => existing.has(id)) } : {})
+      }))
       .filter(page => page.listingIds.length);
   }
 

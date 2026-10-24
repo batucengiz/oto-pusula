@@ -996,6 +996,26 @@
   }
 
   // Popup akışı: ham sayfa → kayıtlar → mevcut veriyle birleştirme → bu sayfadaki öne çıkanlar.
+  // Aynı arama adresi daha önce okunduysa o okumayla karşılaştırır: sayfaya yeni gelen, indirim/zam yapılan ve
+  // artık görünmeyen ilanlar. Görünmeyen ilan satılmış olabilir ama sayfa sırası da değişmiş olabilir.
+  function sinceLastVisit(previous, records, before, after) {
+    if (!previous || previous.kind !== 'search') return null;
+    const seen = new Set(previous.listingIds);
+    const current = new Set(records.map(item => item.id));
+    const fresh = records.filter(item => !seen.has(item.id)).map(item => after.get(item.id) || item);
+    const drops = [];
+    let rises = 0;
+    for (const item of records) {
+      const old = before.get(item.id);
+      if (!seen.has(item.id) || !old) continue;
+      if (item.price < old.price) drops.push({ record: after.get(item.id) || item, from: old.price });
+      else if (item.price > old.price) rises++;
+    }
+    const gone = (previous.lastIds || previous.listingIds).filter(id => !current.has(id)).length;
+    drops.sort((a, b) => (b.from - b.record.price) / b.from - (a.from - a.record.price) / a.from);
+    return { date: previous.date, fresh, drops, rises, gone };
+  }
+
   function ingest(raw, state, today = core.localDate()) {
     let records;
     let skipped = [];
@@ -1024,8 +1044,19 @@
           .trim()
           .slice(0, 160) || 'sahibinden sayfası',
       url: core.safeSahibindenUrl(raw.url),
-      listingIds: records.map(item => item.id)
+      listingIds: records.map(item => item.id),
+      ...(raw.kind === 'search' ? { lastIds: records.map(item => item.id) } : {})
     };
+    const previousPage = page.url ? core.normalizePages(base.pages).find(item => item.url === page.url) : null;
+    const sinceLast =
+      raw.kind === 'search'
+        ? sinceLastVisit(
+            previousPage,
+            records,
+            new Map(base.comparables.map(item => [item.id, item])),
+            new Map(comparables.map(item => [item.id, item]))
+          )
+        : null;
     const analyses = core.recordEvent(state.analyses, page.id);
     const next = {
       ...base,
@@ -1061,6 +1092,7 @@
       highlights,
       drops,
       suddenDrops,
+      sinceLast,
       clearedSample: !!state.sample,
       pace: core.browsePace(analyses)
     };

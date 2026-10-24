@@ -36,6 +36,44 @@
     if (url) chrome.tabs.create({ url });
   }
 
+  // Aynı arama daha önce okunduysa: yeni, indirimli, zamlı ve artık görünmeyen ilanlar; en büyük 3 indirim tıklanır.
+  function sinceLastNodes(since) {
+    if (!since) return [];
+    const nodes = [element('h2', '', `SON ZİYARETTEN BERİ (${since.date})`)];
+    const parts = [
+      `${since.fresh.length} yeni ilan`,
+      `${since.drops.length} indirim`,
+      ...(since.rises ? [`${since.rises} zam`] : []),
+      ...(since.gone ? [`${since.gone} ilan artık yok`] : [])
+    ];
+    nodes.push(element('p', 'since-summary', parts.join(' · ')));
+    for (const { record, from } of since.drops.slice(0, 3)) {
+      const button = element('button', 'deal since-drop');
+      button.type = 'button';
+      const ratio = Math.round(((from - record.price) / from) * 100);
+      button.append(
+        element('strong', '', `${record.brand} ${record.model} ${record.engine || ''}`.trim()),
+        element('span', '', `${lira(from)} → ${lira(record.price)} (%${ratio} indirim)`),
+        element(
+          'span',
+          '',
+          [record.year, `${record.km.toLocaleString('tr-TR')} km`, record.city].filter(Boolean).join(' · ')
+        )
+      );
+      button.addEventListener('click', () => openListing(record));
+      nodes.push(button);
+    }
+    if (since.gone)
+      nodes.push(
+        element(
+          'p',
+          'muted',
+          'Artık görünmeyen ilanlar satılmış ya da kaldırılmış olabilir; sayfa sırası değiştiyse başka sayfaya da geçmiş olabilirler.'
+        )
+      );
+    return nodes;
+  }
+
   function describe(outcome, raw) {
     const nodes = [];
     const { stats, skipped } = outcome;
@@ -154,6 +192,7 @@
       return nodes;
     }
 
+    nodes.push(...sinceLastNodes(outcome.sinceLast));
     nodes.push(element('h2', '', 'BU SAYFADAKİ FIRSAT ADAYLARI (UYGUN VE ALTI)'));
     if (!outcome.highlights.length) {
       nodes.push(

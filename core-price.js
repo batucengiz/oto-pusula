@@ -216,7 +216,10 @@
     let groups = poolCache.get(comparables);
     if (!groups) {
       groups = new Map();
+      // Yeni numarayla yeniden yayınlanan aracın eski ilanı piyasa havuzuna girmez (aynı araç iki kez sayılmaz).
+      const replaced = new Set(comparables.map(item => item.relistOf?.lastId).filter(Boolean));
       for (const item of comparables) {
+        if (item.listingId && replaced.has(item.listingId)) continue;
         const id = `${brandKey(item.brand)}|${key(item.model)}`;
         let years = groups.get(id);
         if (!years) groups.set(id, (years = new Map()));
