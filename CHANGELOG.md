@@ -2,6 +2,14 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.7.0 — 2026-10-24
+
+- Ani fiyat düşüşü: aynı ilan en fazla 14 gün arayla görülüp tek seferde %5+ ucuzladıysa "Ani fiyat düşüşü (%X)" uyarısı çıkar ("satıcı acil satmak istiyor olabilir"); popup analiz özetinde de kaç ilanda ani indirim olduğu yazılır. Fırsat puanına +2.
+- Km düşürüldü uyarısı: takip edilen ilanda km 1.000+ geriye giderse önceki değer ve tarih saklanır, "Km düştü" uyarısı verilir, beyan güveni puanı sıfırlanır. Yaşına göre çok düşük km (5 yaş üstü, yılda 4 bin km altı) ayrıca bilgi olarak işaretlenir.
+- Yeniden yayınlanan ilan: artık görünmeyen eski bir ilanla aynı araç (marka, model, yıl, motor, şehir aynı, km tutarlı, başlık ya da boyalı/değişen şeması aynı) yeni numarayla gelirse ilk ilan numarası, ilk görülme tarihi ve o günkü fiyat gösterilir; gerçek ilan süresi pazarlık gerekçesi olur.
+- Tramer tutarı: başlık ve açıklamadaki "12.500 TL tramer", "8 bin tramer", "tramersiz" gibi beyanlar okunur; tutar ve fiyata oranı uyarıda gösterilir, fiyatın %10'u ve üstü tramerde fırsat puanından -4. Şasi numarasıyla doğrulama hatırlatılır.
+- Yeni uyarılar asistan sohbetine de bağlam olarak gider. Ağ isteği yok; hepsi kaydedilmiş ilan verisinden hesaplanır.
+
 ## 7.6.0 — 2026-10-24
 
 - Arama sonuçları sayfasında asistan: sayfadaki tüm ilanlar hakkında serbest soru sorulur ("bütçem 800 bin, otomatik, 2019 sonrası en iyisi hangisi?"). Bütçe, km, yıl, vites, yakıt ve marka/model şartları sorudan okunup ilanlar eklentide süzülür, fırsat puanına göre en iyi 15 tanesi asistana verilir. Cevaptaki "İlan 3" gibi adlar tıklanınca ilan yeni sekmede açılır; altında sözü geçen ilanların fiyat/piyasa farkı, km, kaporta, fırsat puanı, pazarlık ve uyarı kartları ile kaç ilanın incelendiği gösterilir.

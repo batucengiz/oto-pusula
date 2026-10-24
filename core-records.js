@@ -223,6 +223,14 @@
     return SELLER_TYPES[key(value)] || '';
   }
 
+  function relistInfo(value) {
+    if (!value || typeof value !== 'object') return null;
+    const listingId = plain(value.listingId);
+    const price = number(value.price);
+    if (!/^\d{6,13}$/.test(listingId) || !date(value.firstSeen) || !(price >= 10000 && price <= 100000000)) return null;
+    return { listingId, firstSeen: date(value.firstSeen), price: Math.round(price) };
+  }
+
   // İlan kaynaklı kayıtların ek alanları; CSV kayıtlarında boş kalır.
   function listingFields(input) {
     const damage = bodyDamage(input.damage);
@@ -247,6 +255,16 @@
       ...(input.watched === true ? { watched: true } : {}),
       // İlan sayfasındaki "Kimden" alanı (Sahibinden / Galeriden / Yetkili Bayiden); arama listesinde yoktur.
       ...(sellerType(input.sellerType) ? { sellerType: sellerType(input.sellerType) } : {}),
+      // Satıcı km'yi takip sırasında düşürdüyse önceki (yüksek) değer ve tarih saklanır.
+      ...(Number.isInteger(number(input.kmPrevious)) && date(input.kmChanged)
+        ? { kmPrevious: number(input.kmPrevious), kmChanged: date(input.kmChanged) }
+        : {}),
+      // Aynı araç daha önce başka ilan numarasıyla görüldüyse zincirin ilk ilanı, ilk tarihi ve ilk fiyatı.
+      ...(relistInfo(input.relistOf) ? { relistOf: relistInfo(input.relistOf) } : {}),
+      // Başlık/açıklamadaki tramer beyanı (TL); 0 "tramersiz" beyanıdır.
+      ...(Number.isInteger(input.tramer) && input.tramer >= 0 && input.tramer <= 10000000
+        ? { tramer: input.tramer }
+        : {}),
       // Satıcı numarası yalnızca kullanıcı popup'ta "kaydet" dediğinde gelir; otomatik toplanmaz.
       ...(/^905\d{9}$/.test(plain(input.sellerPhone)) ? { sellerPhone: plain(input.sellerPhone) } : {})
     };
@@ -346,15 +364,67 @@
 
   const CONDITION_RANK = { '': 0, 'temiz-iddia': 1, kusurlu: 2, riskli: 3 };
 
+  // Km'de 1.000'den küçük düşüş yazım düzeltmesi sayılır.
+  const KM_DROP = 1000;
+  const RELIST_DAYS = 180;
+
+  // Galeriler satılamayan aracı silip yeni numarayla yeniden yayınlar; ilan "yeni" görünür, eski fiyat kaybolur.
+  // Yeni görülen ilan, artık görünmeyen eski bir ilanla aynı araç gibi duruyorsa eski ilan bulunur. Yanlış eşleşmeyi
+  // önlemek için marka, model, yıl, motor, yakıt, vites ve şehir aynı, km eskisinden geride değil (en fazla 5.000
+  // ileride) olmalı; ayrıca başlık birebir aynı ya da kaporta şeması aynı ve en az bir boyalı/değişen parça içermeli.
+  function relistKey(record) {
+    return [brandKey(record.brand), key(record.model), record.year, key(record.engine), key(record.city)].join('|');
+  }
+
+  function findRelist(item, candidates, today) {
+    if (item.source !== 'sahibinden' || !key(item.city)) return null;
+    let best = null;
+    for (const old of candidates.get(relistKey(item)) || []) {
+      if (old.id === item.id || !old.date || old.date >= today) continue;
+      const age = daysSince(old.date, new Date(`${today}T12:00:00Z`));
+      if (age === null || age > RELIST_DAYS) continue;
+      if (item.km < old.km - 500 || item.km > old.km + 5000) continue;
+      if (old.fuel && item.fuel && key(old.fuel) !== key(item.fuel)) continue;
+      if (old.transmission && item.transmission && key(old.transmission) !== key(item.transmission)) continue;
+      const sameTitle = !!key(item.title) && key(item.title) === key(old.title);
+      const sameBody =
+        !!item.damage && !!old.damage && sameDamage(item.damage, old.damage) && bodyReport(item).score < 100;
+      if (!sameTitle && !sameBody) continue;
+      if (!best || old.date > best.date) best = old;
+    }
+    if (!best) return null;
+    const origin = best.relistOf;
+    return {
+      listingId: origin?.listingId || best.listingId,
+      firstSeen: origin?.firstSeen || best.firstSeen || best.date,
+      price: origin?.price || best.priceHistory?.[0]?.price || best.price
+    };
+  }
+
   // Sayfadan okunan ilanları mevcut kayıtlarla birleştirir; fiyat değişimlerini geçmişe yazar.
   function mergeObservations(existing, incoming, today = localDate()) {
     const map = new Map(existing.map(item => [item.id, item]));
-    const stats = { added: 0, updated: 0, priceChanged: 0, dropped: 0 };
+    const stats = { added: 0, updated: 0, priceChanged: 0, dropped: 0, relisted: 0, kmDropped: 0 };
+    let candidates = null;
+    const incomingIds = new Set(incoming.map(item => item.id));
     for (const item of incoming) {
       const previous = map.get(item.id);
       if (!previous) {
+        // Dizin yalnızca yeni ilan geldiğinde ve bir kez kurulur; bu sayfada hâlâ görünen ilanlar aday değildir.
+        if (!candidates) {
+          candidates = new Map();
+          for (const old of existing) {
+            if (old.source !== 'sahibinden' || incomingIds.has(old.id)) continue;
+            const k = relistKey(old);
+            if (!candidates.has(k)) candidates.set(k, []);
+            candidates.get(k).push(old);
+          }
+        }
+        const relistOf = findRelist(item, candidates, today);
+        if (relistOf) stats.relisted++;
         map.set(item.id, {
           ...item,
+          ...(relistOf ? { relistOf } : {}),
           date: today,
           firstSeen: today,
           priceHistory: [{ date: today, price: item.price }]
@@ -381,6 +451,12 @@
       if (previous.damage && item.damage && !sameDamage(previous.damage, item.damage)) {
         next.damagePrevious = previous.damage;
         next.damageChanged = today;
+      }
+      // Km geriye gittiyse en yüksek görülen değer ve tarih saklanır (km düşürme işareti olabilir).
+      if (previous.km - item.km >= KM_DROP) {
+        next.kmPrevious = Math.max(previous.km, previous.kmPrevious || 0);
+        next.kmChanged = today;
+        stats.kmDropped++;
       }
       if (CONDITION_RANK[previous.condition || ''] > CONDITION_RANK[item.condition || '']) {
         next.condition = previous.condition;

@@ -50,6 +50,24 @@
       nodes.push(element('p', 'muted', 'Örnek veriler temizlendi; artık yalnızca gerçek ilanlar kullanılıyor.'));
     if (outcome.drops)
       nodes.push(element('p', 'muted', `Bu sayfada daha önce gördüğünüz ${outcome.drops} ilanın fiyatı düşmüş.`));
+    if (outcome.suddenDrops)
+      nodes.push(
+        element(
+          'p',
+          'warning-line',
+          `⚡ ${outcome.suddenDrops} ilanda son 30 günde tek seferde %5+ indirim var; satıcı acil satıyor olabilir, pazarlık için iyi fırsat.`
+        )
+      );
+    if (stats.relisted)
+      nodes.push(
+        element(
+          'p',
+          'muted',
+          `${stats.relisted} ilan, daha önce başka ilan numarasıyla gördüğünüz bir araca benziyor (yeniden yayınlanmış olabilir).`
+        )
+      );
+    if (stats.kmDropped)
+      nodes.push(element('p', 'warning-line', `⚠ ${stats.kmDropped} ilanda km önceki görülmeye göre düşürülmüş.`));
     if (outcome.pace?.fast) nodes.push(element('p', 'warning-line', `⚠ ${outcome.pace.message}`));
     // Karışık aramada çoğu ilan "veri yok" kalır; nedenini ve çözümünü burada söyle.
     const coverage = core.dataCoverage(outcome.evaluated);

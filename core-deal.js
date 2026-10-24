@@ -17,6 +17,42 @@
     return record.km >= 60000 && annualKm(record, today) >= 35000;
   }
 
+  // Yaşına göre çok az km: 5 yaş üstü ve yılda 4 bin km altı. Gerçek olabilir ama km düşürmede de görülür.
+  function lowUse(record, today = new Date()) {
+    return record.km > 0 && today.getUTCFullYear() - record.year >= 5 && annualKm(record, today) < 4000;
+  }
+
+  // Satıcı km'yi takip sırasında düşürdüyse true.
+  function kmRevised(record) {
+    return Number.isInteger(record.kmPrevious) && record.kmPrevious > record.km && !!record.kmChanged;
+  }
+
+  // Beyan edilen tramer fiyatın %10'u ve üstündeyse yüksek sayılır.
+  function highTramer(record) {
+    return record.tramer > 0 && record.tramer >= record.price * 0.1;
+  }
+
+  // Son 30 günde, en fazla 14 gün arayla iki görülme arasında tek seferde %5+ indirim: satıcı acil satmak istiyor
+  // olabilir.
+  // Birden fazla varsa en büyüğü döner.
+  function suddenDrop(record, today = new Date()) {
+    const history = record.priceHistory || [];
+    let best = null;
+    for (let i = 1; i < history.length; i++) {
+      const before = history[i - 1].price;
+      const after = history[i].price;
+      const ratio = (before - after) / before;
+      const age = daysSince(history[i].date, today);
+      if (ratio < 0.05 || age === null || age > 30) continue;
+      // İki görülme arası uzunsa indirimin ne zaman yapıldığı bilinmez; "ani" sayılmaz.
+      const gapDays = daysSince(history[i - 1].date, new Date(`${history[i].date}T12:00:00Z`));
+      if (gapDays === null || gapDays > 14) continue;
+      if (!best || ratio > best.ratio)
+        best = { amount: before - after, ratio, before, date: history[i].date, days: gapDays };
+    }
+    return best;
+  }
+
   // Satıcı kaporta beyanını takip sırasında değiştirdiyse true.
   function damageRevised(record) {
     return bodyReport(record).known && !!record.damageChanged && !!bodyDamage(record.damagePrevious);
@@ -46,13 +82,17 @@
     const price = gap <= -0.15 ? 60 : gap <= 0 ? 24 + (-gap / 0.15) * 36 : gap >= 0.1 ? 0 : 24 * (1 - gap / 0.1);
     const bodyPoints = body.known ? Math.max(0, 25 - (100 - body.score) * 0.5) : 10;
     const seller = SELLER_POINTS[record.sellerType] ?? 4;
-    const consistent = bodyConflict(record) || damageRevised(record) ? 0 : 9;
+    const consistent = bodyConflict(record) || damageRevised(record) || kmRevised(record) ? 0 : 9;
     let total = (price + bodyPoints + seller + consistent) * (result.confidence === 'orta' ? 0.9 : 1);
     const adjustments = [];
     if (result.confidence === 'orta') adjustments.push('fiyat güveni orta (×0,9)');
     if (heavyUse(record, today)) {
       total -= 5;
       adjustments.push('yoğun kullanım (-5)');
+    }
+    if (highTramer(record)) {
+      total -= 4;
+      adjustments.push('yüksek tramer (-4)');
     }
     // Piyasanın %20+ altı "şüpheli ucuz": gizli hasar veya dolandırıcılık olabilir; listenin tepesine tek başına çıkmasın.
     if (gap <= -0.2) {
@@ -63,6 +103,10 @@
     if (change && change.amount < 0) {
       total += 3;
       adjustments.push('fiyatı düştü (+3)');
+    }
+    if (suddenDrop(record, today)) {
+      total += 2;
+      adjustments.push('ani indirim (+2)');
     }
     const score = Math.round(clamp(total, 0, 100));
     // Etiket yalnızca fırsat adayına verilir; piyasa ortasındaki temiz bir araç "fırsat" sayılmaz.
@@ -89,6 +133,19 @@
         level: 'warn',
         label: 'Yoğun kullanım',
         text: `Yılda ortalama ${Math.round(annualKm(record, today) / 1000)} bin km yapılmış; taksi, kiralık veya ticari kullanım olabilir. Araç geçmişini ve bakım kayıtlarını sorun.`
+      });
+    }
+    if (kmRevised(record)) {
+      flags.push({
+        level: 'bad',
+        label: 'Km düştü',
+        text: `Bu ilanda km ${record.kmChanged} tarihinde ${record.kmPrevious.toLocaleString('tr-TR')} km'den ${record.km.toLocaleString('tr-TR')} km'ye indirilmiş. Yazım düzeltmesi olabilir ama km düşürme de olabilir: TÜVTÜRK muayene raporlarındaki ve servis kayıtlarındaki km'yi isteyin.`
+      });
+    } else if (lowUse(record, today)) {
+      flags.push({
+        level: 'info',
+        label: 'Çok düşük km',
+        text: `Yılda ortalama ${Math.round(annualKm(record, today)).toLocaleString('tr-TR')} km yapılmış. Gerçekse değerlidir ama km düşürülmüş araçlarda da görülür: servis kayıtlarını, TÜVTÜRK raporlarındaki km'yi ve direksiyon, pedal, koltuk aşınmasını kontrol ettirin.`
       });
     }
     if (record.condition === 'riskli') {
@@ -140,8 +197,55 @@
         text: `Satıcı kaporta beyanını ${record.damageChanged} tarihinde değiştirmiş: önce “${before.label}”, şimdi “${body.label}”. Nedenini sorun ve ekspertiz isteyin.`
       });
     }
+    if (record.tramer > 0) {
+      const share = Math.round((record.tramer / record.price) * 100);
+      const clean = body.known && !body.changed.length && !body.painted.length && record.tramer >= 20000;
+      flags.push({
+        level: highTramer(record) || clean ? 'warn' : 'info',
+        label: `Tramer ${tl(record.tramer)}`,
+        text:
+          `Satıcı ilanda ${tl(record.tramer)} tramer (hasar kaydı) belirtmiş${share >= 1 ? `, fiyatın %${share}'i` : ''}. ` +
+          (clean ? 'Şemada bütün parçalar orijinal görünüyor; hasarın nerede ve nasıl onarıldığını sorun. ' : '') +
+          'Tutarı şasi numarasıyla (SMS: HASAR boşluk şasi no, 5664) ya da e-Devlet’ten doğrulayın.'
+      });
+    } else if (record.tramer === 0) {
+      flags.push({
+        level: 'info',
+        label: 'Tramersiz beyanı',
+        text: 'Satıcı tramer kaydı olmadığını yazmış. Bu bir beyandır: şasi numarasıyla (SMS: HASAR boşluk şasi no, 5664) doğrulayın.'
+      });
+    }
+    if (record.relistOf) {
+      const diff = record.price - record.relistOf.price;
+      const days = daysSince(record.relistOf.firstSeen, today);
+      flags.push({
+        level: 'info',
+        label: 'Yeniden yayınlanmış',
+        text:
+          `Bu araç büyük olasılıkla daha önce #${record.relistOf.listingId} numarasıyla ilandaydı (ilk görülme ${record.relistOf.firstSeen}, o zaman ${tl(record.relistOf.price)}). ` +
+          (diff < 0
+            ? `O zamandan beri ${tl(-diff)} ucuzlamış. `
+            : diff > 0
+              ? `O zamandan beri ${tl(diff)} pahalanmış. `
+              : '') +
+          (days !== null
+            ? `Gerçek ilan süresi en az ${days} gün; satılamamış araçta pazarlık payı genelde yüksektir.`
+            : '')
+      });
+    }
+    const drop = suddenDrop(record, today);
+    if (drop) {
+      const when = drop.days ? `${drop.days} gün içinde ` : '';
+      flags.push({
+        level: 'good',
+        label: `Ani fiyat düşüşü (%${Math.round(drop.ratio * 100)})`,
+        text:
+          `Satıcı ${drop.date} tarihinde ${when}fiyatı ${tl(drop.before)}'den ${tl(drop.before - drop.amount)}'ye indirmiş (${tl(drop.amount)}). ` +
+          'Acil satmak istiyor olabilir; pazarlıkta bunu kullanın ve nedenini sorun. Çok büyük ve hızlı indirim, şüpheli ucuz ilanlarda dolandırıcılık işareti de olabilir.'
+      });
+    }
     const change = priceChange(record);
-    if (change && change.amount < 0) {
+    if (change && change.amount < 0 && !(drop && drop.amount === -change.amount)) {
       flags.push({
         level: 'good',
         label: 'Fiyat düştü',
@@ -149,7 +253,7 @@
       });
     }
     const days = daysSince(record.firstSeen, today);
-    if (days !== null && days >= 30) {
+    if (!record.relistOf && days !== null && days >= 30) {
       flags.push({
         level: 'info',
         label: 'Uzun süredir ilanda',
@@ -171,7 +275,7 @@
     return { flags, offer };
   }
 
-  const api = { dealScore, compareDeals, advise };
+  const api = { dealScore, compareDeals, advise, suddenDrop };
   root.OtoCoreDeal = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);

@@ -657,6 +657,34 @@
     return { records, skipped };
   }
 
+  // Başlık ve açıklamadaki tramer beyanı: "12.500 TL tramer", "tramer: 8 bin", "15 binlik tramer" → TL;
+  // "tramersiz", "tramer kaydı yoktur" → 0. Tutar beyanı "tramersiz" ifadesinden önce gelir; bulunamazsa null.
+  // Birimsiz sayı yıl (1990–2035) ya da km olabileceği için 1.000 altıysa veya yıl gibiyse alınmaz.
+  const TRAMER_NUMBER = String.raw`(\d{1,3}(?:[.,]\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?![.,]?\d)\s*(BIN\S*)?\s*(TL\S*|₺)?`;
+  const TRAMER_AMOUNT = [
+    new RegExp(
+      String.raw`\bTRAMER(?!SIZ)\S*\s*(?:KAYDI|TUTARI|BEDELI)?\s*[:=-]?\s*(?:VAR\s*)?${TRAMER_NUMBER}(?!\s*KM)`
+    ),
+    new RegExp(String.raw`(?<![\d.,])${TRAMER_NUMBER}\s*(?:LIK|LUK)?\s*TRAMER`)
+  ];
+  const TRAMER_NONE =
+    /\bTRAMERSIZ\b|\bTRAMER\S*\s*(?:KAYDI|TUTARI)?\s*[:=-]?\s*(YOK|YOKTUR|BULUNMUYOR|BULUNMAMAKTADIR|SIFIR|0)\b/;
+
+  function tramerAmount(...texts) {
+    const upper = norm(texts.filter(Boolean).join(' \n '));
+    for (const pattern of TRAMER_AMOUNT) {
+      const match = upper.match(pattern);
+      if (!match || match[1] === undefined) continue;
+      const [, numberText, thousand, currency] = match;
+      let value = Number(numberText.replace(/[.,](?=\d{3}\b)/g, '').replace(',', '.'));
+      if (thousand) value *= 1000;
+      const unitless = !thousand && !currency;
+      if (unitless && (value < 1000 || (value >= 1990 && value <= 2035))) continue;
+      if (value >= 100 && value <= 10000000) return Math.round(value);
+    }
+    return TRAMER_NONE.test(upper) ? 0 : null;
+  }
+
   function parseDetailPage(raw) {
     // Sayfa yapısı beklenmedik gelirse (dizi değil, eksik çift) çökmeden boş kabul edilir.
     const pairs = Array.isArray(raw?.info) ? raw.info.filter(entry => Array.isArray(entry) && entry.length >= 2) : [];
@@ -724,6 +752,7 @@
       condition: condition.condition,
       conditionNote: condition.note,
       damage: raw.damage,
+      tramer: tramerAmount(title, raw.description) ?? undefined,
       sellerType: get('KIMDEN')
     });
   }
@@ -1023,6 +1052,7 @@
       .sort((a, b) => core.compareDeals(a.deal, b.deal) || a.result.gap - b.result.gap)
       .slice(0, 3);
     const drops = evaluated.filter(({ change }) => change && change.amount < 0).length;
+    const suddenDrops = evaluated.filter(({ record }) => core.suddenDrop(record, now)).length;
     return {
       state: next,
       stats,
@@ -1030,6 +1060,7 @@
       evaluated,
       highlights,
       drops,
+      suddenDrops,
       clearedSample: !!state.sample,
       pace: core.browsePace(analyses)
     };
@@ -1041,6 +1072,7 @@
     identifyVehicle,
     assessCondition,
     descriptionFlags,
+    tramerAmount,
     priceFrom,
     parseSearchPage,
     parseDetailPage,
