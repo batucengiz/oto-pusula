@@ -537,3 +537,18 @@ test('kondisyon: seçilmezse hesap aynı; "çok iyi" hedefi üst dilime, "bakım
   assert.equal(core.normalizeRecord({ ...base, grade: 'harika' }, 'stock').grade, undefined);
   assert.equal(core.normalizeRecord({ ...base, grade: 'iyi' }, 'comparable').grade, undefined);
 });
+
+test('OtoCore: bölünmüş dosyalardan gelen bütün API alanları tanımlı; sayfalar parçaları core.js’den önce yükler', () => {
+  for (const [name, value] of Object.entries(core)) assert.notEqual(value, undefined, name);
+  const fs = require('node:fs');
+  const parts = ['core-records.js', 'core-csv.js', 'core-price.js', 'core-limits.js', 'core-deal.js'];
+  for (const page of ['popup.html', 'dashboard.html']) {
+    const html = fs.readFileSync(require.resolve(`./${page}`), 'utf8');
+    const at = file => html.indexOf(`<script src="${file}">`);
+    let previous = -1;
+    for (const file of [...parts, 'core.js']) {
+      assert.ok(at(file) > previous, `${page}: ${file} sırayla yüklenmeli`);
+      previous = at(file);
+    }
+  }
+});

@@ -2,6 +2,8 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
+// core.js, konularına bölünmüş core-*.js dosyalarını birleştirir; tarayıcıdaki sırayla yüklenir.
+const CORE_FILES = ['core-records.js', 'core-csv.js', 'core-price.js', 'core-limits.js', 'core-deal.js', 'core.js'];
 
 class FakeNode {
   constructor(id = '') {
@@ -63,13 +65,14 @@ test('sayfalar uzak betik yüklemez ve dinamik kod çalıştırmaz', () => {
     assert.doesNotMatch(html, /<script(\s[^>]*)?>(?!<\/script>)/i, `${file} satır içi betik içermemeli`);
   }
   for (const file of [
-    'core.js',
+    ...CORE_FILES,
     'listing.js',
     'charts.js',
     'xlsx.js',
     'store.js',
     'assistant.js',
     'popup.js',
+    'dashboard-ui.js',
     'dashboard.js',
     'extract.js'
   ]) {
@@ -123,7 +126,15 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
     clearTimeout,
     console
   });
-  for (const file of ['core.js', 'listing.js', 'charts.js', 'xlsx.js', 'store.js', 'dashboard.js']) {
+  for (const file of [
+    ...CORE_FILES,
+    'listing.js',
+    'charts.js',
+    'xlsx.js',
+    'store.js',
+    'dashboard-ui.js',
+    'dashboard.js'
+  ]) {
     vm.runInContext(fs.readFileSync(require.resolve(`./${file}`), 'utf8'), context);
   }
   assert.equal(get('stat-units').textContent, '0');
@@ -313,7 +324,15 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
 test('ürün kodu örnek veya kurgusal veri içermez', () => {
   const html = fs.readFileSync(require.resolve('./dashboard.html'), 'utf8');
   assert.doesNotMatch(html, /load-sample|Örnek veri/i);
-  for (const file of ['dashboard.js', 'popup.js', 'core.js', 'listing.js', 'store.js', 'extract.js']) {
+  for (const file of [
+    'dashboard-ui.js',
+    'dashboard.js',
+    'popup.js',
+    ...CORE_FILES,
+    'listing.js',
+    'store.js',
+    'extract.js'
+  ]) {
     const source = fs.readFileSync(require.resolve(`./${file}`), 'utf8');
     assert.doesNotMatch(source, /sampleData|örnek ilan|kurgusal ilan|Toyota;Corolla/i, file);
   }
@@ -361,7 +380,7 @@ test('popup: ilan detayında WhatsApp düğmesi hazır mesajı açar, numara dep
       runtime: { getURL: path => path }
     }
   });
-  for (const file of ['core.js', 'listing.js', 'store.js', 'popup.js'])
+  for (const file of [...CORE_FILES, 'listing.js', 'store.js', 'popup.js'])
     vm.runInContext(fs.readFileSync(require.resolve(`./${file}`), 'utf8'), context);
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(get('analyze').disabled, false);
@@ -430,7 +449,7 @@ test('popup: "Bu sayfadaki ilanları sil" iki adımda siler, takiptekini korur, 
       runtime: { getURL: path => path }
     }
   });
-  for (const file of ['core.js', 'listing.js', 'store.js', 'popup.js'])
+  for (const file of [...CORE_FILES, 'listing.js', 'store.js', 'popup.js'])
     vm.runInContext(fs.readFileSync(require.resolve(`./${file}`), 'utf8'), context);
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(get('forget-page').disabled, false);
@@ -507,7 +526,7 @@ test('popup: 1 dakika dolmadan yeni satıcıya WhatsApp açılmaz, bekleme süre
       runtime: { getURL: path => path }
     }
   });
-  for (const file of ['core.js', 'listing.js', 'store.js', 'popup.js'])
+  for (const file of [...CORE_FILES, 'listing.js', 'store.js', 'popup.js'])
     vm.runInContext(fs.readFileSync(require.resolve(`./${file}`), 'utf8'), context);
   await new Promise(resolve => setImmediate(resolve));
   await get('analyze').listeners.click();
@@ -572,7 +591,7 @@ test('popup: Excel’e aktar, popup kapansa da geçerli kalan data: adresiyle ge
       runtime: { getURL: p => p }
     }
   });
-  for (const file of ['core.js', 'listing.js', 'store.js', 'xlsx.js', 'popup.js'])
+  for (const file of [...CORE_FILES, 'listing.js', 'store.js', 'xlsx.js', 'popup.js'])
     vm.runInContext(fs.readFileSync(require.resolve(`./${file}`), 'utf8'), context);
   get('export-excel').click();
   const anchor = anchors.find(node => String(node.download || '').endsWith('.xlsx'));
