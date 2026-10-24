@@ -60,6 +60,11 @@
       const advice = core.advise(record, result);
       advice.flags.forEach(flag => nodes.push(element('p', 'muted', `⚠ ${flag.label}: ${flag.text}`)));
       if (advice.offer) nodes.push(element('p', 'muted', `Pazarlık: açılış ${lira(advice.offer.open)}, hedef ${lira(advice.offer.target)}.`));
+      if (advice.offer && assistant) {
+        const reasons = assistant.offerReasons({ record, result, body, advice });
+        if (reasons.length) nodes.push(element('p', 'muted', `Gerekçe: ${reasons.join(' ')}`));
+      }
+      if (raw?.kind === 'detail' && assistant) nodes.push(sellerQuestionNodes(assistant.sellerQuestions({ record, body, advice })));
       if (raw?.kind === 'detail') nodes.push(...whatsappNodes(raw, record));
       if (raw?.kind === 'detail') nodes.push(chatSection({ record, result, body, deal, advice, description: raw.description }));
       return nodes;
@@ -125,7 +130,16 @@
     return [button, save, note, element('p', 'muted', 'WhatsApp’ta hazır mesaj açılır; gönder tuşuna siz basarsınız. Hesabınızı korumak için yeni satıcılara dakikada en fazla 1, günde en fazla 20 mesaj açılır. Numara siz kaydet demedikçe saklanmaz.')];
   }
 
-  // İlan sohbeti: yalnızca Chrome'un yerleşik yapay zekası varsa görünür; yoksa kutu hiç gösterilmez.
+  // Satıcıya sorulacaklar yapay zeka olmadan da gösterilir; varsayılan kapalı, tıklayınca açılır.
+  function sellerQuestionNodes(questions) {
+    const details = element('details', 'seller-questions');
+    const list = element('ul');
+    questions.forEach(text => list.append(element('li', '', text)));
+    details.append(element('summary', '', `Satıcıya sorulacaklar (${questions.length})`), list);
+    return details;
+  }
+
+  // İlan sohbeti: önce Chrome'un yerleşik yapay zekası; o yoksa ve kullanıcı isterse kendi API anahtarı. İkisi de yoksa kutu gizli kalır.
   let chatSession = null;
   function closeChat() {
     try { chatSession?.destroy?.(); } catch { /* oturum zaten kapanmış olabilir */ }
@@ -136,9 +150,53 @@
     closeChat();
     const section = element('section', 'chat');
     section.hidden = true;
-    const model = assistant?.languageModel();
-    if (!model) return section;
+    const builtin = assistant?.languageModel();
+    const remote = globalThis.OtoRemoteAI;
+    if (!assistant || (!builtin && !remote)) return section;
     const lines = assistant.facts(context);
+    // Öncelik her zaman cihazdaki yapay zekadır; API anahtarı yalnızca o yokken kullanılır.
+    assistant.availability(builtin).then(found => {
+      if (found.status !== 'unavailable') renderChat(section, lines, { kind: 'builtin', found });
+      else if (remote) renderRemote(section, lines);
+      else return;
+      section.hidden = false;
+    }).catch(() => { /* destek yoksa kutu gizli kalır */ });
+    return section;
+  }
+
+  function renderRemote(section, lines) {
+    const remote = globalThis.OtoRemoteAI;
+    const key = remote.loadKey(localStorage);
+    if (key) { renderChat(section, lines, { kind: 'remote', key }); return; }
+    // Anahtar yok: kısa bir açıklama ve isteğe bağlı anahtar girişi. Varsayılan durumda hiçbir istek atılmaz.
+    const form = element('form', 'chat-form');
+    const input = element('input');
+    input.type = 'password';
+    input.autocomplete = 'off';
+    input.placeholder = 'Gemini API anahtarı (AIza…)';
+    input.setAttribute('aria-label', 'Gemini API anahtarı');
+    const save = element('button', 'primary chat-send', 'Kaydet');
+    save.type = 'submit';
+    form.append(input, save);
+    const note = element('p', 'muted chat-status', '');
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      try {
+        remote.saveKey(localStorage, input.value);
+        section.replaceChildren();
+        renderChat(section, lines, { kind: 'remote', key: remote.loadKey(localStorage) });
+      } catch (error) {
+        note.textContent = error.message;
+        note.className = 'chat-status warning-line';
+      }
+    });
+    section.replaceChildren(element('h2', '', 'YAPAY ZEKAYA SOR'),
+      element('p', 'muted', 'Bu tarayıcıda Chrome’un yerleşik yapay zekası yok. İsterseniz kendi Google Gemini API anahtarınızla (Google AI Studio’dan ücretsiz alınır) sohbeti açabilirsiniz.'),
+      element('p', 'warning-line', 'Anahtar girerseniz sorduğunuz sorular ve bu ilanın bilgileri cevap için Google’a gönderilir; ücretsiz anahtarlarda Google bu içerikleri ürünlerini geliştirmek için kullanabilir. Anahtar yalnızca bu bilgisayarda saklanır.'),
+      form, note);
+  }
+
+  function renderChat(section, lines, mode) {
     const log = element('div', 'chat-log');
     log.setAttribute('aria-live', 'polite');
     const status = element('p', 'muted chat-status', '');
@@ -153,7 +211,6 @@
     form.append(input, send);
     const chips = element('div', 'chat-chips');
     const chipButtons = [];
-    let options = null;
     let busy = false;
 
     const setBusy = value => {
@@ -165,8 +222,12 @@
 
     async function session() {
       if (chatSession) return chatSession;
+      if (mode.kind === 'remote') {
+        chatSession = globalThis.OtoRemoteAI.createSession(mode.key, assistant.systemPrompt(lines));
+        return chatSession;
+      }
       status.textContent = 'Yapay zeka hazırlanıyor…';
-      chatSession = await assistant.createSession(model, lines, options, loaded => {
+      chatSession = await assistant.createSession(assistant.languageModel(), lines, mode.found.options, loaded => {
         status.textContent = `Yapay zeka modeli bu bilgisayara indiriliyor: %${Math.round(loaded * 100)} (tek seferlik)`;
       });
       status.textContent = '';
@@ -187,8 +248,8 @@
       } catch (error) {
         closeChat();
         reply.className = 'chat-ai chat-error';
-        reply.textContent = error?.name === 'NotAllowedError'
-          ? 'Chrome yapay zekayı başlatmaya izin vermedi. Bir kez “Sor”a tıklayarak tekrar deneyin.'
+        reply.textContent = error?.name === 'RemoteAIError' ? error.message
+          : error?.name === 'NotAllowedError' ? 'Chrome yapay zekayı başlatmaya izin vermedi. Bir kez “Sor”a tıklayarak tekrar deneyin.'
           : 'Yapay zeka şu an cevap veremedi. Biraz sonra tekrar deneyin.';
         status.textContent = '';
       } finally {
@@ -206,16 +267,22 @@
     }
     form.addEventListener('submit', event => { event.preventDefault(); submit(input.value); });
 
-    section.append(element('h2', '', 'YAPAY ZEKAYA SOR'), chips, log, form, status,
-      element('p', 'muted', 'Cevaplar Chrome’un bu bilgisayarda çalışan yapay zekasından gelir; ilan bilgileri hiçbir yere gönderilmez. Yapay zeka hata yapabilir, ekspertiz yerine geçmez.'));
-    assistant.availability(model).then(found => {
-      if (found.status === 'unavailable') return;
-      options = found.options;
-      if (found.status !== 'available') status.textContent = 'İlk soruda Chrome yapay zeka modelini bu bilgisayara indirir (bir kez, birkaç GB); bu birkaç dakika sürebilir.';
-      else if (!found.turkish) status.textContent = 'Chrome’un yapay zekası Türkçeyi resmi olarak desteklemiyor; cevaplar kusurlu olabilir.';
-      section.hidden = false;
-    }).catch(() => { /* destek yoksa kutu gizli kalır */ });
-    return section;
+    const footer = [];
+    if (mode.kind === 'builtin') {
+      if (mode.found.status !== 'available') status.textContent = 'İlk soruda Chrome yapay zeka modelini bu bilgisayara indirir (bir kez, birkaç GB); bu birkaç dakika sürebilir.';
+      else if (!mode.found.turkish) status.textContent = 'Chrome’un yapay zekası Türkçeyi resmi olarak desteklemiyor; cevaplar kusurlu olabilir.';
+      footer.push(element('p', 'muted', 'Cevaplar Chrome’un bu bilgisayarda çalışan yapay zekasından gelir; ilan bilgileri hiçbir yere gönderilmez. Yapay zeka hata yapabilir, ekspertiz yerine geçmez.'));
+    } else {
+      const forget = element('button', 'danger chat-forget', 'API anahtarını sil');
+      forget.type = 'button';
+      forget.addEventListener('click', () => {
+        closeChat();
+        globalThis.OtoRemoteAI.clearKey(localStorage);
+        renderRemote(section, lines);
+      });
+      footer.push(element('p', 'warning-line', 'Bulut modu: sorularınız ve bu ilanın bilgileri cevap için kendi API anahtarınızla Google Gemini’ye gönderilir. Yapay zeka hata yapabilir, ekspertiz yerine geçmez.'), forget);
+    }
+    section.replaceChildren(element('h2', '', 'YAPAY ZEKAYA SOR'), chips, log, form, status, ...footer);
   }
 
   async function analyze() {

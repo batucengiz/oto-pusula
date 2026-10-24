@@ -42,3 +42,8 @@ small { display: block; margin-top: 12px; color: #86a39a; font-size: 11px; }
 .chat-send { width: auto; padding: 8px 12px; background: #a9e85a; color: #173018; }
 .chat-status { margin-top: 6px; }
 .chat .muted:last-child { margin-top: 6px; font-size: 11px; }
+.chat-forget { margin-top: 8px; padding: 7px; font-size: 12px; }
+.seller-questions { margin-top: 8px; font-size: 12px; }
+.seller-questions summary { cursor: pointer; font-weight: 700; }
+.seller-questions ul { margin: 6px 0 0; padding-left: 18px; }
+.seller-questions li { margin-bottom: 3px; }

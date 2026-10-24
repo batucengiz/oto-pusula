@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const core = require('./core.js');
 const assistant = require('./assistant.js');
+const remoteAI = require('./remote-ai.js');
 
 const today = new Date('2026-10-24T12:00:00Z');
 const record = (extras = {}) => core.normalizeRecord({
@@ -48,7 +49,7 @@ test('ilan bilgileri: fiyat, piyasa tahmini, kaporta ve fırsat puanı Türkçe 
   const lines = assistant.facts(contextFor(rec, priced, 'Bakımları yeni yapıldı.'));
   const text = lines.join('\n');
   assert.match(text, /Fiat Egea 1\.4 Fire/);
-  assert.match(text, /Model yılı 2021, 90\.000 km \(yılda ortalama yaklaşık 15\.000 km\)/);
+  assert.match(text, /Model yılı 2021, 90\.000 km \(yılda ortalama yaklaşık 16\.364 km\)/);
   assert.match(text, /İlan fiyatı: 850\.000 TL/);
   assert.match(text, /840\.000 TL – 960\.000 TL \(orta 900\.000 TL\); ilan piyasa ortasının %6 altında\. Durum: uygun/);
   assert.match(text, /kaporta puanı \d+\/100\. Boyalı: Kaput\./);
@@ -67,11 +68,16 @@ test('ilan bilgileri: piyasa tahmini ve kaporta şeması yoksa uydurmaz, açık�
 });
 
 test('satıcı açıklaması kısaltılır; sistem talimatı Türkçe ve yalnızca ilana dayanır', () => {
+  const masked = assistant.facts(contextFor(record(), priced, 'Arayın: 0 (532) 123 45 67, takas olur.')).at(-1);
+  assert.doesNotMatch(masked, /532|123 45/, 'telefon numarası modele verilmez');
+  assert.match(masked, /\[numara gizlendi\].*takas olur/);
   const lines = assistant.facts(contextFor(record(), priced, 'a'.repeat(5000)));
   assert.ok(lines.at(-1).length < 1000, 'uzun açıklama modele bütünüyle verilmemeli');
   const prompt = assistant.systemPrompt(lines);
   assert.match(prompt, /Türkçe/);
   assert.match(prompt, /uydurma/);
+  assert.match(prompt, /Araçla ilgili her soruya/, 'genel araç soruları da cevaplanır');
+  assert.match(prompt, /kronik/);
   assert.match(prompt, /ekspertiz/);
   assert.match(prompt, /İLAN BİLGİLERİ:\n- Araç: Fiat Egea/);
 });
@@ -125,9 +131,14 @@ test('akış parçaları: birikmiş ve yalnızca yeni parça veren sürümler ay
   assert.equal(['Mer', 'Merhaba'].reduce(assistant.appendChunk, ''), 'Merhaba');
 });
 
-test('sohbet kodu ağ isteği yapmaz, harici servis veya anahtar kullanmaz', () => {
+test('sohbet kodu ağ isteği yapmaz; tek dış adres kullanıcının isteğe bağlı Gemini anahtarı içindir, sahibinden’e istek yoktur', () => {
   const source = fs.readFileSync(require.resolve('./assistant.js'), 'utf8');
   assert.doesNotMatch(source, /fetch\(|XMLHttpRequest|WebSocket|sendBeacon|https?:\/\/|api[_-]?key/i);
+  const popup = fs.readFileSync(require.resolve('./popup.js'), 'utf8');
+  assert.doesNotMatch(popup, /fetch\(|XMLHttpRequest|WebSocket|sendBeacon/);
+  const remote = fs.readFileSync(require.resolve('./remote-ai.js'), 'utf8');
+  assert.deepEqual([...remote.matchAll(/https:\/\/[^/`'"]+/g)].map(match => match[0]), ['https://generativelanguage.googleapis.com']);
+  assert.doesNotMatch(remote, /sahibinden\.com|XMLHttpRequest|WebSocket|sendBeacon/);
   const manifest = JSON.parse(fs.readFileSync(require.resolve('./manifest.json'), 'utf8'));
   assert.deepEqual([...manifest.permissions].sort(), ['activeTab', 'scripting'], 'sohbet için yeni izin gerekmez');
   const html = fs.readFileSync(require.resolve('./popup.html'), 'utf8');
@@ -148,10 +159,9 @@ class FakeNode {
 }
 const walk = (node, found = []) => { found.push(node); (node.children || []).forEach(child => walk(child, found)); return found; };
 
-async function popupWithModel(LanguageModel) {
+async function popupWithModel(LanguageModel, { remote = false, storage = new Map(), fetch } = {}) {
   const nodes = new Map();
   const get = id => { if (!nodes.has(id)) nodes.set(id, new FakeNode(id)); return nodes.get(id); };
-  const storage = new Map();
   const detail = {
     kind: 'detail', url: 'https://www.sahibinden.com/ilan/vasita-otomobil-fiat-1234567893/detay', listingId: '1234567893',
     title: 'Fiat Egea 1.4 Fire Urban', priceText: '850.000 TL', location: 'İstanbul / Kadıköy',
@@ -161,6 +171,7 @@ async function popupWithModel(LanguageModel) {
   const context = vm.createContext({
     Node: FakeNode, console, URL,
     ...(LanguageModel ? { LanguageModel } : {}),
+    ...(fetch ? { fetch } : {}),
     document: { getElementById: get, createElement: tag => new FakeNode(tag) },
     localStorage: { getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v), removeItem: k => storage.delete(k) },
     window: { close() {} },
@@ -170,11 +181,12 @@ async function popupWithModel(LanguageModel) {
       runtime: { getURL: path => path }
     }
   });
-  for (const file of ['core.js', 'listing.js', 'store.js', 'assistant.js', 'popup.js']) vm.runInContext(fs.readFileSync(require.resolve(`./${file}`), 'utf8'), context);
+  for (const file of ['core.js', 'listing.js', 'store.js', 'assistant.js', ...(remote ? ['remote-ai.js'] : []), 'popup.js']) vm.runInContext(fs.readFileSync(require.resolve(`./${file}`), 'utf8'), context);
   await new Promise(resolve => setImmediate(resolve));
   await get('analyze').listeners.click();
   await new Promise(resolve => setImmediate(resolve));
-  return get('result').children.find(child => child.className === 'chat');
+  const children = get('result').children;
+  return Object.assign(children.find(child => child.className === 'chat'), { siblings: children });
 }
 
 test('popup: Chrome yapay zekası yoksa sohbet kutusu görünmez, analiz sonucu bozulmaz', async () => {
@@ -198,4 +210,122 @@ test('popup: ilan sayfasında soru sorulur, cevap ilan bilgileriyle cihazdaki mo
   const texts = walk(chat).map(node => node.textContent);
   assert.ok(texts.includes('Bu fiyata değer mi?'));
   assert.ok(texts.includes('Fiyat piyasanın biraz altında.'));
+});
+
+test('benzer ilanlar, teklif gerekçeleri ve satıcı soruları ilan verisinden üretilir', () => {
+  const rec = record({ km: 200000, damage: { changed: ['Sol Ön Kapı'] } });
+  const result = { ...priced, gap: 0.08, position: 0.75, comparables: [
+    { item: { year: 2021, km: 70000, price: 880000, engine: '1.4 Fire', city: 'Ankara' }, adjustedPrice: 860000 },
+    { item: { year: 2020, km: 95000, price: 800000 }, adjustedPrice: 800000 }
+  ] };
+  const ctx = contextFor(rec, result);
+  const comparables = assistant.comparableLines(result);
+  assert.equal(comparables.length, 2);
+  assert.match(comparables[0], /2021, 70\.000 km, 1\.4 Fire, Ankara, fiyatı 880\.000 TL \(bu aracın yılına\/km'sine göre düzeltilmiş 860\.000 TL\)/);
+  assert.doesNotMatch(comparables[1], /düzeltilmiş/, 'fiyat aynıysa düzeltme yazılmaz');
+  assert.equal(assistant.comparableLines({}).length, 0);
+
+  const reasons = assistant.offerReasons(ctx);
+  assert.ok(reasons.some(text => /%8 üstünde/.test(text)));
+  assert.ok(reasons.some(text => /%75'i/.test(text)));
+  assert.ok(reasons.some(text => /1 değişen parça/.test(text)));
+  assert.ok(reasons.some(text => /Yıllık kilometresi/.test(text)));
+
+  const questions = assistant.sellerQuestions(ctx);
+  assert.match(questions[0], /Tramer/);
+  assert.ok(questions.some(text => /Sol Ön Kapı/.test(text)));
+  assert.ok(questions.some(text => /Triger/.test(text)), 'yüksek km’de ağır bakım sorulur');
+  assert.ok(questions.some(text => /taksi/.test(text)), 'yoğun kullanımda kullanım geçmişi sorulur');
+  assert.ok(questions.length <= 6);
+  assert.ok(assistant.sellerQuestions(contextFor(record(), priced)).some(text => /şeması yok/.test(text)));
+
+  const text = assistant.facts(ctx).join('\n');
+  assert.match(text, /Benzer ilan: 2021/);
+  assert.match(text, /Gerekçeler: /);
+  assert.match(text, /Satıcıya sorulması önerilenler: Tramer/);
+});
+
+test('API anahtarı: biçim denetlenir, yalnızca bu cihazda saklanır, silinebilir', () => {
+  const store = new Map();
+  const storage = { getItem: k => store.get(k) ?? null, setItem: (k, v) => store.set(k, v), removeItem: k => store.delete(k) };
+  const key = 'AIza' + 'x'.repeat(35);
+  assert.equal(remoteAI.loadKey(storage), '');
+  assert.throws(() => remoteAI.saveKey(storage, 'sk-yanlis'), /geçersiz/);
+  assert.equal(remoteAI.saveKey(storage, ` ${key}\n`), key);
+  assert.equal(remoteAI.loadKey(storage), key);
+  remoteAI.clearKey(storage);
+  assert.equal(remoteAI.loadKey(storage), '');
+});
+
+test('bulut oturumu: istek yalnızca Gemini adresine, anahtar başlıkta; geçmiş tutulur, hatalar Türkçe', async () => {
+  const requests = [];
+  const fetcher = async (url, init) => {
+    requests.push({ url, init, body: JSON.parse(init.body) });
+    return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: 'Fiyat uygun.' }] } }] }) };
+  };
+  const session = remoteAI.createSession('AIza' + 'k'.repeat(35), 'SİSTEM', fetcher);
+  assert.equal(await assistant.ask(session, 'Bu fiyata değer mi?'), 'Fiyat uygun.');
+  await assistant.ask(session, 'Peki kilometre?');
+  assert.equal(requests.length, 2);
+  assert.equal(requests[0].url, remoteAI.ENDPOINT);
+  assert.match(requests[0].url, /^https:\/\/generativelanguage\.googleapis\.com\//);
+  assert.equal(requests[0].init.headers['x-goog-api-key'], 'AIza' + 'k'.repeat(35));
+  assert.doesNotMatch(requests[0].url, /AIza/, 'anahtar adreste görünmez');
+  assert.equal(requests[0].body.systemInstruction.parts[0].text, 'SİSTEM');
+  assert.deepEqual(requests[1].body.contents.map(item => item.role), ['user', 'model', 'user']);
+
+  const denied = remoteAI.createSession('AIza' + 'k'.repeat(35), 'S', async () => ({ ok: false, status: 403 }));
+  await assert.rejects(assistant.ask(denied, 'soru'), error => error.name === 'RemoteAIError' && /anahtarı kabul edilmedi/.test(error.message));
+  const limited = remoteAI.createSession('AIza' + 'k'.repeat(35), 'S', async () => ({ ok: false, status: 429 }));
+  await assert.rejects(assistant.ask(limited, 'soru'), /kullanım sınırına/);
+});
+
+test('popup: yerleşik yapay zeka yokken anahtar girilmedikçe hiçbir istek atılmaz; anahtarla bulut moduna geçer', async () => {
+  const requests = [];
+  const fetch = async (url, init) => {
+    requests.push(url);
+    return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: 'Bulut cevabı.' }] } }] }) };
+  };
+  const storage = new Map();
+  const chat = await popupWithModel(null, { remote: true, storage, fetch });
+  assert.equal(chat.hidden, false, 'anahtar seçeneği gösterilir');
+  assert.ok(walk(chat).some(node => /Google’a gönderilir/.test(node.textContent)), 'veri paylaşımı açıkça yazılır');
+  assert.equal(walk(chat).some(node => node.className === 'chat-chip'), false, 'anahtar yokken sohbet açılmaz');
+  assert.equal(requests.length, 0);
+
+  const form = walk(chat).find(node => node.tag === 'form');
+  const input = form.children.find(node => node.tag === 'input');
+  input.value = 'yanlış';
+  form.listeners.submit({ preventDefault() {} });
+  assert.ok(walk(chat).some(node => /geçersiz/.test(node.textContent)));
+  assert.equal(storage.has('otoPusula_aiKey'), false);
+
+  input.value = 'AIza' + 'z'.repeat(35);
+  form.listeners.submit({ preventDefault() {} });
+  assert.ok(walk(chat).some(node => /Bulut modu/.test(node.textContent)));
+  const chip = walk(chat).find(node => node.className === 'chat-chip');
+  await chip.click();
+  assert.deepEqual(requests, [remoteAI.ENDPOINT]);
+  assert.ok(walk(chat).some(node => node.textContent === 'Bulut cevabı.'));
+
+  walk(chat).find(node => /API anahtarını sil/.test(node.textContent)).click();
+  assert.equal([...storage.values()].some(value => /AIza/.test(value)), false, 'anahtar silinir');
+  assert.ok(walk(chat).some(node => node.tag === 'form' && node.children.some(child => child.type === 'password')));
+});
+
+test('popup: yerleşik yapay zeka varken kayıtlı anahtar olsa bile veri dışarı gitmez', async () => {
+  const requests = [];
+  const storage = new Map([['otoPusula_aiKey', 'AIza' + 'z'.repeat(35)]]);
+  const { api, calls } = fakeModel();
+  const chat = await popupWithModel(api, { remote: true, storage, fetch: async url => { requests.push(url); } });
+  await walk(chat).find(node => node.className === 'chat-chip').click();
+  assert.equal(calls.prompts.length, 1);
+  assert.equal(requests.length, 0);
+});
+
+test('popup: satıcıya sorulacaklar yapay zeka olmadan da ilan sayfasında gösterilir', async () => {
+  const chat = await popupWithModel(null);
+  const details = chat.siblings.find(node => node.className === 'seller-questions');
+  assert.ok(details);
+  assert.ok(walk(details).some(node => /Tramer/.test(node.textContent)));
 });
