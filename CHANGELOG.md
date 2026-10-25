@@ -2,6 +2,13 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.14.1 — 2026-10-25
+
+- Gemini "Bulut yapay zekası şu an cevap veremedi" hatası giderildi: Google model adını kapatınca ya da değiştirince tüm istekler 404 alıyordu. Artık model sırayla denenir (`gemini-flash-latest`, `gemini-2.5-flash`, `gemini-2.5-flash-lite`), hiçbiri yoksa Google'ın model listesinden en yeni flash modeli seçilir; çalışan model oturum boyunca hatırlanır.
+- Anahtar denemesi artık çok kısa gerçek bir istek atar (eskiden yalnızca model listesine bakıyordu, model kapalı olsa da "✓ çalışıyor" diyordu).
+- Hata mesajları sebebe göre: model kapanmış (404), Google yoğun (5xx), kullanım sınırı (429), bölge desteklenmiyor, anahtar reddedildi, bağlantı yok. Mesajın sonunda küçük bir "(HTTP 404)" notu vardır. Google'ın hata sebebi (anahtarsız) tarayıcı konsoluna yazılır.
+- "Selam", "naber", "teşekkürler" gibi sohbet mesajları hata vermez: kısa bir karşılık ve tıklanabilir örnek araba soruları gelir (yapay zekaya gitmeden, yerleşik model ve Gemini için aynı). Araba dışı sorularda sistem metni artık hata yerine "yalnızca araba ve ilanlarda yardımcı olabilirim" der.
+
 ## 7.14.0 — 2026-10-25
 
 - Profesyonel ekspertiz raporu: popup'taki "Ekspertiz yorumu" kartında ve yazdırılabilir raporda üstten renk kodlu araç şeması (orijinal, lokal boyalı, boyalı, değişen; şema ile ilan yazısının çeliştiği parçalar kırmızı çerçeve ve "!" ile).
@@ -17,13 +24,6 @@ Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-p
 - Kart: risk seviyesi (düşük / orta / yüksek) ve gerekçesi; değişen, boyalı, lokal boyalı parçalar; şasi, direk, podye ve motor, şanzıman, airbag gibi bölümlerin durumu (satıcının kendi cümlesinden kısa alıntıyla); satıcının boya/değişen şemasıyla çelişkiler ("Kaput: ilan yazısında değişen, şemada boyalı", "temiz deniyor ama şemada 3 parça işaretli", "temiz deniyor ama 45.000 TL tramer"); ekspertiz garantisi, istediğiniz ekspertize götürme, noter sözleşmesine işleme, ekspertize kapalı ilan; kaba piyasa oranlarıyla pazarlık etkisi (% ve TL).
 - Rapor yalnızca fotoğraf olarak varsa ve Gemini anahtarı kayıtlıysa: rapor fotoğrafını sahibinden'de büyütüp "Ekrandaki rapor fotoğrafını yorumla"ya basınca görünen sekmenin ekran görüntüsü Gemini'ye yorumlatılır (kaporta, şasi, mekanik, ilanla karşılaştırma, pazarlık). Fotoğraf sahibinden'den yeniden indirilmez; sahibinden'e hiçbir istek atılmaz.
 - Ekspertiz yorumu yazdırılabilir rapora, kopyalanan rapor metnine ve asistan sohbetine de eklenir. Panelden açılan raporda kayıtlı şemadan kısa bir yorum yapılır.
-
-## 7.12.2 — 2026-10-25
-
-- Gemini "Bulut yapay zekası şu an cevap veremedi" hatası giderildi: Google model adını kapatınca ya da değiştirince tüm istekler 404 alıyordu. Artık model sırayla denenir (`gemini-flash-latest`, `gemini-2.5-flash`, `gemini-2.5-flash-lite`), hiçbiri yoksa Google'ın model listesinden en yeni flash modeli seçilir; çalışan model oturum boyunca hatırlanır.
-- Anahtar denemesi artık çok kısa gerçek bir istek atar (eskiden yalnızca model listesine bakıyordu, model kapalı olsa da "✓ çalışıyor" diyordu).
-- Hata mesajları sebebe göre: model kapanmış (404), Google yoğun (5xx), kullanım sınırı (429), bölge desteklenmiyor, anahtar reddedildi, bağlantı yok. Mesajın sonunda küçük bir "(HTTP 404)" notu vardır. Google'ın hata sebebi (anahtarsız) tarayıcı konsoluna yazılır.
-- "Selam", "naber", "teşekkürler" gibi sohbet mesajları hata vermez: kısa bir karşılık ve tıklanabilir örnek araba soruları gelir (yapay zekaya gitmeden, yerleşik model ve Gemini için aynı). Araba dışı sorularda sistem metni artık hata yerine "yalnızca araba ve ilanlarda yardımcı olabilirim" der.
 
 ## 7.12.1 — 2026-10-25
 
