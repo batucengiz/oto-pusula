@@ -14,6 +14,7 @@
     questions = [],
     checklist = [],
     textFlags = [],
+    expertise = [],
     pace = [],
     today
   }) {
@@ -65,6 +66,12 @@
       sections: [
         { id: 'market', heading: 'Fiyat', items: market },
         { id: 'body', heading: 'Kaporta (satıcı beyanı)', items: bodyLines },
+        {
+          id: 'expertise',
+          heading: 'Ekspertiz yorumu',
+          items: expertise.map(line => line.text),
+          levels: expertise
+        },
         { id: 'warnings', heading: 'Dikkat edilecekler', items: warnings.map(item => item.text), levels: warnings },
         { id: 'questions', heading: 'Satıcıya sorulacaklar', items: questions, check: true },
         { id: 'checklist', heading: 'Ekspertizde baktırılacaklar', items: checklist, check: true }
@@ -86,29 +93,34 @@
     return lines.join('\n');
   }
 
-  // Popup'tan rapor sayfasına ilan kimliği ve (kaydedilmeyen) açıklama uyarıları adres parçasıyla taşınır.
-  function encodeHash(id, textFlags = []) {
+  // Popup'tan rapor sayfasına ilan kimliği, açıklama uyarıları ve ekspertiz yorumu (kaydedilmez) adres parçasıyla taşınır.
+  function encodeHash(id, textFlags = [], expertise = []) {
     const flags = textFlags.slice(0, 8).map(({ label, level, text, quote }) => ({ label, level, text, quote }));
-    return `#${encodeURIComponent(JSON.stringify({ id, flags }))}`;
+    const lines = expertise.slice(0, 16).map(({ level, text }) => ({ level, text }));
+    return `#${encodeURIComponent(JSON.stringify({ id, flags, ...(lines.length ? { expertise: lines } : {}) }))}`;
   }
 
   function decodeHash(hash) {
     try {
       const value = JSON.parse(decodeURIComponent(String(hash || '').replace(/^#/, '')));
       const text = item => (typeof item === 'string' ? item.slice(0, 400) : '');
+      const level = (item, allowed) => (allowed.includes(item) ? item : 'info');
       return {
         id: text(value?.id),
         flags: (Array.isArray(value?.flags) ? value.flags.slice(0, 8) : [])
           .filter(flag => flag && typeof flag.label === 'string')
           .map(flag => ({
             label: text(flag.label),
-            level: ['bad', 'warn', 'info'].includes(flag.level) ? flag.level : 'info',
+            level: level(flag.level, ['bad', 'warn', 'info']),
             text: text(flag.text),
             quote: text(flag.quote)
-          }))
+          })),
+        expertise: (Array.isArray(value?.expertise) ? value.expertise.slice(0, 16) : [])
+          .filter(line => line && typeof line.text === 'string' && line.text)
+          .map(line => ({ level: level(line.level, ['bad', 'warn', 'good', 'info']), text: text(line.text) }))
       };
     } catch {
-      return { id: '', flags: [] };
+      return { id: '', flags: [], expertise: [] };
     }
   }
 

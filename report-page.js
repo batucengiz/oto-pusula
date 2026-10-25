@@ -15,8 +15,17 @@
     return node;
   }
 
+  // Popup'tan ekspertiz yorumu gelmediyse (ör. panelden açıldıysa) kayıtlı şemadan kısa bir yorum çıkarılır.
+  function diagramExpertise(record) {
+    const expertise = globalThis.OtoExpertise;
+    if (!expertise || !record.damage) return [];
+    return expertise.lines(
+      expertise.interpret({ damage: record.damage, tramer: record.tramer, price: record.price, textRead: false })
+    );
+  }
+
   await store.ready();
-  const { id, flags } = report.decodeHash(location.hash);
+  const { id, flags, expertise } = report.decodeHash(location.hash);
   const record = store.load().comparables.find(item => item.id === id);
   if (!record) {
     $('title').textContent = 'İlan bulunamadı';
@@ -38,6 +47,7 @@
     questions: assistant.sellerQuestions({ record, body, advice }),
     checklist: assistant.inspectionChecklist({ record, body, advice, textFlags: flags }),
     textFlags: flags,
+    expertise: expertise.length ? expertise : diagramExpertise(record),
     pace: core.paceLines(core.modelPace(record, comparables), record),
     today: core.localDate()
   });

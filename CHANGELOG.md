@@ -2,6 +2,13 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.13.0 — 2026-10-25
+
+- Ekspertiz yorumu: ilan sayfasında "Bu sayfayı analiz et"e basınca popup'ta kendiliğinden "Ekspertiz yorumu" kartı çıkar. İlan yazısındaki ekspertiz bilgisi ("sağ ön çamurluk değişen, kaput boyalı, şasi temiz, motor sorunsuz", "Boyalı parçalar: …", "boyasız değişensiz", "2 parça boyalı") ve sayfada görünen bir ekspertiz bölümü varsa o, parça parça okunur.
+- Kart: risk seviyesi (düşük / orta / yüksek) ve gerekçesi; değişen, boyalı, lokal boyalı parçalar; şasi, direk, podye ve motor, şanzıman, airbag gibi bölümlerin durumu (satıcının kendi cümlesinden kısa alıntıyla); satıcının boya/değişen şemasıyla çelişkiler ("Kaput: ilan yazısında değişen, şemada boyalı", "temiz deniyor ama şemada 3 parça işaretli", "temiz deniyor ama 45.000 TL tramer"); ekspertiz garantisi, istediğiniz ekspertize götürme, noter sözleşmesine işleme, ekspertize kapalı ilan; kaba piyasa oranlarıyla pazarlık etkisi (% ve TL).
+- Rapor yalnızca fotoğraf olarak varsa ve Gemini anahtarı kayıtlıysa: rapor fotoğrafını sahibinden'de büyütüp "Ekrandaki rapor fotoğrafını yorumla"ya basınca görünen sekmenin ekran görüntüsü Gemini'ye yorumlatılır (kaporta, şasi, mekanik, ilanla karşılaştırma, pazarlık). Fotoğraf sahibinden'den yeniden indirilmez; sahibinden'e hiçbir istek atılmaz.
+- Ekspertiz yorumu yazdırılabilir rapora, kopyalanan rapor metnine ve asistan sohbetine de eklenir. Panelden açılan raporda kayıtlı şemadan kısa bir yorum yapılır.
+
 ## 7.12.1 — 2026-10-25
 
 - Yapay zeka anahtarı: AI Studio'nun 28 Mayıs 2026'dan beri verdiği "AQ." ile başlayan yeni anahtarlar kabul edilir (eskiden yalnızca "AIza" kabul ediliyor, doğru anahtar "Panoda anahtar yok" hatası veriyordu). Google yeni bir biçim çıkarırsa, proje adına benzemeyen uzun tek parça yazı da denenir ve kabul kararını Google verir.

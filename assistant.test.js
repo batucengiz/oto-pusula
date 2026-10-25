@@ -249,6 +249,9 @@ async function popupWithModel(
     description = 'Temiz araç.',
     page,
     clipboard,
+    expertise = false,
+    damage,
+    captures = [],
     timers = { setTimeout, clearTimeout }
   } = {}
 ) {
@@ -272,6 +275,7 @@ async function popupWithModel(
       ['KM', '90.000']
     ],
     description,
+    damage,
     phoneText: ''
   };
   const context = vm.createContext({
@@ -292,7 +296,14 @@ async function popupWithModel(
     window: { close() {} },
     ...(clipboard ? { navigator: { clipboard } } : {}),
     chrome: {
-      tabs: { query: async () => [{ id: 1, url: (page || detail).url }], create: ({ url }) => opened.push(url) },
+      tabs: {
+        query: async () => [{ id: 1, url: (page || detail).url }],
+        create: ({ url }) => opened.push(url),
+        captureVisibleTab: async options => {
+          captures.push(options);
+          return 'data:image/jpeg;base64,QUJD';
+        }
+      },
       scripting: { executeScript: async () => [{ result: page || detail }] },
       runtime: { getURL: path => path }
     }
@@ -302,6 +313,7 @@ async function popupWithModel(
     'listing.js',
     'store.js',
     'assistant.js',
+    ...(expertise ? ['expertise.js'] : []),
     ...(remote ? ['remote-ai.js'] : []),
     'popup.js'
   ])
@@ -1106,4 +1118,80 @@ test('liste süzgeci: bütçe, km, yıl, vites, yakıt ve model sorudan okunur; 
   assert.equal(big.shown.length, assistant.LIST_MAX);
   assert.equal(big.shown[0].deal.score, 29, 'fırsat puanına göre ön eleme');
   assert.match(big.lines[0], /30 ilan okundu; fırsat puanına göre en iyi 15/);
+});
+
+test('popup: ilan analizinde ekspertiz yorumu kendiliğinden gösterilir, sohbete de verilir', async () => {
+  const { api, calls } = fakeModel();
+  const chat = await popupWithModel(api, {
+    expertise: true,
+    description: 'Kaput değişen, sol ön kapı boyalı. Şasi temiz. Motor sorunsuz.',
+    damage: { local: [], painted: ['Motor Kaputu'], changed: [] }
+  });
+  const card = chat.siblings.find(node => /^expertise /.test(node.className || ''));
+  assert.ok(card, 'ekspertiz kartı var');
+  assert.equal(card.className, 'expertise high');
+  assert.equal(card.open, true);
+  const text = walk(card)
+    .map(node => node.textContent)
+    .join(' | ');
+  assert.match(text, /Risk: yüksek/);
+  assert.match(text, /Değişen: Motor Kaputu/);
+  assert.match(text, /Çelişki: Motor Kaputu: ilan yazısında değişen, şemada boyalı/);
+  assert.match(text, /Temiz \/ sorunsuz: Şasi, Motor/);
+  assert.equal(
+    walk(card).some(node => node.className === 'expertise-image'),
+    false,
+    'anahtar yoksa fotoğraf düğmesi yok'
+  );
+  const chip = walk(chat).find(node => node.className === 'chat-chip');
+  await chip.listeners.click();
+  await settle();
+  assert.match(JSON.stringify([calls.create, calls.prompts]), /Ekspertiz özeti: Risk: yüksek/);
+});
+
+test('popup: anahtar varsa ekrandaki rapor fotoğrafı tek tıkla yorumlanır; sahibinden’e istek atılmaz', async () => {
+  const requests = [];
+  const fetch = async (url, init) => {
+    requests.push({ url, body: init?.body ? JSON.parse(init.body) : null });
+    return {
+      ok: true,
+      json: async () => ({ candidates: [{ content: { parts: [{ text: '**Özet:** risk orta.\n- Kaput boyalı' }] } }] })
+    };
+  };
+  const storage = new Map([[remoteAI.KEY_STORAGE, 'AIza' + 'k'.repeat(35)]]);
+  const captures = [];
+  const chat = await popupWithModel(null, {
+    remote: true,
+    expertise: true,
+    storage,
+    fetch,
+    captures,
+    description: 'Ekspertiz raporu son fotoğrafta. Boyasız değişensiz.'
+  });
+  const card = chat.siblings.find(node => /^expertise /.test(node.className || ''));
+  const box = walk(card).find(node => node.className === 'expertise-image');
+  assert.ok(box, 'fotoğraf yorumu düğmesi var');
+  assert.match(
+    walk(box)
+      .map(node => node.textContent)
+      .join(' '),
+    /raporun fotoğraflarda olduğunu yazmış/
+  );
+  const before = requests.length;
+  await box.children.find(node => node.tag === 'button').click();
+  await settle();
+  assert.equal(JSON.stringify(captures), '[{"format":"jpeg","quality":85}]');
+  const sent = requests.slice(before);
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].url, remoteAI.ENDPOINT);
+  assert.deepEqual(sent[0].body.contents[0].parts[0], { inline_data: { mime_type: 'image/jpeg', data: 'QUJD' } });
+  assert.match(sent[0].body.contents[0].parts[1].text, /Eklentinin ilandan çıkardığı bulgular: .*Boyasız değişensiz/);
+  assert.ok(requests.every(request => !/sahibinden/.test(request.url)));
+  const answer = walk(box).find(node => node.className === 'expertise-answer');
+  assert.match(
+    walk(answer)
+      .map(node => node.textContent)
+      .join(' '),
+    /risk orta/
+  );
 });
