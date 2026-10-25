@@ -1975,3 +1975,64 @@ a.compare-ref:focus-visible {
   background: var(--brand);
   color: #fff;
 }
+
+/* Araç formu: otomatik tamamlama listesi, "bunu mu demek istediniz" ve piyasa notu */
+.form-grid label {
+  position: relative;
+  align-content: start;
+}
+.suggest-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: 240px;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  box-shadow: var(--sh-2, 0 10px 28px rgba(15, 23, 42, 0.18));
+}
+.suggest-list li {
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.suggest-list li.active,
+.suggest-list li:hover {
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+}
+.suggest-hint {
+  color: var(--subtle);
+  font-size: 12px;
+  font-weight: 500;
+}
+.suggest-hint button {
+  margin: 0 2px;
+  padding: 1px 8px;
+  border: 1px solid var(--brand);
+  border-radius: 999px;
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.suggest-note {
+  margin: 12px 0 0;
+  padding: 9px 12px;
+  border-radius: var(--r-sm);
+  background: var(--brand-soft);
+  color: var(--ink-2, var(--ink));
+  font-size: 12.5px;
+}
+.suggest-note.warn {
+  background: rgba(245, 184, 75, 0.16);
+}

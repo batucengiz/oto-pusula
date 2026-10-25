@@ -45,6 +45,7 @@
     DEFAULTS: parts.DEFAULTS,
     key: parts.key,
     brandKey: parts.brandKey,
+    similar: parts.similar,
     number: parts.number,
     date: parts.date,
     safeListingUrl: parts.safeListingUrl,
@@ -57,6 +58,7 @@
     median: parts.median,
     daysSince: parts.daysSince,
     estimate: parts.estimate,
+    familyModel: parts.familyModel,
     summary: parts.summary,
     modelPace: parts.modelPace,
     paceLines: parts.paceLines
