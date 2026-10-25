@@ -15,7 +15,10 @@
     contactsPerDay: 20,
     phoneSavesPerDay: 30,
     fastBrowseWindowMs: 2 * 60 * 1000,
-    fastBrowsePages: 8
+    fastBrowsePages: 8,
+    tabGapMs: 5 * 1000,
+    tabWindowMs: 2 * 60 * 1000,
+    tabsPerWindow: 5
   });
 
   function normalizeLog(log, limit = 200) {
@@ -88,6 +91,39 @@
           message: `Son 2 dakikada ${recent.length} sayfa analiz ettiniz. sahibinden hızlı gezinmeyi bot davranışı sayabilir; birkaç dakika ara verin.`
         }
       : { fast: false };
+  }
+
+  // sahibinden'de yeni sekme açma: eklenti bu ilanlara kendiliğinden hiç istek atmaz; ama ilanları kullanıcı adına
+  // sekmelerde açar. Art arda ya da toplu açılan sekmeler sahibinden'e bot trafiği gibi görünür. Bu yüzden her
+  // açılış (tekil, bağlantı, düğme fark etmez) buradan geçer: açılışlar arasında en az 5 saniye, 2 dakikada en
+  // fazla 5 sekme. Kayıt popup ve panel arasında ortaktır (open-gate.js).
+  function tabOpenGate(log, now = Date.now(), limits = LIMITS) {
+    // Gelecekte görünen kayıt (saat geri alınmış) kullanıcıyı saatlerce kilitlemesin diye yok sayılır.
+    const recent = normalizeLog(log).filter(entry => entry.at <= now && now - entry.at < limits.tabWindowMs);
+    const seconds = ms => Math.max(1, Math.ceil(ms / 1000));
+    if (recent.length >= limits.tabsPerWindow) {
+      const wait = Math.min(...recent.map(entry => entry.at)) + limits.tabWindowMs - now;
+      return {
+        allowed: false,
+        waitMs: wait,
+        reason: `Biraz yavaşlayın: sahibinden hızlı gezinmeyi bot davranışı sayabilir, bu yüzden 2 dakikada en fazla ${limits.tabsPerWindow} ilan açılır. ${seconds(wait)} saniye sonra tekrar deneyin.`
+      };
+    }
+    const last = recent.length ? Math.max(...recent.map(entry => entry.at)) : 0;
+    if (last && now - last < limits.tabGapMs) {
+      const wait = last + limits.tabGapMs - now;
+      return {
+        allowed: false,
+        waitMs: wait,
+        reason: `Biraz yavaşlayın: ilanlar en az ${limits.tabGapMs / 1000} saniye arayla açılır. ${seconds(wait)} saniye sonra tekrar deneyin.`
+      };
+    }
+    return { allowed: true };
+  }
+
+  // Aynı ilan tekrar açılsa da her açılış sayılır (recordEvent aynı kimliği tek kayıtta tutar).
+  function recordTabOpen(log, now = Date.now(), limits = LIMITS) {
+    return [...normalizeLog(log).filter(entry => now - entry.at < limits.tabWindowMs), { id: 'tab', at: now }];
   }
 
   // --- Okunan sayfalar ve silme ---
@@ -197,6 +233,8 @@
     contactGate,
     recordEvent,
     phoneSaveGate,
+    tabOpenGate,
+    recordTabOpen,
     browsePace,
     safeSahibindenUrl,
     normalizePages,

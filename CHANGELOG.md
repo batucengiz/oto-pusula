@@ -2,6 +2,14 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.15.1 — 2026-10-25
+
+- sahibinden hesabının ban riskine karşı: ilan açma artık tek ortak sınırdan geçer. Eklenti sahibinden'e kendiliğinden hiç istek atmaz; ama 7.12.0'da eklenen popup yolları (sohbetteki "İlan N" bağlantıları, ilan kartları ve "N ilanın hepsini sekmelerde aç" düğmesi) bu yolla ilanları sınırsız ve art arda sekmelerde açabiliyordu; sahibinden bunu bot trafiği gibi görebilir.
+- "N ilanın hepsini sekmelerde aç" düğmesi kaldırıldı. İlanlar tek tek açılır.
+- Yeni sınır (`tabOpenGate`, core-limits.js): açılışlar arasında en az 5 saniye, 2 dakikada en fazla 5 sekme. Sayaç popup ve panel arasında ortaktır (aynı eklenti deposu). Sınır aşılınca sekme açılmaz, "Biraz yavaşlayın" uyarısı ve kalan süre gösterilir; bağlantı/kart "açıldı" diye işaretlenmez.
+- Aynı sınır panelin bütün açma yollarında geçerlidir: sayfa listesindeki "Aç", ilan detayındaki "İlanı aç", tablo satırları, ilan adı bağlantıları, karşılaştırma penceresi ve "Kaportası okunmamış fırsatı aç" (eski dakikada 6 sınırı bunun yerine geçti). Orta tuşla açma da sayılır.
+- Yeni test: sahibinden'de sekme açan hiçbir kod yolu sınırdan geçmeden eklenemez (kaynak taraması); sınır kuralları, ortak sayaç, popup ve panel davranışı test edilir.
+
 ## 7.15.0 — 2026-10-25
 
 - Araç ekle/düzenle formunda otomatik tamamlama: marka, model, paket, motor, yakıt ve vites alanlarında yazdıkça öneri çıkar ("u" yazınca Urban). u/ü, i/ı ve büyük/küçük harf farkı önemsenmez; oklar ve Enter ya da fare ile seçilir. Öneriler önce kendi kayıtlarınızdan, sonra 40'tan fazla markanın gömülü model/paket/motor listesinden gelir (ilan okuyucunun bildiği tüm modeller dahil). Hiçbir istek atılmaz.

@@ -5,6 +5,7 @@
   const listing = globalThis.OtoListing;
   const store = globalThis.OtoStore;
   const assistant = globalThis.OtoAssistant;
+  const openGate = globalThis.OtoOpenGate;
   const $ = id => document.getElementById(id);
   const lira = value => `₺${Math.round(value).toLocaleString('tr-TR')}`;
   let activeTab = null;
@@ -31,18 +32,18 @@
     }
   }
 
+  // sahibinden'de ilan açan her yol sınırdan geçer (open-gate.js): açılışlar arası en az 5 sn, 2 dakikada en fazla 5.
+  // Sınır panelle ortaktır. Aşılırsa sekme açılmaz, üstte kısa bir uyarı çıkar.
+  const openNote = message => openGate.toast(document, message);
+
   function openListing(record) {
-    const url = core.listingUrl(record);
-    if (url) chrome.tabs.create({ url });
+    openGate.open(core.listingUrl(record), url => chrome.tabs.create({ url }), openNote);
   }
 
-  // Sohbetteki ilan bağlantıları ilanı arka planda yeni sekmede açar: popup ve sohbet açık kalır, birkaç ilan sırayla
-  // açılabilir.
+  // Sohbetteki ilan bağlantıları ilanı arka planda yeni sekmede açar: popup ve sohbet açık kalır. Açılmadıysa
+  // (sınır) false döner; bağlantı "açıldı" diye işaretlenmez.
   function openInBackground(record) {
-    const url = core.listingUrl(record);
-    if (!url) return false;
-    chrome.tabs.create({ url, active: false });
-    return true;
+    return openGate.open(core.listingUrl(record), url => chrome.tabs.create({ url, active: false }), openNote);
   }
 
   function refTitle(record) {
@@ -776,7 +777,6 @@
       );
       box.append(head);
     }
-    const cards = [];
     for (const number of chosen.slice(0, 6)) {
       const { record, result, deal, advice } = entries[number - 1];
       const body = core.bodyReport(record);
@@ -829,17 +829,7 @@
         card.className = `chat-pick ${tone} opened`;
         go.textContent = 'Açıldı ✓';
       });
-      cards.push({ card, record });
       box.append(card);
-    }
-    if (cards.length > 1) {
-      const all = element('button', 'chat-open-all', `${cards.length} ilanın hepsini sekmelerde aç`);
-      all.type = 'button';
-      all.addEventListener('click', () => {
-        for (const { card } of cards) if (!/opened/.test(card.className)) card.click();
-        all.textContent = 'Hepsi açıldı ✓';
-      });
-      box.append(all);
     }
     return box;
   }

@@ -74,7 +74,7 @@
 - **Takip listesi:** İlgilendiğiniz ilanları yıldızlayıp ayrıca filtreleyebilirsiniz; ilan tekrar okunduğunda işaret korunur.
 - **Piyasa haritası ve fiyat grafiği:** Her ilan, fiyatı ile tahmini piyasa değerini karşılaştıran bir grafikte nokta olarak görünür (adil fiyat çizgisi ve ±%10 bandıyla). İlan detayında fiyatın zaman içindeki değişimi çizilir. Grafikler bağımlılıksız SVG'dir.
 - **Fiyat geçmişi:** Aynı ilanı sonraki günlerde tekrar gördüğünüzde fiyat değişimi kaydedilir. "Fiyatı düşenler" ve "en uzun süredir yayında" filtreleri pazarlıkta işe yarar.
-- **Kaportası okunmamış fırsatı aç:** Piyasa ilanlarındaki düğme, her basışta kaportası henüz okunmamış en ucuz fırsatı yeni sekmede açar; orada eklentiye basınca kaporta puanı panele eklenir. Sayfalar kullanıcının hızında tek tek açılır (dakikada en fazla 6), eklenti kendi kendine gezinmez.
+- **Kaportası okunmamış fırsatı aç:** Piyasa ilanlarındaki düğme, her basışta kaportası henüz okunmamış en ucuz fırsatı yeni sekmede açar; orada eklentiye basınca kaporta puanı panele eklenir. Sayfalar tek tek açılır (açılışlar arası en az 5 saniye, 2 dakikada en fazla 5 sekme; ortak sınır, aşağıya bakın), eklenti kendi kendine gezinmez.
 - **Kaporta durumu (parça parça):** İlan sayfasını açıp analiz ettiğinizde, satıcının doldurduğu boya/değişen şeması okunur: değişen, boyalı ve lokal boyalı parçalar ayrı ayrı listelenir, 100 üzerinden **kaporta puanı** verilir. Kaporta puanı fiyat değerlendirmesinden **ayrı** tutulur ("uygun fiyat" ile "temiz kaporta" iki ayrı soru). Tavanı değişen araçlar fırsat listesinden çıkarılır. Şema ile ilan metni çelişiyorsa (şemada her şey orijinal ama açıklamada "boyalı" geçiyor gibi) **"Beyan çelişkili"** uyarısı çıkar. Şeması okunmamış ilan temiz sayılmaz. Bu bilgi satıcı beyanıdır, ekspertiz yerine geçmez.
 - **Hasar bilgisi:** İlan detayındaki yapısal "Ağır Hasar Kayıtlı" alanı ile başlık ve satıcı açıklamasındaki "boyalı", "tramer", "ağır hasar kayıtlı" gibi ifadeler sınıflandırılır. "Değişen yok" gibi olumsuz ifadeler ayırt edilir. Ağır hasar beyanlı ilanlar karşılaştırma havuzuna alınmaz, böylece piyasa fiyatını aşağı çekmez.
 - **Kondisyon seçimi (isteğe bağlı):** Stok aracının detayında “Ortalama / Çok iyi / Bakım ister” seçilebilir. Seçilmezse hesap değişmez; “Çok iyi” hedefi benzer ilanların fiyat dağılımındaki üst dilime (yaklaşık %75–%90), “Bakım ister” alt dilime taşır.
@@ -151,6 +151,7 @@ Eklenti yoğun kullanılsa bile (ör. bir galeride) kullanıcının WhatsApp vey
 | Aynı satıcıyla tekrar yazışma | Serbest, sayaca eklenmez |
 | Satıcı numarası kaydetme | 24 saatte en fazla 30 (toplu numara toplamayı önler) |
 | Hızlı gezinme | 2 dakikada 8+ sayfa analizinde "yavaşlayın" uyarısı |
+| sahibinden'de ilan açma (sohbet bağlantıları ve kartları, panelin "Aç" düğmeleri, tablo satırları, ilan adı bağlantıları, karşılaştırma penceresi) | Açılışlar arasında en az 5 saniye; 2 dakikada en fazla 5 sekme. Popup ve panel aynı sayacı kullanır, "hepsini aç" yoktur. Sınır aşılınca sekme açılmaz, "Biraz yavaşlayın" uyarısı ve kalan süre gösterilir |
 
 Sayaçlar "Yerel verileri temizle" ve yedek geri yükleme ile sıfırlanmaz. Yazışma kaydında telefon numarası tutulmaz; yalnızca hangi ilanın satıcısına ne zaman yazıldığı tutulur.
 

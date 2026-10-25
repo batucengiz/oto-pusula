@@ -252,6 +252,7 @@ async function popupWithModel(
     expertise = false,
     damage,
     captures = [],
+    clock,
     timers = { setTimeout, clearTimeout }
   } = {}
 ) {
@@ -260,6 +261,7 @@ async function popupWithModel(
     if (!nodes.has(id)) nodes.set(id, new FakeNode(id));
     return nodes.get(id);
   };
+  const body = new FakeNode('body');
   const detail = {
     kind: 'detail',
     url: 'https://www.sahibinden.com/ilan/vasita-otomobil-fiat-1234567893/detay',
@@ -282,12 +284,26 @@ async function popupWithModel(
     Node: FakeNode,
     console,
     URL,
+    // clock verilirse Date.now() ve new Date() ondan okunur (sekme açma sınırı süreye bağlıdır).
+    ...(clock
+      ? {
+          Date: class extends Date {
+            constructor(...args) {
+              if (args.length) super(...args);
+              else super(clock.now);
+            }
+            static now() {
+              return clock.now;
+            }
+          }
+        }
+      : {}),
     setTimeout: timers.setTimeout,
     clearTimeout: timers.clearTimeout,
     AbortController,
     ...(LanguageModel ? { LanguageModel } : {}),
     ...(fetch ? { fetch } : {}),
-    document: { getElementById: get, createElement: tag => new FakeNode(tag) },
+    document: { body, getElementById: get, createElement: tag => new FakeNode(tag) },
     localStorage: {
       getItem: k => storage.get(k) ?? null,
       setItem: (k, v) => storage.set(k, v),
@@ -310,6 +326,7 @@ async function popupWithModel(
   });
   for (const file of [
     ...CORE_FILES,
+    'open-gate.js',
     'listing.js',
     'store.js',
     'assistant.js',
@@ -324,7 +341,7 @@ async function popupWithModel(
   const children = get('result').children;
   return Object.assign(
     children.find(child => child.className === 'chat'),
-    { siblings: children }
+    { siblings: children, body }
   );
 }
 
@@ -1031,7 +1048,8 @@ test('arama sayfası: listedeki tüm ilanlar hakkında serbest soru; soru şartl
       return { prompt: async () => '**Kısa cevap:** İlan 1 en mantıklısı, sonra İlan 2.', destroy() {} };
     }
   };
-  const chat = await popupWithModel(api, { page, opened });
+  const clock = { now: Date.now() };
+  const chat = await popupWithModel(api, { page, opened, clock });
   assert.ok(chat, 'arama sayfasında da sohbet açılır');
   assert.equal(chat.hidden, false);
   assert.ok(walk(chat).some(node => /Bu sayfadaki 5 ilan/.test(node.textContent)));
@@ -1073,10 +1091,27 @@ test('arama sayfası: listedeki tüm ilanlar hakkında serbest soru; soru şartl
   assert.ok(walk(picks[0]).some(node => node.className === 'chat-pick-price' && /^₺[\d.]+$/.test(node.textContent)));
   assert.ok(walk(chat).some(node => node.className === 'chat-criterion' && node.textContent === 'en fazla 800.000 TL'));
   assert.ok(walk(chat).some(node => /5 ilandan 2 tanesi uyuyor/.test(node.textContent)));
-  const openAll = walk(chat).find(node => node.className === 'chat-open-all');
-  openAll.click();
-  assert.equal(opened.length, 3, 'hepsini aç: kart başına bir sekme');
-  assert.match(openAll.textContent, /Hepsi açıldı/);
+  assert.equal(
+    walk(chat).find(node => node.className === 'chat-open-all'),
+    undefined,
+    'toplu açma düğmesi yok: ilanlar tek tek, sınırla açılır'
+  );
+  // Art arda ikinci ilan (5 sn dolmadan) açılmaz, kart "açıldı" olmaz, uyarı çıkar; 5 sn sonra açılır.
+  const go = card => walk(card).find(node => node.className === 'chat-pick-go');
+  const notes = () => chat.body.children.filter(node => node.className === 'open-note');
+  picks[1].click();
+  assert.equal(opened.length, 1, 'ikinci ilan hemen açılmaz');
+  assert.doesNotMatch(picks[1].className, /opened/);
+  assert.equal(go(picks[1]).textContent, 'Aç ↗');
+  assert.match(
+    notes().at(-1).textContent,
+    /Biraz yavaşlayın: ilanlar en az 5 saniye arayla açılır\. [1-5] saniye sonra/
+  );
+  clock.now += 5100;
+  picks[1].click();
+  assert.equal(opened.length, 2);
+  assert.match(picks[1].className, /opened/);
+  assert.equal(go(picks[1]).textContent, 'Açıldı ✓');
 
   // Şartsız ikinci soru: tüm liste, önceki soru bağlamda.
   form.children.find(node => node.tag === 'input').value = 'En az riskli hangisi?';

@@ -5,6 +5,7 @@
   const listingTools = globalThis.OtoListing;
   const charts = globalThis.OtoCharts;
   const store = globalThis.OtoStore;
+  const openGate = globalThis.OtoOpenGate;
   const {
     element,
     cell,
@@ -63,6 +64,12 @@
       box.hidden = true;
     }, readable);
   }
+
+  // sahibinden'de ilan açan her yol (düğmeler, satırlar, bağlantılar) popup ile ortak sınırdan geçer (open-gate.js):
+  // açılışlar arası en az 5 sn, 2 dakikada en fazla 5 sekme. Aşılırsa sekme açılmaz, uyarı gösterilir.
+  const limitNote = message => openGate.toast(document, message);
+  const openListingTab = url => openGate.open(url, target => window.open(target, '_blank', 'noopener'), limitNote);
+  openGate.guardLinks(document, limitNote);
 
   function listings() {
     return state.comparables.filter(item => item.source === 'sahibinden');
@@ -322,7 +329,7 @@
       if (page.url) {
         const open = element('button', 'button button-secondary', 'Aç ↗');
         open.type = 'button';
-        open.addEventListener('click', () => window.open(page.url, '_blank', 'noopener'));
+        open.addEventListener('click', () => openListingTab(page.url));
         actions.append(open);
       }
       const remove = element('button', 'button button-danger', 'Sil');
@@ -657,7 +664,7 @@
     if (url) {
       row.tabIndex = 0;
       row.title = 'İlanı sahibinden.com’da aç';
-      const open = () => window.open(url, '_blank', 'noopener');
+      const open = () => openListingTab(url);
       row.addEventListener('click', open);
       row.addEventListener('keydown', event => {
         if (event.key === 'Enter') {
@@ -1217,14 +1224,13 @@
   });
   $('open-listing').addEventListener('click', () => {
     const url = selectedVehicle && core.listingUrl(selectedVehicle);
-    if (url) window.open(url, '_blank', 'noopener');
+    if (url) openListingTab(url);
   });
   $('go-market').addEventListener('click', () => showView('market'));
   // Tek tuşla: piyasanın altındaki (ağır hasarsız) ilanlar, ucuzdan pahalıya.
   // Kaportası okunmamış fırsatlar: kullanıcı her basışta en ucuz olanı yeni sekmede açar. Sayfa hızı
-  // kullanıcıda kalır (eklenti kendisi gezinmez); yine de dakikada en fazla 6 ilan açılır.
+  // kullanıcıda kalır (eklenti kendisi gezinmez); açılışlar ortak sınırdan geçer (openListingTab).
   const openedForBody = new Set();
-  const bodyOpenTimes = [];
 
   function pendingBodyDeals() {
     return evaluateListings()
@@ -1244,20 +1250,10 @@
   }
 
   function openNextDeal() {
-    const now = Date.now();
-    while (bodyOpenTimes.length && now - bodyOpenTimes[0] > 60000) bodyOpenTimes.shift();
-    if (bodyOpenTimes.length >= 6) {
-      notice(
-        'Biraz yavaşlayın: dakikada en fazla 6 ilan açılır. Açtığınız ilanlarda önce “Bu sayfayı analiz et” deyin.',
-        true
-      );
-      return;
-    }
     const next = pendingBodyDeals().find(entry => !openedForBody.has(entry.record.id));
     if (!next) return;
+    if (!openListingTab(core.listingUrl(next.record))) return;
     openedForBody.add(next.record.id);
-    bodyOpenTimes.push(now);
-    window.open(core.listingUrl(next.record), '_blank', 'noopener');
     notice(
       `${labelFor(next.record)} (${lira(next.record.price)}) yeni sekmede açıldı. Orada eklenti simgesine basıp “Bu sayfayı analiz et” deyin; kaporta puanı buraya eklenir.`
     );

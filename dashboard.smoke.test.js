@@ -5,6 +5,19 @@ const vm = require('node:vm');
 // core.js, konularına bölünmüş core-*.js dosyalarını birleştirir; tarayıcıdaki sırayla yüklenir.
 const CORE_FILES = ['core-records.js', 'core-csv.js', 'core-price.js', 'core-limits.js', 'core-deal.js', 'core.js'];
 
+// Testin kontrol ettiği saat: Date.now() ve new Date() clock.now'dan okur (başlangıç gerçek saattir).
+function fakeDate(clock) {
+  return class extends Date {
+    constructor(...args) {
+      if (args.length) super(...args);
+      else super(clock.now);
+    }
+    static now() {
+      return clock.now;
+    }
+  };
+}
+
 class FakeNode {
   constructor(id = '') {
     this.id = id;
@@ -71,6 +84,7 @@ test('sayfalar uzak betik yüklemez ve dinamik kod çalıştırmaz', () => {
     'xlsx.js',
     'store.js',
     'assistant.js',
+    'open-gate.js',
     'popup.js',
     'dashboard-ui.js',
     'dashboard.js',
@@ -96,9 +110,13 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
   });
   const storage = new Map();
   const windowListeners = {};
+  const clock = { now: Date.now() };
   const context = vm.createContext({
     Node: FakeNode,
+    Date: fakeDate(clock),
     document: {
+      body: new FakeNode('body'),
+      addEventListener() {},
       getElementById: get,
       createElement: () => new FakeNode(),
       createElementNS: () => new FakeNode(),
@@ -132,6 +150,7 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
     'charts.js',
     'xlsx.js',
     'store.js',
+    'open-gate.js',
     'dashboard-ui.js',
     'dashboard.js'
   ]) {
@@ -279,6 +298,39 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
   assert.equal(opened.length, 1);
   assert.match(opened[0], /^https:\/\/www\.sahibinden\.com\/ilan\//);
   assert.equal(nextButton.textContent.includes(`(${before - 1})`) || before === 1, true, 'sayaç bir azalmalı');
+  // Ortak açılış sınırı (open-gate.js, popup ile aynı sayaç): açılışlar arası en az 5 sn, 2 dakikada en fazla 5.
+  const savedState = storage.get('otoPusula_v1');
+  const manyDeals = JSON.parse(savedState);
+  manyDeals.comparables = [
+    ...manyDeals.comparables,
+    ...Array.from({ length: 8 }, (_, i) => listing(i + 10, 600000 + i * 1000))
+  ];
+  storage.set('otoPusula_v1', JSON.stringify(manyDeals));
+  windowListeners.storage({ key: 'otoPusula_v1' });
+  const lastNote = () => context.document.body.children.filter(child => child.className === 'open-note').at(-1);
+  opened.length = 0;
+  clock.now += 10 * 60 * 1000;
+  nextButton.click();
+  assert.equal(opened.length, 1);
+  nextButton.click();
+  assert.equal(opened.length, 1, 'hemen ikinci açılış engellenir');
+  assert.match(lastNote().textContent, /en az 5 saniye arayla/);
+  assert.equal(lastNote().hidden, false);
+  for (let i = 0; i < 4; i += 1) {
+    clock.now += 5100;
+    nextButton.click();
+  }
+  assert.equal(opened.length, 5, 'her biri 5 sn arayla 5 sekme açılır');
+  clock.now += 5100;
+  nextButton.click();
+  assert.equal(opened.length, 5, '2 dakikada 6. sekme açılmaz');
+  assert.match(lastNote().textContent, /2 dakikada en fazla 5 ilan açılır/);
+  assert.equal(JSON.parse(storage.get('otoPusula_tabOpens')).length, 5, 'sayaç depoda: popup ile paylaşılır');
+  clock.now += 2 * 60 * 1000;
+  nextButton.click();
+  assert.equal(opened.length, 6, 'süre dolunca yeniden açılır');
+  storage.set('otoPusula_v1', savedState);
+  windowListeners.storage({ key: 'otoPusula_v1' });
   get('market-filter').value = 'all';
   get('market-sort').value = 'body';
   get('market-filter').listeners.change();

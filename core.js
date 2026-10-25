@@ -33,6 +33,8 @@
     contactGate: parts.contactGate,
     recordEvent: parts.recordEvent,
     phoneSaveGate: parts.phoneSaveGate,
+    tabOpenGate: parts.tabOpenGate,
+    recordTabOpen: parts.recordTabOpen,
     browsePace: parts.browsePace,
     normalizeLog: parts.normalizeLog,
     advise: parts.advise,
