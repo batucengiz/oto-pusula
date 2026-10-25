@@ -212,3 +212,79 @@ test('panel ve popup yeni dosyaları yükler; sahibinden’e istek yok', () => {
     assert.doesNotMatch(source, /fetch\(|XMLHttpRequest|WebSocket|sendBeacon|https?:\/\/|innerHTML/, file);
   }
 });
+
+test('karşılaştırma seçimi kutucukla yapılır; ilan adı sahibinden’deki ilanı yeni sekmede açar', async () => {
+  class Node {
+    constructor(tag = 'div') {
+      this.tagName = tag.toUpperCase();
+      this.children = [];
+      this.listeners = {};
+      this.attributes = {};
+      this.textContent = '';
+    }
+    append(...items) {
+      this.children.push(...items);
+    }
+    replaceChildren(...items) {
+      this.children = [...items];
+    }
+    addEventListener(name, fn) {
+      this.listeners[name] = fn;
+    }
+    setAttribute(name, value) {
+      this.attributes[name] = value;
+    }
+    showModal() {
+      this.open = true;
+    }
+    close() {
+      this.open = false;
+    }
+  }
+  const nodes = new Map();
+  const get = id => {
+    if (!nodes.has(id)) nodes.set(id, new Node());
+    return nodes.get(id);
+  };
+  const element = (tag, className = '', text = '') => {
+    const node = new Node(tag);
+    node.className = className;
+    node.textContent = text;
+    return node;
+  };
+  const withUrl = record('1234567890', { url: 'https://www.sahibinden.com/ilan/1234567890/detay' });
+  const noUrl = record('1234567891', { price: 820000 });
+  const entries = [withUrl, noUrl].map(item => ({ record: item, result: null, deal: null, advice: null }));
+  const saved = { document: globalThis.document, history: globalThis.OtoChatHistory };
+  globalThis.document = { getElementById: get };
+  globalThis.OtoChatHistory = { savedIds: async () => [] };
+  try {
+    compareUI.mount({
+      evaluate: () => entries,
+      shown: () => entries.map(entry => entry.record.id),
+      labelFor: item => `${item.brand} ${item.model}`,
+      element
+    });
+    await get('ai-compare-open').listeners.click();
+    const rows = get('ai-compare-list').children;
+    assert.equal(rows.length, 2);
+    for (const row of rows) {
+      assert.notEqual(row.tagName, 'LABEL', 'satıra tıklamak seçim yapmamalı');
+      assert.equal(row.children[0].type, 'checkbox');
+    }
+    const link = rows[0].children[1];
+    assert.equal(link.tagName, 'A');
+    assert.equal(link.href, withUrl.url);
+    assert.equal(link.target, '_blank');
+    assert.match(link.rel, /noopener/);
+    assert.equal(rows[1].children[1].tagName, 'SPAN', 'adresi olmayan ilan düz metin kalır');
+    for (const row of rows) {
+      row.children[0].checked = true;
+      row.children[0].listeners.change();
+    }
+    assert.equal(get('ai-compare-run').disabled, false, 'iki kutucuk seçilince karşılaştırma açılmalı');
+  } finally {
+    globalThis.document = saved.document;
+    globalThis.OtoChatHistory = saved.history;
+  }
+});

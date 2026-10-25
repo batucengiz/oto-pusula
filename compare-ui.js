@@ -66,6 +66,17 @@
     const remote = root.OtoRemoteAI;
     let picked = new Set();
 
+    // Kayıtlı ilan adresi varsa ad bağlantı olur (yeni sekme); yoksa düz metin.
+    function listingLink(record, text) {
+      if (!record.url) return element('span', 'compare-name', text);
+      const link = element('a', 'compare-name', text);
+      link.href = record.url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.title = 'İlanı sahibinden’de aç';
+      return link;
+    }
+
     function updateCount() {
       const count = picked.size;
       $('ai-compare-count').textContent =
@@ -91,10 +102,12 @@
         list.append(element('p', 'table-note', 'Önce sahibinden sayfalarını analiz edin; kayıtlı ilan yok.'));
       for (const entry of options) {
         const { record } = entry;
-        const label = element('label', 'compare-option');
+        // Seçim yalnızca kutucukla yapılır; ilan adı sahibinden'deki ilanı yeni sekmede açar.
+        const row = element('div', 'compare-option');
         const box = element('input');
         box.type = 'checkbox';
         box.checked = picked.has(record.id);
+        box.setAttribute('aria-label', `Karşılaştırmaya ekle: ${labelFor(record)}`);
         box.addEventListener('change', () => {
           if (box.checked && picked.size >= assistant.COMPARE_MAX) {
             box.checked = false;
@@ -107,16 +120,15 @@
         const facts = [record.year, `${Number(record.km).toLocaleString('tr-TR')} km`, lira(record.price), record.city]
           .filter(Boolean)
           .join(' · ');
-        label.append(
+        row.append(
           box,
-          element(
-            'span',
-            '',
+          listingLink(
+            record,
             `${record.watched ? '★ ' : ''}${[labelFor(record), record.engine].filter(Boolean).join(' · ')}`
           ),
           element('small', '', `${facts}${entry.deal ? ` · fırsat ${entry.deal.score}/100` : ''}`)
         );
-        list.append(label);
+        list.append(row);
       }
       updateCount();
       dialog.showModal();
@@ -135,9 +147,16 @@
         const { record, result, deal, advice } = entry;
         const body = root.OtoCore.bodyReport(record);
         const row = element('tr');
+        row.append(element('td', '', `İlan ${index}`));
+        const name = element('td');
+        name.append(
+          listingLink(
+            record,
+            `${[labelFor(record), record.engine].filter(Boolean).join(' · ')} (${record.year}, ${Number(record.km).toLocaleString('tr-TR')} km)`
+          )
+        );
+        row.append(name);
         [
-          `İlan ${index}`,
-          `${[labelFor(record), record.engine].filter(Boolean).join(' · ')} (${record.year}, ${Number(record.km).toLocaleString('tr-TR')} km)`,
           lira(record.price),
           result?.center
             ? `%${Math.round(Math.abs(result.gap) * 100)} ${result.gap < 0 ? 'altında' : 'üstünde'}`

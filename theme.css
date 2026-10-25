@@ -1888,7 +1888,20 @@ html {
   padding: 8px 10px;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
+}
+.compare-option input {
   cursor: pointer;
+}
+.compare-name {
+  color: inherit;
+}
+a.compare-name {
+  color: var(--brand);
+  text-decoration: none;
+}
+a.compare-name:hover,
+a.compare-name:focus-visible {
+  text-decoration: underline;
 }
 .compare-option small {
   grid-column: 2;

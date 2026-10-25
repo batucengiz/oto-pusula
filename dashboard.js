@@ -216,6 +216,14 @@
       entries.length || csvCount
         ? `${entries.length} ilan${csvCount ? ` + ${csvCount} CSV kaydı` : ''}`
         : 'Henüz veri yok';
+    // Sayaçlar boş durumda da güncellenir; yoksa tüm ilanlar silinince eski sayı yenilemeye kadar kalıyordu.
+    const dealCount = entries.filter(isDeal).length;
+    for (const id of ['go-deals', 'deal-shortcut']) {
+      $(id).textContent = `Fırsat arabalar (${dealCount})`;
+      $(id).classList.toggle('has-deals', dealCount > 0);
+    }
+    $('go-phones').textContent =
+      `Görüştüklerim (WhatsApp) (${entries.filter(entry => entry.record.sellerPhone).length})`;
     if (!entries.length) {
       const guide = element('div', 'onboarding');
       guide.append(element('strong', 'onboarding-title', 'İlk analizinizi 1 dakikada yapın'));
@@ -236,13 +244,6 @@
       box.append(guide);
       return;
     }
-    const dealCount = entries.filter(isDeal).length;
-    for (const id of ['go-deals', 'deal-shortcut']) {
-      $(id).textContent = `Fırsat arabalar (${dealCount})`;
-      $(id).classList.toggle('has-deals', dealCount > 0);
-    }
-    $('go-phones').textContent =
-      `Görüştüklerim (WhatsApp) (${entries.filter(entry => entry.record.sellerPhone).length})`;
     for (const [title, value] of [
       ['İzlenen ilan', entries.length],
       ['Fırsat adayı (uygun ve altı)', dealCount],
