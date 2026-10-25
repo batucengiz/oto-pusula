@@ -43,6 +43,8 @@
     recordPage: parts.recordPage,
     removeListings: parts.removeListings,
     listingGroups: parts.listingGroups,
+    groupRemovalIds: parts.groupRemovalIds,
+    restoreRemoved: parts.restoreRemoved,
     removePage: parts.removePage,
     safeSahibindenUrl: parts.safeSahibindenUrl,
     DEFAULTS: parts.DEFAULTS,

@@ -53,14 +53,24 @@
 
   // Bildirim kendiliğinden kaybolur: kısa bilgi 4 sn, hata en az 8 sn, uzun mesaj okunacak kadar. Tıklayınca hemen kapanır.
   let noticeTimer = null;
-  function notice(message, error = false) {
+  // action ({ label, run }) verilirse mesajın yanında bir düğme çıkar (ör. "Geri al"); bildirim daha uzun kalır.
+  function notice(message, error = false, action = null) {
     const box = $('notice');
     box.textContent = message;
+    if (action) {
+      const button = element('button', 'notice-action', action.label);
+      button.type = 'button';
+      button.addEventListener('click', event => {
+        event.stopPropagation();
+        action.run();
+      });
+      box.append(' ', button);
+    }
     box.className = error ? 'notice error' : 'notice';
     box.hidden = false;
     clearTimeout(noticeTimer);
     // Uzun mesaj (ör. kaç ilanın neden silinmediği) okunacak kadar kalır: karakter başına ~60 ms, en fazla 12 sn.
-    const readable = Math.min(12000, Math.max(error ? 8000 : 4000, String(message).length * 60));
+    const readable = Math.min(12000, Math.max(error ? 8000 : action ? 12000 : 4000, String(message).length * 60));
     noticeTimer = setTimeout(() => {
       box.hidden = true;
     }, readable);
@@ -294,6 +304,16 @@
   };
 
   let shownIds = [];
+  // Marka ve modele göre toplu silme / yalnızca seçilenleri tutma (brand-manage.js); dosya yoksa panel aynen çalışır.
+  const brandManage = globalThis.OtoBrandManage?.mount({
+    element,
+    listings: () => listings(),
+    onRequest: ({ mode, ids, message }) => {
+      if (!confirm(message)) return;
+      const result = core.removeListings(state, ids, { includeWatched: askIncludeWatched(ids) });
+      applyRemoval(result, mode === 'keep' ? 'Yalnızca seçilenler kaldı' : 'Silme tamamlandı');
+    }
+  });
 
   // Arama sayfası adresindeki sayfalama bilgisinden "sayfa 2" gibi bir etiket çıkarır.
   function pageNumber(url) {
@@ -358,14 +378,43 @@
     window.open(result.link, '_blank', 'noopener');
   }
 
-  function deletionNotice(prefix, result) {
+  function deletionNotice(prefix, result, undo = null) {
     const parts = [`${prefix}: ${result.removed} ilan silindi.`];
     if (result.kept)
       parts.push(
         `${result.kept} ilan takip listende (★) olduğu için korundu; onları da silmek için silme işlemini tekrarlayıp ikinci soruya Tamam deyin.`
       );
     if (result.shared) parts.push(`${result.shared} ilan başka bir okunan sayfada da olduğu için kaldı.`);
-    notice(parts.join(' '));
+    notice(parts.join(' '), false, undo);
+  }
+
+  // Silinen ilanlar bu pencere açık kaldıkça bellekte durur: "Geri al" son silmeyi (ilanlar ve okunan sayfalar)
+  // geri getirir. Silmeden sonra eklenen ilanlara dokunmaz.
+  let lastRemoval = null;
+  function updateUndoButton() {
+    $('brand-undo').hidden = !lastRemoval;
+  }
+
+  function undoRemoval() {
+    if (!lastRemoval) return;
+    const restored = core.restoreRemoved(state, lastRemoval);
+    lastRemoval = null;
+    if (save(restored.state)) notice(`${restored.restored} ilan geri getirildi.`);
+    updateUndoButton();
+  }
+
+  // Tüm toplu silmeler buradan geçer: kaydeder, sayaçları yeniler, silinenleri geri alma için saklar.
+  function applyRemoval(result, prefix) {
+    const remaining = new Set(result.state.comparables.map(item => item.id));
+    const snapshot = {
+      records: state.comparables.filter(item => !remaining.has(item.id)),
+      pages: state.pages || []
+    };
+    if (!save(result.state)) return false;
+    if (snapshot.records.length) lastRemoval = snapshot;
+    deletionNotice(prefix, result, snapshot.records.length ? { label: 'Geri al', run: undoRemoval } : null);
+    updateUndoButton();
+    return true;
   }
 
   // Silinecekler arasında takipteki (★, WhatsApp numarası kayıtlı olanlar dahil) ilan varsa ayrıca sorulur.
@@ -383,7 +432,7 @@
     const elsewhere = new Set((state.pages || []).filter(item => item.id !== page.id).flatMap(item => item.listingIds));
     const own = page.listingIds.filter(id => !elsewhere.has(id));
     const result = core.removePage(state, page.id, { includeWatched: askIncludeWatched(own) });
-    if (save(result.state)) deletionNotice('Sayfa silindi', result);
+    applyRemoval(result, 'Sayfa silindi');
   }
 
   function renderMarketChart(entries) {
@@ -473,6 +522,8 @@
     $('delete-shown').textContent = `Gösterilenleri sil (${entries.length})`;
     $('delete-shown').disabled = !entries.length;
     renderPages();
+    brandManage?.render();
+    updateUndoButton();
     renderMarketChart(entries);
     if (!entries.length) {
       const row = element('tr');
@@ -1300,7 +1351,7 @@
     )
       return;
     const result = core.removeListings(state, shownIds, { includeWatched: askIncludeWatched(shownIds) });
-    if (save(result.state)) deletionNotice('Silme tamamlandı', result);
+    applyRemoval(result, 'Silme tamamlandı');
   });
   $('deal-shortcut').addEventListener('click', showDeals);
   $('open-next-deal').addEventListener('click', openNextDeal);
@@ -1487,6 +1538,8 @@
   } catch {
     /* panel eklenti dışında açıldıysa etiket boş kalır */
   }
+
+  $('brand-undo').addEventListener('click', undoRemoval);
 
   // Seçilen ilanları yapay zekayla karşılaştırma (compare-ui.js); dosya yoksa panel aynen çalışır.
   try {

@@ -2279,3 +2279,81 @@ a.compare-ref:focus-visible {
 #search-form .suggest-note {
   display: none;
 }
+
+/* ---------- Marka ve model yönetimi (brand-manage.js) ---------- */
+.brand-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.brand-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+  max-height: 380px;
+  overflow: auto;
+}
+.brand-group {
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+.brand-head,
+.brand-model {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+}
+.brand-head {
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+  border-radius: var(--r-md) var(--r-md) 0 0;
+}
+.brand-name,
+.brand-model-name {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  cursor: pointer;
+}
+.brand-name input,
+.brand-model-name input {
+  align-self: center;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--brand);
+}
+.brand-name small,
+.brand-model-name small {
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.brand-model:hover {
+  background: var(--surface-2);
+}
+.brand-drop {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+.notice .notice-action {
+  margin-left: 8px;
+  padding: 3px 12px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.notice .notice-action:hover {
+  background: rgb(0 0 0 / 0.06);
+}

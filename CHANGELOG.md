@@ -2,6 +2,13 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.19.0 — 2026-10-25
+
+- **Panelde marka ve model bazlı toplu silme.** İlanlar sayfasında yeni "Marka ve model" bölümü: kayıtlı ilanlar marka > model olarak sayılarıyla listelenir (birden çok marka karışmışsa bölüm kendiliğinden açılır). Bir modeli ya da tüm markayı tek tuşla ("Sil" / "Markayı sil") silebilirsin; Passat'ı bitirip Egea'ya geçince Passat ilanlarını tek tuşla temizle.
+- **"Yalnızca seçilenler kalsın":** 4-5 marka karıştıysa istediğin marka/modelleri işaretle, kalan her şey silinsin. Her silmeden önce kaç ilan gideceği yazan onay çıkar; takip listendeki (★) ilanlar için ayrıca sorulur, stok araçların etkilenmez.
+- **Geri al:** toplu silme ve sayfa silme sonrası bildirimde ve panelde "Geri al" düğmesi çıkar; silinen ilanlar ve okunan sayfalar geri gelir. Sayaçlar silince ve geri alınca anında güncellenir.
+- Yeni testler (brand-manage.test.js): çekirdek kurallar ve gerçek dashboard.html tıklanarak denenir. Ağ isteği yoktur.
+
 ## 7.18.0 — 2026-10-25
 
 - Yapay zeka hataları büyük ölçüde azaldı. Google'ın en sık hatası olan "şu an yoğun (HTTP 503)" ve kota (429) artık hemen kullanıcıya gösterilmez: aynı istekte yedek modele geçilir (`gemini-flash-latest` → `gemini-2.5-flash` → `gemini-2.5-flash-lite`; ücretsiz anahtarda kota model başınadır), hepsi geçici hata verirse artan beklemeyle (rastgele payla) en fazla 3 tur yeniden denenir. Toplam süre 45 sn ile, her deneme 25 sn ile sınırlıdır; takılan istek kesilip sıradaki modele geçilir. Yoğun ya da kotası dolan model 1 dakika sona alınır, kapanan model (404) oturum boyunca denenmez.
@@ -10,6 +17,7 @@ Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-p
 - Yeni Gemini modellerinin "düşünme" payı cevap bütçesinden yediği için cevaplar boş ya da yarım gelebiliyordu: bütçe 1200'den 4096'ya çıkarıldı, düşünce parçaları cevaba karışmaz, yine de kesilen cevap "…" ile biter. Boş gelen cevap bir kez daha istenir; Google'ın güvenlik filtresine takılan soru ayrı bir mesajla söylenir. Uzun bağlam hatası (token sınırı) da ayrı söylenir.
 - Cevap kalitesi: sistem metnine her sohbet türünde (tek ilan, karşılaştırma, arama listesi) doğruluk kuralları eklendi. Rakamlar yalnızca eklentinin hesapladığı bilgilerden aynen alınır, model hesap yapmaz ve rakam uydurmaz; ilanda olmayan bilgi için "bu bilgi ilanda yok" der ve nasıl öğrenileceğini söyler; yalnızca listede olan ilan numaralarını kullanır; araba dışı konulara ve ilan açıklamasındaki "talimatları unut" gibi isteklere uymaz; yalnızca düzgün Türkçe ve kısa yazar.
 - Ekspertiz raporu fotoğrafı yorumu da aynı dayanıklı katmandan geçer.
+
 ## 7.17.1 — 2026-10-25
 
 - Excel'de motor bilgisi artık eksik kalmıyor: motor seçilerek yapılan aramalarda (ör. Egea Cross › 1.4 Fire) listede yalnızca paket yazar; motor sayfanın gezinme yolundan, yoksa ilan başlığından ya da sayfa başlığından okunur. İlan sayfasında motor adı yazmıyorsa motor hacminden çıkarılır (1368 cc → 1.4). Fiyatlar ("1.300.000") motor sanılmaz. FireFly, M.Jet, T-Jet, hibrit gibi motor kodları tanınır.
