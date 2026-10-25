@@ -2,6 +2,14 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.15.0 — 2026-10-25
+
+- Araç ekle/düzenle formunda otomatik tamamlama: marka, model, paket, motor, yakıt ve vites alanlarında yazdıkça öneri çıkar ("u" yazınca Urban). u/ü, i/ı ve büyük/küçük harf farkı önemsenmez; oklar ve Enter ya da fare ile seçilir. Öneriler önce kendi kayıtlarınızdan, sonra 40'tan fazla markanın gömülü model/paket/motor listesinden gelir (ilan okuyucunun bildiği tüm modeller dahil). Hiçbir istek atılmaz.
+- Yanlış yazımda "Bunu mu demek istediniz" (Corola → Corolla, Volkswagn → Volkswagen); doğru ama farklı yazılmış ad (corolla, FIAT) kayıttan önce bilinen yazılışa çevrilir. Listede olmayan ad yine kaydedilir.
+- Formun altında canlı piyasa notu: kayıtlarınızda bu modelden kaç ilan var, yoksa nedeni ve yakın adlar.
+- Model ailesi eşleştirmesi (tüm markalar için): aracın adıyla birebir ilan yoksa ("Egea") aynı ailedeki ilanlarla ("Egea Cross", "Egea Sedan") hesaplanır; sonuç bir kademe daha az güvenilir sayılır ve nedeni yazılır. Başka model (ör. Linea) aile sayılmaz; "veri yok" kalır ve kayıtlı modeller söylenir.
+- "Veri yok" açıklaması yakın adı önerir ("Toyota Corolla mı?").
+
 ## 7.14.1 — 2026-10-25
 
 - Gemini "Bulut yapay zekası şu an cevap veremedi" hatası giderildi: Google model adını kapatınca ya da değiştirince tüm istekler 404 alıyordu. Artık model sırayla denenir (`gemini-flash-latest`, `gemini-2.5-flash`, `gemini-2.5-flash-lite`), hiçbiri yoksa Google'ın model listesinden en yeni flash modeli seçilir; çalışan model oturum boyunca hatırlanır.

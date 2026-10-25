@@ -24,11 +24,51 @@
       .replace(/[şŞ]/g, 's')
       .replace(/[öÖ]/g, 'o')
       .replace(/[çÇ]/g, 'c')
+      .normalize('NFD')
+      .replace(/\p{M}+/gu, '')
       .replace(/[^a-z0-9]+/g, '');
     // Serbest metin (başlık, not) önbelleği şişirmesin: sınır aşılınca baştan başlanır.
     if (keyCache.size >= 20000) keyCache.clear();
     keyCache.set(text, result);
     return result;
+  }
+
+  // İki yazı arasındaki düzenleme uzaklığı (ekleme, silme, değiştirme, yan yana harf değişimi).
+  function distance(a, b) {
+    if (a === b) return 0;
+    const rows = [];
+    for (let i = 0; i <= a.length; i += 1) rows.push([i, ...new Array(b.length).fill(0)]);
+    for (let j = 0; j <= b.length; j += 1) rows[0][j] = j;
+    for (let i = 1; i <= a.length; i += 1) {
+      for (let j = 1; j <= b.length; j += 1) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        rows[i][j] = Math.min(rows[i - 1][j] + 1, rows[i][j - 1] + 1, rows[i - 1][j - 1] + cost);
+        if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1])
+          rows[i][j] = Math.min(rows[i][j], rows[i - 2][j - 2] + 1);
+      }
+    }
+    return rows[a.length][b.length];
+  }
+
+  // Yazım hatası olabilecek ya da sistemde başka adla kayıtlı bir değere en yakın adaylar ("Corola" → "Corolla",
+  // "Egea" → "Egea Sedan"). Uzaklık sınırı yazı uzunluğuna göre büyür; çok kısa yazılarda (2-3 harf) yalnızca tek
+  // harf farkı kabul edilir. Biri ötekini içeriyorsa (en az 3 harf) da yakın sayılır. u/ü, i/ı farkı yoktur.
+  function similar(value, candidates, limit = 3) {
+    const wanted = key(value);
+    if (wanted.length < 3) return [];
+    const max = wanted.length <= 5 ? 1 : 2;
+    const seen = new Set();
+    return [...candidates]
+      .map(candidate => ({ candidate, k: key(candidate) }))
+      .filter(({ k }) => k && k !== wanted && !seen.has(k) && seen.add(k))
+      .map(item => {
+        const related = item.k.length >= 3 && (item.k.includes(wanted) || wanted.includes(item.k));
+        return { ...item, d: related ? Math.abs(item.k.length - wanted.length) / 100 : distance(wanted, item.k) };
+      })
+      .filter(item => item.d <= max)
+      .sort((x, y) => x.d - y.d || x.candidate.localeCompare(y.candidate, 'tr'))
+      .slice(0, limit)
+      .map(item => item.candidate);
   }
 
   // Kullanıcının yerel takvim günü (YYYY-AA-GG). toISOString UTC verir; Türkiye'de gece 00:00-03:00 arası
@@ -514,6 +554,8 @@
     clamp,
     daysSince,
     brandKey,
+    distance,
+    similar,
     GRADES,
     mergeObservations,
     priceChange

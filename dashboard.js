@@ -1124,6 +1124,8 @@
       notice(`CSV okunamadı: ${error.message}`, true);
     }
   });
+  // Araç formunda yazdıkça öneri ve yazım düzeltme; öneriler kullanıcının kayıtlarından ve gömülü listeden gelir.
+  const suggester = globalThis.OtoSuggest?.attach($('add-form'), () => [...state.stock, ...state.comparables]);
   $('add-stock').addEventListener('click', () => {
     editingId = null;
     $('add-title').textContent = 'Stok aracı ekle';
@@ -1135,6 +1137,7 @@
   $('add-form').addEventListener('submit', event => {
     event.preventDefault();
     try {
+      suggester?.canonicalize();
       const input = Object.fromEntries(new FormData(event.currentTarget));
       input.id = editingId ? editingId.replace(/^stock-/, '') : `manuel-${Date.now()}`;
       const previous = editingId ? state.stock.find(vehicle => vehicle.id === editingId) : null;
@@ -1190,6 +1193,7 @@
     }
     $('detail-dialog').close();
     $('add-dialog').showModal();
+    suggester?.refresh();
   });
   $('remove-stock').addEventListener('click', () => {
     if (!selectedVehicle) return;

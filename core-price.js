@@ -2,7 +2,7 @@
   'use strict';
 
   // Fiyat motoru: benzer ilan eşleştirme, öğrenen fiyat modeli ve piyasa aralığı tahmini.
-  const { DEFAULTS, key, median, clamp, daysSince, brandKey, GRADES } =
+  const { DEFAULTS, key, median, clamp, daysSince, brandKey, similar, GRADES } =
     root.OtoCoreRecords || require('./core-records.js');
 
   // İki taraf da biliyorsa eşleşmeli; biri boşsa kayıt elenmez.
@@ -204,8 +204,64 @@
   }
 
   function estimate(vehicle, comparables, settings = DEFAULTS, today = new Date()) {
-    const result = estimateBase(vehicle, comparables, settings, today);
+    let result = estimateBase(vehicle, comparables, settings, today);
+    if (!result.count && result.method === 'yok') result = withFamily(vehicle, comparables, settings, today, result);
     return vehicle.type === 'stock' && vehicle.grade ? applyGrade(result, vehicle) : result;
+  }
+
+  // Model adı kelime kelime: "Egea Cross" → [egea, cross]. Aynı model ailesi, biri ötekinin başı olan adlardır
+  // ("Egea" ↔ "Egea Cross" ↔ "Egea Sedan"); sahibinden seriyi bazen ana adla bazen paketle birlikte yazar.
+  const words = value =>
+    String(value ?? '')
+      .split(/[^\p{L}\p{N}]+/u)
+      .map(key)
+      .filter(Boolean);
+  const startsWith = (long, short) =>
+    short.length > 0 && short.length <= long.length && short.every((w, i) => long[i] === w);
+
+  // Birebir model yokken aynı ailedeki en çok ilanı olan model ("Egea" için "Egea Cross"); model+paket birleşimiyle
+  // birebir eşleşen ad ("Egea" + "Cross" → "Egea Cross") öne alınır.
+  function familyModel(vehicle, comparables) {
+    const wanted = words(vehicle.model);
+    const combined = [...wanted, ...words(vehicle.trim)];
+    const found = new Map();
+    for (const item of comparables) {
+      if (
+        item.type === 'stock' ||
+        (vehicle.id && item.id === vehicle.id) ||
+        brandKey(item.brand) !== brandKey(vehicle.brand)
+      )
+        continue;
+      const theirs = words(item.model);
+      if (!theirs.length || !(startsWith(theirs, wanted) || startsWith(wanted, theirs))) continue;
+      const entry = found.get(key(item.model)) || {
+        model: item.model,
+        score: startsWith(combined, theirs) && startsWith(theirs, combined) ? 1000 : 0
+      };
+      entry.score += 1;
+      found.set(key(item.model), entry);
+    }
+    return [...found.values()].sort((a, b) => b.score - a.score)[0]?.model || '';
+  }
+
+  // Aracın kendi adıyla ilan yoksa aile adıyla hesaplanır; sonuç bir kademe daha az güvenilir sayılır ve
+  // nedeni açıkça yazılır. Hiç aile yoksa asıl "veri yok" sonucu kalır.
+  function withFamily(vehicle, comparables, settings, today, missing) {
+    const family = familyModel(vehicle, comparables);
+    if (!family) return missing;
+    const borrowed = estimateBase({ ...vehicle, model: family }, comparables, settings, today);
+    if (!borrowed.count) return missing;
+    const result = {
+      ...borrowed,
+      family: { from: vehicle.model, to: family },
+      reason:
+        `Kayıtlarda “${vehicle.model}” adıyla ilan yok; aynı model ailesindeki “${family}” ilanlarıyla hesaplandı (paket ya da kasa farkı fiyatı biraz değiştirebilir). ${borrowed.reason || ''}`.trim()
+    };
+    if (result.confidence === 'yüksek') {
+      result.confidence = 'orta';
+      if (Number.isFinite(result.gap)) result.status = statusFor(vehicle, result.confidence, result.gap);
+    }
+    return result;
   }
 
   // Aynı kayıt dizisi için ilanlar bir kez marka/model → yıl → km sırasıyla düzenlenir. Böylece her tahmin
@@ -388,9 +444,29 @@
         key(item.model) === key(vehicle.model)
     );
     if (!sameModel.length) {
+      // Çoğu zaman yazım farkıdır: aynı markadaki (ya da başka markadaki) en yakın kayıtlı adı öner.
+      const sameBrand = comparables.filter(item => brandKey(item.brand) === brandKey(vehicle.brand));
+      const closeModel = similar(vehicle.model, new Set(sameBrand.map(item => item.model)), 2);
+      const closeBrand = sameBrand.length
+        ? []
+        : similar(vehicle.brand, new Set(comparables.map(item => item.brand)), 2);
+      const brandModels = new Map();
+      for (const item of sameBrand) brandModels.set(item.model, (brandModels.get(item.model) || 0) + 1);
+      const onlyHave = [...brandModels]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([model, n]) => `“${model}” (${n})`);
+      const closest = closeModel.length
+        ? closeModel.map(model => `${vehicle.brand} ${model}`)
+        : closeBrand.map(brand => `${brand} ${vehicle.model}`);
+      const didYouMean = closest.length
+        ? ` Kayıtlarda bunun yerine ${closest.map(name => `“${name}”`).join(' / ')} var; yazım yanlışsa ya da sistem aracı bu adla tutuyorsa aracı düzenleyip adını bu şekilde seçin.`
+        : onlyHave.length
+          ? ` Kayıtlarda ${vehicle.brand} için yalnızca ${onlyHave.join(', ')} var; bu modeller ${vehicle.model} yerine kullanılmaz.`
+          : '';
       return {
-        hint: `${vehicle.model} ilanı yok`,
-        reason: `Henüz hiç ${name} ilanı toplanmamış; karşılaştıracak bir şey yok. sahibinden’de “${name}” araması yapıp (yıl filtresi ${from}–${to}) 2-3 sayfayı eklentiyle analiz edin.`
+        hint: closest.length ? `“${closest[0]}” mı?` : `${vehicle.model} ilanı yok`,
+        reason: `Henüz hiç ${name} ilanı toplanmamış; karşılaştıracak bir şey yok.${didYouMean} sahibinden’de “${name}” araması yapıp (yıl filtresi ${from}–${to}) 2-3 sayfayı eklentiyle analiz edin.`
       };
     }
     const years = sameModel.map(item => item.year);
@@ -535,7 +611,7 @@
     return lines;
   }
 
-  const api = { fuelSet, estimate, summary, modelPace, paceLines };
+  const api = { fuelSet, estimate, familyModel, summary, modelPace, paceLines };
   root.OtoCorePrice = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);
