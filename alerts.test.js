@@ -436,3 +436,19 @@ test('popup: sessiz saatte masaüstü bildirimi çıkmaz, bildirim yine kaydedil
   assert.equal(popup.saved().alerts.length, 3);
   assert.equal(popup.$('alert-count').textContent, '3');
 });
+
+test('panel: arama adında "Fiat Egea" seçilince marka ve model dolar; şehir ve yıl önerileri var', () => {
+  const { window, $ } = openDashboard(store.empty());
+  $('search-add').click();
+  const form = $('search-form');
+  form.elements.name.value = 'fiat eg';
+  form.elements.name.dispatchEvent(new window.Event('input'));
+  const options = [...window.document.getElementById('name-options').options].map(option => option.value);
+  assert.ok(options.includes('Fiat Egea'), options.join());
+  form.elements.name.value = 'Fiat Egea';
+  form.elements.name.dispatchEvent(new window.Event('input'));
+  assert.equal(form.elements.brand.value, 'Fiat');
+  assert.equal(form.elements.model.value, 'Egea');
+  assert.equal(window.document.getElementById('city-options').options.length, 81);
+  assert.ok(window.document.getElementById('yearMin-options').options.length >= 20);
+});
