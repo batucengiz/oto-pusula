@@ -2,7 +2,7 @@
   'use strict';
 
   // Spam koruması (WhatsApp, numara kaydı, hızlı gezinme) ve okunan sayfaların yönetimi.
-  const { plain, date } = root.OtoCoreRecords || require('./core-records.js');
+  const { plain, date, key, brandKey } = root.OtoCoreRecords || require('./core-records.js');
 
   // --- Spam koruması ---
   // Kısa sürede çok sayıda tanımadığı numaraya yazan WhatsApp hesapları kapatılabilir; sahibinden de
@@ -227,6 +227,47 @@
     };
   }
 
+  // --- Marka ve model grupları ---
+  // Kayıtları marka > model olarak gruplar (büyük/küçük harf, Türkçe harf ve marka takma adı önemsenmez: "VW" =
+  // "Volkswagen"). Gruptaki yazım, en sık görülen yazımdır. Model anahtarı "marka|model" biçimindedir.
+  function listingGroups(listings) {
+    const brands = new Map();
+    const common = counts => [...counts].sort((a, b) => b[1] - a[1])[0][0];
+    const add = (counts, name) => counts.set(name, (counts.get(name) || 0) + 1);
+    for (const item of listings || []) {
+      const brandName = plain(item.brand);
+      const modelName = plain(item.model);
+      const brand = brandKey(brandName);
+      if (!brands.has(brand)) brands.set(brand, { key: brand, names: new Map(), ids: [], models: new Map() });
+      const group = brands.get(brand);
+      add(group.names, brandName);
+      group.ids.push(item.id);
+      const model = key(modelName);
+      if (!group.models.has(model)) group.models.set(model, { key: `${brand}|${model}`, names: new Map(), ids: [] });
+      const sub = group.models.get(model);
+      add(sub.names, modelName);
+      sub.ids.push(item.id);
+    }
+    const label = (names, empty) => common(names) || empty;
+    const bySize = (a, b) => b.count - a.count || a.label.localeCompare(b.label, 'tr');
+    return [...brands.values()]
+      .map(group => ({
+        key: group.key,
+        label: label(group.names, 'Marka okunamadı'),
+        count: group.ids.length,
+        ids: group.ids,
+        models: [...group.models.values()]
+          .map(sub => ({
+            key: sub.key,
+            label: label(sub.names, 'Model yok'),
+            count: sub.ids.length,
+            ids: sub.ids
+          }))
+          .sort(bySize)
+      }))
+      .sort(bySize);
+  }
+
   const api = {
     LIMITS,
     normalizeLog,
@@ -241,6 +282,7 @@
     recordPage,
     prunePages,
     removeListings,
+    listingGroups,
     watchedAmong,
     removePage
   };

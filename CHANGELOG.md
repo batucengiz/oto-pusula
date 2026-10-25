@@ -2,6 +2,13 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.17.0 — 2026-10-25
+
+- Yapay zeka asistanı artık okuduğun tüm sayfalardaki ilanlara bakar. Arama sohbetinde "Kapsam" seçici çıkar: "Bu sayfa" ya da "Tüm kayıtlı" (varsayılan), ayrıca tek marka seçilebilir. 4-5 sayfa analiz ettiysen "Passat'lardan hangisi iyi?" diye hepsini sorabilirsin; seçimin bu cihazda hatırlanır.
+- Çok ilan modele sığmaz: sorudaki marka/model, bütçe, km, yıl, vites ve yakıt şartlarına uyanlar seçilir, çok kalırsa en yeni 400'ü değerlendirilir, fırsat puanına göre en iyi 15'i modele verilir. Modele toplam kayıt sayısı, kaç sayfadan geldiği ve marka/model dağılımı da yazılır.
+- Cevapta hangi kapsama bakıldığı yazar: model cevabın ilk cümlesinde söyler, kartların üstünde "Tüm kayıtlı ilanlar" etiketi ve "9 ilandan 4 tanesi uyuyor" özeti görünür. Yalnızca yerel kayıtlar kullanılır; sahibinden'e istek atılmaz.
+- Yeni ban güvenliği testleri (ban-safety.test.js): eklentide site izni, arka plan ve içerik betiği yok; tek ağ yolu yalnızca Google Gemini adresi; kodda bilinmeyen adres yok; 5 sn / 2 dakikada 5 sekme sınırı rastgele ve yoğun tıklama dizilerinde (popup ve panel aynı anda) hiç aşılmıyor; bozuk sayaç kaydı sınırı kapatmıyor.
+
 ## 7.16.0 — 2026-10-25
 
 - **Kayıtlı arama ve panel bildirimleri.** Panele yeni **Bildirimler** sayfası: aradığınız aracı (marka, model, paket/motor, yıl aralığı, en çok km, bütçe alt/üst, vites, yakıt, şehir) bir adla kaydedin (en fazla 30 arama). Formda marka/model/paket/yakıt/vites için otomatik tamamlama vardır.

@@ -552,3 +552,32 @@ test('OtoCore: bölünmüş dosyalardan gelen bütün API alanları tanımlı; s
     }
   }
 });
+
+test('listingGroups: kayıtlar marka > model olarak sayılır; yazım, harf büyüklüğü ve marka takma adı önemsenmez', () => {
+  const rec = (id, brand, model) => ({ id, brand, model });
+  const groups = core.listingGroups([
+    rec('1', 'Volkswagen', 'Passat'),
+    rec('2', 'VOLKSWAGEN', 'passat'),
+    rec('3', 'Volkswagen', 'Golf'),
+    rec('4', 'Fiat', 'Egea'),
+    rec('5', '', '')
+  ]);
+  assert.deepEqual(
+    groups.map(group => [group.label, group.count, group.models.map(model => [model.label, model.count])]),
+    [
+      [
+        'Volkswagen',
+        3,
+        [
+          ['Passat', 2],
+          ['Golf', 1]
+        ]
+      ],
+      ['Fiat', 1, [['Egea', 1]]],
+      ['Marka okunamadı', 1, [['Model yok', 1]]]
+    ]
+  );
+  assert.deepEqual(groups[0].ids, ['1', '2', '3']);
+  assert.equal(groups[0].models[0].key, 'volkswagen|passat');
+  assert.deepEqual(core.listingGroups(undefined), []);
+});
