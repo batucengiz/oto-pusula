@@ -1148,7 +1148,17 @@
           ? assistant.systemPrompt(assistant.compactFacts(lines))
           : assistant.withContext(assistant.systemPrompt(lines), { history: pastTurns, saved: savedFacts() });
       if (mode.kind === 'remote') {
-        chatSession = globalThis.OtoRemoteAI.createSession(mode.key, system);
+        // Google yoğunken istek katmanı yedek modele geçer ve bekleyip yeniden dener; kullanıcı bunu kısa bir notla görür.
+        const onRetry = ({ reason }) => {
+          status.className = 'muted chat-status';
+          status.textContent =
+            reason === 'quota'
+              ? 'Kullanım sınırına takıldı; başka modelle deneniyor…'
+              : reason === 'network'
+                ? 'Bağlantı koptu; yeniden deneniyor…'
+                : 'Google yoğun; yedek modelle yeniden deneniyor…';
+        };
+        chatSession = globalThis.OtoRemoteAI.createSession(mode.key, system, undefined, { onRetry });
         return chatSession;
       }
       status.textContent = 'Yapay zeka hazırlanıyor…';
@@ -1299,6 +1309,7 @@
           answer = await assistant.ask(await session(question), question, show);
           status.textContent = '';
         }
+        status.textContent = '';
         show(answer || 'Cevap üretilemedi; soruyu farklı ya da daha kısa sorun.');
         if (answer) {
           const { view, saved } = take();
@@ -1320,6 +1331,13 @@
         reply.textContent = assistant.errorText(error, mode.kind);
         reply.className = 'chat-ai chat-error';
         status.textContent = '';
+        // Geçici hatalarda kullanıcı soruyu yeniden yazmadan tek tıkla tekrar sorabilir.
+        const again = element('button', 'chat-action', 'Yeniden sor');
+        again.type = 'button';
+        again.addEventListener('click', () => submit(question));
+        const row = element('div', 'chat-actions');
+        row.append(again);
+        holder.append(row);
         if (mode.kind === 'builtin') upgrade(upgradeHint);
       } finally {
         setBusy(false);

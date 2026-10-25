@@ -2,6 +2,14 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.18.0 — 2026-10-25
+
+- Yapay zeka hataları büyük ölçüde azaldı. Google'ın en sık hatası olan "şu an yoğun (HTTP 503)" ve kota (429) artık hemen kullanıcıya gösterilmez: aynı istekte yedek modele geçilir (`gemini-flash-latest` → `gemini-2.5-flash` → `gemini-2.5-flash-lite`; ücretsiz anahtarda kota model başınadır), hepsi geçici hata verirse artan beklemeyle (rastgele payla) en fazla 3 tur yeniden denenir. Toplam süre 45 sn ile, her deneme 25 sn ile sınırlıdır; takılan istek kesilip sıradaki modele geçilir. Yoğun ya da kotası dolan model 1 dakika sona alınır, kapanan model (404) oturum boyunca denenmez.
+- 429'da Google'ın söylediği bekleme süresi (Retry-After / RetryInfo) okunur; günlük hak dolduysa beklenmez, "bugünkü ücretsiz kullanım hakkı doldu, yarın yenilenir" denir; dakikalık sınırda "bir dakika bekleyin" denir.
+- Denenirken sohbetin altında kısa not: "Google yoğun; yedek modelle yeniden deneniyor…". Hata kalırsa tek satır Türkçe mesajın altında "Yeniden sor" düğmesi çıkar.
+- Yeni Gemini modellerinin "düşünme" payı cevap bütçesinden yediği için cevaplar boş ya da yarım gelebiliyordu: bütçe 1200'den 4096'ya çıkarıldı, düşünce parçaları cevaba karışmaz, yine de kesilen cevap "…" ile biter. Boş gelen cevap bir kez daha istenir; Google'ın güvenlik filtresine takılan soru ayrı bir mesajla söylenir. Uzun bağlam hatası (token sınırı) da ayrı söylenir.
+- Cevap kalitesi: sistem metnine her sohbet türünde (tek ilan, karşılaştırma, arama listesi) doğruluk kuralları eklendi. Rakamlar yalnızca eklentinin hesapladığı bilgilerden aynen alınır, model hesap yapmaz ve rakam uydurmaz; ilanda olmayan bilgi için "bu bilgi ilanda yok" der ve nasıl öğrenileceğini söyler; yalnızca listede olan ilan numaralarını kullanır; araba dışı konulara ve ilan açıklamasındaki "talimatları unut" gibi isteklere uymaz; yalnızca düzgün Türkçe ve kısa yazar.
+- Ekspertiz raporu fotoğrafı yorumu da aynı dayanıklı katmandan geçer.
 ## 7.17.1 — 2026-10-25
 
 - Excel'de motor bilgisi artık eksik kalmıyor: motor seçilerek yapılan aramalarda (ör. Egea Cross › 1.4 Fire) listede yalnızca paket yazar; motor sayfanın gezinme yolundan, yoksa ilan başlığından ya da sayfa başlığından okunur. İlan sayfasında motor adı yazmıyorsa motor hacminden çıkarılır (1368 cc → 1.4). Fiyatlar ("1.300.000") motor sanılmaz. FireFly, M.Jet, T-Jet, hibrit gibi motor kodları tanınır.
