@@ -1956,3 +1956,22 @@ a.compare-name:focus-visible {
 .compare-scroll {
   overflow-x: auto;
 }
+
+/* Yapay zeka yorumundaki "İlan N" bağlantıları */
+a.compare-ref {
+  padding: 0 5px;
+  border-radius: 6px;
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+  font-weight: 700;
+  text-decoration: none;
+}
+a.compare-ref::after {
+  content: ' ↗';
+  font-size: 0.85em;
+}
+a.compare-ref:hover,
+a.compare-ref:focus-visible {
+  background: var(--brand);
+  color: #fff;
+}

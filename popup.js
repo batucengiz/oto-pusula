@@ -36,6 +36,27 @@
     if (url) chrome.tabs.create({ url });
   }
 
+  // Sohbetteki ilan bağlantıları ilanı arka planda yeni sekmede açar: popup ve sohbet açık kalır, birkaç ilan sırayla
+  // açılabilir.
+  function openInBackground(record) {
+    const url = core.listingUrl(record);
+    if (!url) return false;
+    chrome.tabs.create({ url, active: false });
+    return true;
+  }
+
+  function refTitle(record) {
+    return [
+      [record.brand, record.model, record.engine].filter(Boolean).join(' '),
+      record.year,
+      record.km ? `${Number(record.km).toLocaleString('tr-TR')} km` : '',
+      record.price ? lira(record.price) : '',
+      record.city
+    ]
+      .filter(Boolean)
+      .join(' · ');
+  }
+
   // Aynı arama daha önce okunduysa: yeni, indirimli, zamlı ve artık görünmeyen ilanlar; en büyük 3 indirim tıklanır.
   function sinceLastNodes(since) {
     if (!since) return [];
@@ -541,7 +562,8 @@
     chat.section.replaceChildren(card);
   }
 
-  // Cevap metni güvenli DOM düğümlerine çevrilir (innerHTML kullanılmaz). Liste sohbetinde "İlan 3" ilanı açan bağlantı olur.
+  // Cevap metni güvenli DOM düğümlerine çevrilir (innerHTML kullanılmaz). Cevaptaki "İlan 3" gibi etiketler o ilanı açan
+  // bağlantı olur: liste sohbetinde sayfadaki ilanlar, tek ilan sohbetinde kaydedilen ilanlar.
   function spanNodes(spans, linkFor) {
     const nodes = [];
     for (const span of spans) {
@@ -555,8 +577,11 @@
         }
         const link = element('button', 'chat-ref', part);
         link.type = 'button';
-        link.title = 'İlanı yeni sekmede aç';
-        link.addEventListener('click', () => openListing(record));
+        link.title = `${refTitle(record)}\nTıklayın: ilan yeni sekmede açılır, sohbet açık kalır.`;
+        link.setAttribute('aria-label', `${part}: ${refTitle(record)}, ilanı yeni sekmede aç`);
+        link.addEventListener('click', () => {
+          if (openInBackground(record)) link.className = 'chat-ref opened';
+        });
         nodes.push(link);
       });
     }
@@ -582,64 +607,99 @@
     });
   }
 
-  // Liste sohbetinde cevabın altında, sözü geçen ilanların eklentinin hesapladığı ayrıntıları (yapay zekasız).
-  function pickNodes(answer, view) {
+  // Cevabın altında sözü geçen ilanların kartları (sahibinden'deki sonuç satırları gibi): başlık, yıl, km, şehir, fiyat,
+  // piyasa farkı, fırsat ve kaporta puanı, uyarılar. Bilgiler eklentinin kendi hesabıdır (yapay zekasız); sahibinden'e
+  // istek atılmaz, fotoğraf yüklenmez. Karta tıklayınca ilan arka planda yeni sekmede açılır, sohbet açık kalır.
+  // entries: modele verilen sırayla ilanlar ("İlan 1" = entries[0]). meta: liste sohbetinde süzgeç özeti.
+  function listingCards(answer, entries, meta) {
     const numbers = [...new Set([...String(answer).matchAll(/İlan (\d{1,2})/g)].map(match => Number(match[1])))];
-    const picks = (numbers.length ? numbers.map(n => view.shown[n - 1]) : view.shown.slice(0, 3)).filter(Boolean);
+    const chosen = numbers.length
+      ? numbers.filter(n => entries[n - 1])
+      : meta
+        ? [1, 2, 3].filter(n => entries[n - 1])
+        : [];
+    if (!chosen.length) return null;
     const box = element('div', 'chat-picks');
-    box.append(
-      element(
-        'p',
-        'chat-meta',
-        `${view.total} ilan okundu${view.filter.labels.length ? ` · şartlara uyan ${view.matched}` : ''} · en iyi ${view.shown.length} ilan incelendi`
-      )
-    );
-    for (const entry of picks.slice(0, 5)) {
-      const { record, result, deal, advice } = entry;
-      const number = view.shown.indexOf(entry) + 1;
-      const body = core.bodyReport(record);
-      const card = element('button', 'chat-pick');
-      card.type = 'button';
-      card.title = 'İlanı yeni sekmede aç';
-      const years = Math.max(0.5, new Date().getUTCFullYear() - record.year + 0.5);
-      const head = element('span', 'chat-pick-head');
+    if (meta) {
+      const head = element('div', 'chat-criteria');
+      for (const label of meta.filter.labels) head.append(element('span', 'chat-criterion', label));
       head.append(
         element(
-          'strong',
-          '',
-          `İlan ${number} · ${[record.brand, record.model, record.engine].filter(Boolean).join(' ')}`
-        ),
-        element('span', 'chat-pick-price', lira(record.price))
+          'span',
+          'chat-meta',
+          meta.noMatch
+            ? `Şartlara uyan yok · ${meta.total} ilanın en iyileri incelendi`
+            : meta.filter.labels.length
+              ? `${meta.total} ilandan ${meta.matched} tanesi uyuyor`
+              : `${meta.total} ilan incelendi`
+        )
       );
-      card.append(
-        head,
+      box.append(head);
+    }
+    const cards = [];
+    for (const number of chosen.slice(0, 6)) {
+      const { record, result, deal, advice } = entries[number - 1];
+      const body = core.bodyReport(record);
+      const years = Math.max(0.5, new Date().getUTCFullYear() - record.year + 0.5);
+      const warnings = (advice?.flags || []).filter(flag => flag.level === 'bad' || flag.level === 'warn');
+      const tone = warnings.some(flag => flag.level === 'bad') ? 'bad' : warnings.length ? 'warn' : 'ok';
+      const card = element('button', `chat-pick ${tone}`);
+      card.type = 'button';
+      card.title = `${refTitle(record)}\nTıklayın: ilan yeni sekmede açılır, sohbet açık kalır.`;
+      const badge = element('span', 'chat-pick-no', String(number));
+      badge.setAttribute('aria-label', `İlan ${number}`);
+      const main = element('span', 'chat-pick-main');
+      main.append(
+        element('strong', 'chat-pick-title', [record.brand, record.model, record.engine].filter(Boolean).join(' ')),
         element(
           'span',
-          '',
-          `${record.year} · ${Number(record.km).toLocaleString('tr-TR')} km (yılda ~${Math.round(record.km / years).toLocaleString('tr-TR')} km)${record.city ? ` · ${record.city}` : ''}${record.sellerType ? ` · ${record.sellerType}` : ''}`
-        ),
-        element(
-          'span',
-          '',
+          'chat-pick-sub',
           [
-            result?.center
-              ? `Piyasanın %${Math.abs(Math.round(result.gap * 100))} ${result.gap < 0 ? 'altında' : 'üstünde'}`
-              : 'Piyasa tahmini yok',
-            deal ? `Fırsat ${deal.score}/100` : '',
-            body.known ? `Kaporta ${body.score}/100` : 'Kaporta okunmadı'
+            record.year,
+            `${Number(record.km).toLocaleString('tr-TR')} km (yılda ~${Math.round(record.km / years).toLocaleString('tr-TR')})`,
+            record.city,
+            record.sellerType
           ]
             .filter(Boolean)
             .join(' · ')
         )
       );
-      if (advice?.offer)
-        card.append(
-          element('span', '', `Pazarlık: açılış ${lira(advice.offer.open)}, hedef ${lira(advice.offer.target)}`)
+      const tags = element('span', 'chat-pick-tags');
+      if (result?.center) {
+        const pct = Math.abs(Math.round(result.gap * 100));
+        tags.append(
+          element(
+            'span',
+            `chat-tag ${result.gap < -0.03 ? 'good' : result.gap > 0.03 ? 'warn' : ''}`.trim(),
+            pct ? `Piyasanın %${pct} ${result.gap < 0 ? 'altında' : 'üstünde'}` : 'Piyasa fiyatında'
+          )
         );
-      const warnings = (advice?.flags || []).filter(flag => flag.level === 'bad' || flag.level === 'warn');
-      if (warnings.length) card.append(element('em', 'warning', `⚠ ${warnings.map(flag => flag.label).join(', ')}`));
-      card.addEventListener('click', () => openListing(record));
+      }
+      if (deal) tags.append(element('span', 'chat-tag', `Fırsat ${deal.score}`));
+      if (body.known) tags.append(element('span', 'chat-tag', `Kaporta ${body.score}`));
+      for (const flag of warnings.slice(0, 2))
+        tags.append(element('span', `chat-tag ${flag.level}`, `⚠ ${flag.label}`));
+      if (tags.children?.length) main.append(tags);
+      const side = element('span', 'chat-pick-side');
+      const go = element('span', 'chat-pick-go', 'Aç ↗');
+      side.append(element('span', 'chat-pick-price', lira(record.price)), go);
+      card.append(badge, main, side);
+      card.addEventListener('click', () => {
+        if (!openInBackground(record)) return;
+        card.className = `chat-pick ${tone} opened`;
+        go.textContent = 'Açıldı ✓';
+      });
+      cards.push({ card, record });
       box.append(card);
+    }
+    if (cards.length > 1) {
+      const all = element('button', 'chat-open-all', `${cards.length} ilanın hepsini sekmelerde aç`);
+      all.type = 'button';
+      all.addEventListener('click', () => {
+        for (const { card } of cards) if (!/opened/.test(card.className)) card.click();
+        all.textContent = 'Hepsi açıldı ✓';
+      });
+      box.append(all);
     }
     return box;
   }
@@ -680,7 +740,13 @@
     // Liste sohbeti: her soruda ilanlar soruya göre süzülür; önceki sorular yalnızca bu pencerede tutulur.
     let listView = null;
     const listTurns = [];
-    const linkFor = listMode ? number => listView?.shown[number - 1]?.record : null;
+    // Kaydedilen ilanlar tek ilan sohbetinde "İlan 1, İlan 2…" diye modele verilir; bağlantılar bu sırayla eşleşir.
+    let savedEntries = [];
+    // Cevaptaki "İlan N" etiketlerini o cevabın ilan listesine bağlar.
+    const linksNow = () => {
+      const records = listMode ? (listView?.shown || []).map(entry => entry.record) : savedEntries.map(e => e.record);
+      return number => records[number - 1];
+    };
     let pastTurns = [];
     let savedList = [];
 
@@ -689,7 +755,7 @@
       try {
         const comparables = store.load().comparables;
         const byId = new Map(comparables.map(item => [item.id, item]));
-        const entries = savedList
+        savedEntries = savedList
           .filter(id => id !== recordId)
           .map(id => byId.get(id))
           .filter(Boolean)
@@ -697,7 +763,7 @@
             const result = core.estimate(record, comparables);
             return { record, result, deal: core.dealScore(record, result), advice: core.advise(record, result) };
           });
-        return assistant.compareFacts(entries);
+        return assistant.compareFacts(savedEntries);
       } catch {
         return [];
       }
@@ -835,9 +901,12 @@
       const holder = typing();
       log.append(holder);
       const reply = holder.children[0];
+      // Bu cevabın ilan listesi, oturum hazır olunca bir kez alınır (ilk akış parçasında).
+      let snap = null;
+      const take = () => snap || (snap = { view: listView, saved: savedEntries, link: linksNow() });
       const show = text => {
         reply.className = 'chat-ai chat-rich';
-        reply.replaceChildren(...richNodes(text, linkFor));
+        reply.replaceChildren(...richNodes(text, take().link));
       };
       try {
         let answer;
@@ -849,14 +918,17 @@
           closeChat();
           compact = true;
           status.textContent = 'Soru karmaşık; kısaltılmış bilgiyle tekrar deneniyor…';
+          snap = null;
           answer = await assistant.ask(await session(question), question, show);
           status.textContent = '';
         }
         show(answer || 'Cevap üretilemedi; soruyu farklı ya da daha kısa sorun.');
         if (answer) {
+          const { view, saved } = take();
+          const cards = listMode ? listingCards(answer, view.shown, view) : listingCards(answer, saved);
+          if (cards) holder.append(cards);
           holder.append(actions(answer, question));
           if (listMode) {
-            holder.append(pickNodes(answer, listView));
             listTurns.push({ q: question, a: answer });
             listTurns.splice(0, Math.max(0, listTurns.length - 2));
           }

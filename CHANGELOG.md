@@ -2,6 +2,14 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.12.0 — 2026-10-25
+
+- Asistan cevaplarındaki "İlan 3" gibi etiketler tıklanabilir: ilan sahibinden'de arka planda yeni sekmede açılır, sohbet kapanmaz. Üzerine gelince model, yıl, km, fiyat ve şehir görünür. Açılan etiket ✓ ile işaretlenir.
+- Cevabın altında, sözü geçen ilanlar mini ilan kartı olarak gösterilir: numara, model, yıl · km (yıllık km) · şehir, fiyat ve Oto Pusula'nın kendi etiketleri (piyasaya göre fark, fırsat puanı, kaporta puanı, risk uyarıları). Riskli ilanların kartı kırmızı/sarı kenarlıdır. Kartın tamamı tıklanır; birden fazla kart varsa "hepsini sekmelerde aç" düğmesi çıkar. Liste sohbetinde aranan şartlar etiket olarak ve "N ilandan M tanesi uyuyor" özeti üstte yazar.
+- Kayıtlı ilanlar sohbetinde de (tek ilan sayfası) İlan N etiketleri ve kartlar aynı şekilde çalışır.
+- Panel, karşılaştırma penceresi: yapay zeka yorumundaki "İlan N" etiketleri ilgili ilanı yeni sekmede açar.
+- Sahibinden'e yeni istek atılmaz; kartlar yalnızca zaten okunmuş bilgileri kullanır (fotoğraf yok).
+
 ## 7.11.2 — 2026-10-25
 
 - Panel: bütün ilanlar silinince "Fırsat arabalar" ve "Görüştüklerim (WhatsApp)" sayaçları sayfayı yenilemeden sıfırlanır (eskiden eski sayı yenilemeye kadar kalıyordu).
