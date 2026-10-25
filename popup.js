@@ -473,7 +473,7 @@
       (builtinReady
         ? 'Ücretsiz Gemini anahtarıyla arıza, bakım ve pazarlık sorularına çok daha iyi cevap alırsınız.'
         : 'Bu ilanı yapay zekaya sormak için ücretsiz bir Google anahtarı yeterli.');
-    const start = element('button', 'ai-setup-start', 'Kurulumu başlat · 1 dakika');
+    const start = element('button', 'ai-setup-start', 'Kurulumu başlat · 2 dakika');
     start.type = 'button';
     start.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL(SETUP_PAGE) }));
 

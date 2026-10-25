@@ -8,7 +8,7 @@ const { JSDOM } = require('jsdom');
 const KEY = 'AIza' + 'p'.repeat(35);
 const settle = () => new Promise(resolve => setTimeout(resolve, 0));
 
-function openPage({ stored = '', status = 200, clipboard } = {}) {
+function openPage({ stored = '', status = 200, clipboard, chrome } = {}) {
   const html = fs.readFileSync(path.join(__dirname, 'ai-setup.html'), 'utf8').replace(/<script[^>]*><\/script>/g, '');
   const dom = new JSDOM(html, { runScripts: 'outside-only', url: 'http://localhost/ai-setup.html' });
   const { window } = dom;
@@ -17,8 +17,10 @@ function openPage({ stored = '', status = 200, clipboard } = {}) {
     requests.push({ url, method: init.method });
     return { ok: status === 200, status };
   };
+  window.localStorage.clear();
   if (stored) window.localStorage.setItem('otoPusula_aiKey', stored);
   if (clipboard) Object.defineProperty(window.navigator, 'clipboard', { value: clipboard });
+  if (chrome) window.chrome = chrome;
   for (const file of ['remote-ai.js', 'ai-setup.js']) window.eval(fs.readFileSync(path.join(__dirname, file), 'utf8'));
   const $ = id => window.document.getElementById(id);
   const step = () => window.document.querySelector('.step.active')?.dataset.step;
@@ -26,7 +28,7 @@ function openPage({ stored = '', status = 200, clipboard } = {}) {
 }
 
 function paste(window, input, text) {
-  const event = new window.Event('paste', { cancelable: true });
+  const event = new window.Event('paste', { cancelable: true, bubbles: true });
   event.clipboardData = { getData: () => text };
   input.dispatchEvent(event);
 }
@@ -35,7 +37,7 @@ test('kurulum: üç adım; AI Studio düğmesi ikinci adıma geçirir, yapışt�
   const { window, $, step, requests } = openPage();
   assert.equal(step(), '1');
   assert.equal($('ready').hidden, true);
-  assert.equal($('open-studio').getAttribute('href'), 'https://aistudio.google.com/app/apikey');
+  assert.equal($('open-studio').getAttribute('href'), 'https://aistudio.google.com/api-keys');
   $('open-studio').dispatchEvent(new window.Event('click', { cancelable: true }));
   assert.equal(step(), '2');
   assert.equal(window.document.querySelector('[data-step="1"]').classList.contains('done'), true);
@@ -101,4 +103,62 @@ test('sürüm etiketi elle yazılmaz; asistan stili ve kurulum sayfası pakete g
   const popup = fs.readFileSync(path.join(__dirname, 'popup.html'), 'utf8');
   assert.ok(popup.indexOf('chat.css') > popup.indexOf('popup-theme.css'), 'asistan stili en son yüklenir');
   assert.match(fs.readFileSync(path.join(__dirname, 'tools/package.js'), 'utf8'), /'ai-setup\.html'/);
+});
+
+test('kurulum: Ctrl+V sayfanın her yerinde çalışır; adımlar ve rehber hep görünür', async () => {
+  const { window, requests } = openPage();
+  assert.ok(window.document.querySelector('.mock-copy'), 'kopyala simgesi çizimde işaretli');
+  assert.ok(window.document.querySelectorAll('.faq details').length >= 5, 'sık sorunlar listesi');
+  paste(window, window.document.body, `anahtar: ${KEY}`);
+  await settle();
+  assert.equal(requests.length, 1);
+  assert.equal(window.localStorage.getItem('otoPusula_aiKey'), KEY);
+});
+
+test('kurulum: pano izni yoksa bir kez istenir; izinle sekmeye dönünce panodaki anahtar önerilir', async () => {
+  let granted = false;
+  const asked = [];
+  const chrome = {
+    permissions: {
+      contains: async () => granted,
+      request: async request => {
+        asked.push([...request.permissions].join());
+        granted = true;
+        return true;
+      }
+    }
+  };
+  let reads = 0;
+  const clipboard = {
+    readText: async () => {
+      reads += 1;
+      if (!granted) throw new Error('izin yok');
+      return KEY;
+    }
+  };
+  const first = openPage({ clipboard, chrome });
+  first.$('paste').click();
+  await settle();
+  await settle();
+  assert.deepEqual(asked, ['clipboardRead']);
+  assert.equal(first.window.localStorage.getItem('otoPusula_aiKey'), KEY);
+
+  const second = openPage({ clipboard, chrome });
+  second.$('open-studio').dispatchEvent(new second.window.Event('click', { cancelable: true }));
+  second.window.dispatchEvent(new second.window.Event('focus'));
+  await settle();
+  await settle();
+  assert.equal(second.$('found').hidden, false, 'panodaki anahtar en üstte gösterilir');
+  assert.match(second.$('found-key').textContent, /••••••/);
+  assert.equal(second.window.localStorage.getItem('otoPusula_aiKey'), null, 'kullanıcı onaylamadan kaydedilmez');
+  second.$('use-found').click();
+  await settle();
+  assert.equal(second.window.localStorage.getItem('otoPusula_aiKey'), KEY);
+  assert.ok(reads >= 3);
+});
+
+test('pano izni isteğe bağlıdır: kurulumda zorunlu izin eklenmez', () => {
+  const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, 'manifest.json'), 'utf8'));
+  assert.deepEqual(manifest.optional_permissions, ['clipboardRead']);
+  assert.equal(manifest.permissions.includes('clipboardRead'), false);
 });

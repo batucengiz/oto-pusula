@@ -74,7 +74,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 .setup {
-  max-width: 560px;
+  max-width: 640px;
   margin: 0 auto;
   padding: 48px 16px 32px;
 }
@@ -169,16 +169,6 @@ h1 {
   font-size: 16px;
   letter-spacing: -0.01em;
 }
-.step:not(.active):not(.done) .step-body {
-  opacity: 0.55;
-}
-.step.done .step-body > :not(h2) {
-  display: none;
-}
-.step.done h2 {
-  margin: 0;
-  color: var(--muted);
-}
 .muted {
   margin: 0;
   color: var(--muted);
@@ -231,25 +221,6 @@ input:focus-visible {
 .ghost {
   background: none;
   color: var(--bad);
-}
-.how {
-  margin: 14px 0 0;
-  padding-left: 18px;
-  color: var(--ink-2);
-  font-size: 14px;
-}
-.how li {
-  margin-bottom: 6px;
-}
-.fake-button {
-  display: inline-block;
-  padding: 1px 9px;
-  border-radius: 999px;
-  background: #1a73e8;
-  color: white;
-  font-size: 12.5px;
-  font-weight: 650;
-  white-space: nowrap;
 }
 
 .key-form {
@@ -341,19 +312,6 @@ input:focus-visible {
   margin-top: 18px;
 }
 
-.privacy {
-  margin-top: 18px;
-  padding: 0 4px;
-  color: var(--muted);
-  font-size: 13.5px;
-}
-.privacy summary {
-  cursor: pointer;
-  font-weight: 650;
-}
-.privacy p {
-  margin: 8px 0 0;
-}
 .credit {
   margin: 28px 0 0;
   text-align: center;
@@ -366,5 +324,305 @@ input:focus-visible {
   .status.busy::before {
     transition: none;
     animation: none;
+  }
+}
+
+/* v7.11.1: gerçek AI Studio ekranına göre rehber */
+.hint {
+  margin: 10px 0 0;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+.step h2 + .hint {
+  margin-top: -4px;
+  margin-bottom: 12px;
+}
+.mono {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 0.92em;
+}
+.ui {
+  padding: 1px 7px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  font-weight: 650;
+  white-space: nowrap;
+}
+.ui.icon {
+  padding: 0 5px;
+}
+.kbd {
+  display: inline-block;
+  min-width: 22px;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  background: var(--surface);
+  font:
+    600 12.5px/20px ui-monospace,
+    Consolas,
+    monospace;
+  text-align: center;
+}
+.pin {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #f5b84b;
+  color: #2b1a00;
+  font:
+    800 12px/1 Inter,
+    'Segoe UI',
+    system-ui,
+    sans-serif;
+  box-shadow: 0 0 0 3px rgba(245, 184, 75, 0.35);
+}
+.pin.static {
+  position: static;
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+}
+
+/* AI Studio ekranının çizimi: kendi koyu renkleriyle, iki temada da aynı */
+.mock {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid #2c3036;
+  border-radius: 12px;
+  background: #131417;
+  color: #e3e5e8;
+  font:
+    12px/1.4 Inter,
+    'Segoe UI',
+    system-ui,
+    sans-serif;
+  user-select: none;
+}
+.mock-bar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 10px;
+  background: #1d1f23;
+  border-bottom: 1px solid #2c3036;
+}
+.mock-bar span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3a3e45;
+}
+.mock-bar em {
+  margin-left: 8px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #2a2d32;
+  color: #b8bcc3;
+  font-style: normal;
+  font-size: 11px;
+}
+.mock-body {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  min-height: 150px;
+}
+.mock-side {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 8px;
+  border-right: 1px solid #24272c;
+  font-size: 11px;
+}
+.mock-side b {
+  margin: 0 4px 6px;
+  font-size: 12px;
+}
+.mock-side i {
+  padding: 4px 6px;
+  border-radius: 6px;
+  color: #a3a8b0;
+  font-style: normal;
+}
+.mock-side i.on {
+  background: #2a2d32;
+  color: #fff;
+}
+.mock-main {
+  padding: 12px 14px 16px;
+  min-width: 0;
+}
+.mock-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.mock-top strong {
+  font-size: 15px;
+}
+.mock-create {
+  position: relative;
+  padding: 5px 10px;
+  border: 1px solid #555a62;
+  border-radius: 8px;
+  background: #24272c;
+  font-weight: 600;
+  white-space: nowrap;
+  outline: 2px solid #f5b84b;
+  outline-offset: 3px;
+}
+.mock-table {
+  font-size: 11px;
+}
+.mock-head,
+.mock-row {
+  display: grid;
+  grid-template-columns: 1.3fr 1.3fr 0.8fr 1fr;
+  gap: 8px;
+  align-items: center;
+}
+.mock-head {
+  padding-bottom: 6px;
+  border-bottom: 1px solid #2c3036;
+  color: #8e939b;
+}
+.mock-row {
+  padding-top: 9px;
+}
+.mock-row u {
+  color: #8ab4f8;
+  text-decoration: none;
+}
+.mock-row small {
+  display: block;
+  color: #8e939b;
+  font-size: 10px;
+}
+.mock-icons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  color: #c4c8ce;
+}
+.mock-copy {
+  position: relative;
+  padding: 1px 4px;
+  border-radius: 5px;
+  color: #fff;
+  font-size: 14px;
+  outline: 2px solid #f5b84b;
+  outline-offset: 2px;
+  animation: pin-pulse 1.6s ease-in-out infinite;
+}
+@keyframes pin-pulse {
+  50% {
+    outline-color: rgba(245, 184, 75, 0.35);
+  }
+}
+.paths {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+.path {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.path p {
+  margin: 4px 0 0;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+/* Panoda anahtar bulununca çıkan şerit */
+.found {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  border: 1.5px solid var(--brand);
+  border-radius: 14px;
+  background: var(--brand-soft);
+}
+.found strong {
+  display: block;
+}
+.found span {
+  color: var(--ink-2);
+}
+
+/* Sık sorunlar */
+.faq {
+  display: grid;
+  gap: 8px;
+  margin-top: 26px;
+}
+.faq h2 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+.faq details {
+  padding: 11px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.faq summary {
+  cursor: pointer;
+  font-weight: 650;
+}
+.faq p {
+  margin: 8px 0 0;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+@media (max-width: 560px) {
+  .mock-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .mock-side {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mock-copy {
+    animation: none;
+  }
+}
+/* B işareti simgenin üstünü kapatmasın: simgenin soluna alınır */
+.mock-copy .pin {
+  top: 50%;
+  right: auto;
+  left: -30px;
+  transform: translateY(-50%);
+}
+.mock-copy {
+  margin-left: 26px;
+  font-size: 16px;
+}
+@media (max-width: 560px) {
+  .key-form {
+    flex-wrap: wrap;
+  }
+  .key-form input,
+  .key-form .button {
+    flex: 1 1 100%;
   }
 }

@@ -1,5 +1,7 @@
 // Yapay zeka kurulumu: kullanıcıyı Google AI Studio'ya götürür, kopyaladığı anahtarı yapıştırınca dener ve kaydeder.
 // Anahtar yalnızca bu bilgisayarda (eklentinin yerel deposunda) tutulur; deneme isteği yalnızca Google'a gider.
+// Pano izni (clipboardRead) isteğe bağlıdır: kullanıcı "Panodan yapıştır"a basınca bir kez sorulur; izin verilirse
+// sekmeye dönüldüğünde panodaki anahtar kendiliğinden bulunur.
 (() => {
   'use strict';
 
@@ -7,11 +9,13 @@
   const $ = id => document.getElementById(id);
   const input = $('key-input');
   const status = $('key-status');
+  const CLIPBOARD = { permissions: ['clipboardRead'] };
   let step = 1;
   let checking = false;
+  let found = '';
 
   function setStep(next) {
-    step = next;
+    step = Math.max(step, next);
     for (const item of document.querySelectorAll('.step')) {
       const index = Number(item.dataset.step);
       item.classList.toggle('done', index < step);
@@ -26,12 +30,14 @@
 
   // Anahtarın yalnızca başı ve sonu gösterilir.
   const masked = key => `${key.slice(0, 6)}••••••${key.slice(-4)}`;
+  const busy = () => checking || $('wizard').hidden;
 
   function showReady(key) {
+    $('found').hidden = true;
     $('wizard').hidden = true;
     $('ready').hidden = false;
     $('saved-key').textContent = `Kayıtlı anahtar: ${masked(key)}`;
-    $('close-tab').focus();
+    $('close-tab').focus?.();
   }
 
   function showWizard() {
@@ -39,6 +45,7 @@
     $('wizard').hidden = false;
     input.value = '';
     say('');
+    step = 1;
     setStep(1);
   }
 
@@ -46,21 +53,21 @@
     const key = remote.findKey(raw);
     if (!key) {
       say(
-        raw.trim()
-          ? 'Bu bir Gemini anahtarına benzemiyor. Anahtar “AIza” ile başlar.'
-          : 'Önce AI Studio’da anahtarı kopyalayın.',
+        String(raw ?? '').trim()
+          ? 'Bu bir Gemini anahtarına benzemiyor. Anahtar “AIza” ile başlar. AI Studio’da kopyala simgesine (⧉) basın.'
+          : 'Önce AI Studio’da anahtarın yanındaki kopyala simgesine (⧉) basın.',
         'bad'
       );
       return;
     }
     if (checking) return;
     checking = true;
+    $('found').hidden = true;
     input.value = key;
-    setStep(2);
+    setStep(3);
     say('Anahtar deneniyor…', 'busy');
     try {
       remote.saveKey(localStorage, await remote.testKey(key));
-      setStep(3);
       say('Anahtar çalışıyor ✓', 'good');
       showReady(key);
     } catch (error) {
@@ -70,24 +77,56 @@
     }
   }
 
+  // Pano okuma: önce doğrudan denenir, olmazsa (ve istenirse) Chrome'dan bir kez izin istenir.
+  async function readClipboard(ask) {
+    try {
+      return await navigator.clipboard.readText();
+    } catch (error) {
+      if (!ask || !globalThis.chrome?.permissions?.request) throw error;
+      if (!(await chrome.permissions.request(CLIPBOARD))) throw error;
+      return navigator.clipboard.readText();
+    }
+  }
+
+  async function hasClipboardPermission() {
+    try {
+      return Boolean(await globalThis.chrome?.permissions?.contains?.(CLIPBOARD));
+    } catch {
+      return false;
+    }
+  }
+
+  // Sekmeye dönünce: izin verilmişse panodaki anahtar en üstte gösterilir, tek tıkla kaydedilir.
+  async function back() {
+    if (document.visibilityState === 'hidden' || busy()) return;
+    if (step >= 2) setStep(3);
+    if (!(await hasClipboardPermission())) {
+      if (step >= 2 && !input.value) say('Anahtarı kopyaladıysanız şimdi Ctrl+V’ye basın.');
+      return;
+    }
+    try {
+      const key = remote.findKey(await navigator.clipboard.readText());
+      if (!key || key === remote.loadKey(localStorage)) return;
+      found = key;
+      $('found-key').textContent = masked(key);
+      $('found').hidden = false;
+    } catch {
+      /* sayfa odakta değilse pano okunamaz; Ctrl+V yine çalışır */
+    }
+  }
+
   $('open-studio').addEventListener('click', () => {
     setStep(2);
-    say('Anahtarı kopyalayıp bu sekmeye dönün.');
+    say('');
   });
-
-  // AI Studio'dan dönünce yazma kutusu hazır olur; Ctrl+V yeterli.
-  const back = () => {
-    if (document.visibilityState === 'visible' && step === 2 && !$('wizard').hidden && !input.value) {
-      input.focus();
-      say('Şimdi Ctrl+V ile yapıştırın ya da “Yapıştır”a basın.');
-    }
-  };
   document.addEventListener('visibilitychange', back);
   window.addEventListener('focus', back);
 
-  input.addEventListener('paste', event => {
+  // Sayfanın herhangi bir yerinde Ctrl+V: kutuya tıklamak gerekmez.
+  document.addEventListener('paste', event => {
+    if (busy()) return;
     const text = event.clipboardData?.getData('text') || '';
-    if (!remote.findKey(text)) return;
+    if (event.target === input && !remote.findKey(text)) return;
     event.preventDefault();
     check(text);
   });
@@ -101,14 +140,15 @@
 
   $('paste').addEventListener('click', async () => {
     try {
-      const text = await navigator.clipboard.readText();
+      const text = await readClipboard(true);
       if (remote.findKey(text)) return check(text);
-      say('Panoda anahtar yok. AI Studio’da anahtarın yanındaki kopyala simgesine basın.', 'bad');
+      say('Panoda anahtar yok. AI Studio’da anahtar satırının sağındaki ilk simgeye (⧉) basıp tekrar deneyin.', 'bad');
     } catch {
       input.focus();
-      say('Tarayıcı panoyu okumaya izin vermedi. Kutuya tıklayıp Ctrl+V’ye basın.', 'bad');
+      say('Pano okunamadı. Kutuya tıklayıp Ctrl+V’ye basın.', 'bad');
     }
   });
+  $('use-found').addEventListener('click', () => check(found));
 
   $('close-tab').addEventListener('click', () => {
     try {
