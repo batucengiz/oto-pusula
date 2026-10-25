@@ -88,18 +88,24 @@ test('rapor adresi: kimlik ve açıklama uyarıları güvenle taşınır, bozuk 
   assert.deepEqual(decoded, {
     id: 'sh-1',
     flags: [{ label: 'Kapora', level: 'bad', text: 'Kapora göndermeyin.', quote: 'kapora alınır' }],
-    expertise: []
+    reading: null
   });
-  assert.deepEqual(report.decodeHash('#%7Bbozuk'), { id: '', flags: [], expertise: [] });
-  const lines = [
-    { level: 'bad', text: 'Risk: yüksek.', extra: 1 },
-    { level: 'evil', text: 'Değişen: Motor Kaputu.' },
-    { level: 'good', text: '' }
-  ];
-  assert.deepEqual(report.decodeHash(report.encodeHash('sh-1', [], lines)).expertise, [
-    { level: 'bad', text: 'Risk: yüksek.' },
-    { level: 'info', text: 'Değişen: Motor Kaputu.' }
-  ]);
+  assert.deepEqual(report.decodeHash('#%7Bbozuk'), { id: '', flags: [], reading: null });
+  const reading = { risk: { level: 'high' }, rows: [] };
+  assert.deepEqual(report.decodeHash(report.encodeHash('sh-1', [], reading)).reading, reading);
+  assert.equal(report.decodeHash(report.encodeHash('sh-1', [], { big: 'x'.repeat(70000) })).reading, null);
+  const merged = report.withExpertise(
+    ['Genel soru', 'Ortak', 'Tramer tutarı ne kadar?'],
+    ['Genel kontrol', 'Tüm parçalarda boya kalınlığı ölçümü'],
+    {
+      questions: ['Kaput neden değişti?', 'Ortak', 'Tramer dökümünü paylaşır mısınız?'],
+      inspection: ['Boya kalınlığı ölçümü: Kaput']
+    }
+  );
+  assert.deepEqual(merged, {
+    questions: ['Kaput neden değişti?', 'Ortak', 'Tramer dökümünü paylaşır mısınız?', 'Genel soru'],
+    checklist: ['Boya kalınlığı ölçümü: Kaput', 'Genel kontrol']
+  });
   assert.equal(
     report.decodeHash(`#${encodeURIComponent(JSON.stringify({ id: 'a', flags: [{ label: 'x', level: 'evil' }] }))}`)
       .flags[0].level,
@@ -109,9 +115,9 @@ test('rapor adresi: kimlik ve açıklama uyarıları güvenle taşınır, bozuk 
 
 test('rapor sayfası kayıttan çizilir; ilan yoksa açıklama gösterir', async () => {
   const html = fs.readFileSync(path.join(__dirname, 'report.html'), 'utf8');
-  const run = async id => {
+  const run = async (id, reading = null) => {
     const dom = new JSDOM(html, {
-      url: `chrome-extension://test/report.html${report.encodeHash(id)}`.replace(
+      url: `chrome-extension://test/report.html${report.encodeHash(id, [], reading)}`.replace(
         'chrome-extension://test',
         'https://ext.test'
       ),
@@ -132,6 +138,7 @@ test('rapor sayfası kayıttan çizilir; ilan yoksa açıklama gösterir', async
       'store.js',
       'assistant.js',
       'expertise.js',
+      'expertise-ui.js',
       'report.js',
       'report-page.js'
     ])
@@ -146,6 +153,20 @@ test('rapor sayfası kayıttan çizilir; ilan yoksa açıklama gösterir', async
   assert.match(doc.getElementById('facts').textContent, /₺900\.000/);
   // Panelden açılan raporda ekspertiz yorumu kayıtlı şemadan çıkarılır.
   assert.match(doc.getElementById('sections').textContent, /Ekspertiz yorumu.*İlan yazısı bu raporda okunmadı/s);
+  assert.ok(doc.querySelector('#sections svg.ep-car'), 'renk kodlu şema çizilir');
+  assert.equal(doc.querySelectorAll('#sections .ep-table').length, 2, 'parça ve yapısal tablo');
+  // Popup'tan gelen yorum: çelişkili parça tabloda işaretlenir, hatasız iddiası kutusu çıkar.
+  const expertise = require('./expertise.js');
+  const reading = expertise.interpret({
+    description: 'Hatasız. Sol ön çamurluk değişen.',
+    damage: record.damage,
+    tramer: record.tramer,
+    price: record.price
+  });
+  const sent = await run(record.id, JSON.parse(JSON.stringify(reading)));
+  assert.match(sent.querySelector('.ep-claim').textContent, /Hatasız iddiası tutmuyor/);
+  assert.match(sent.querySelector('.ep-table').textContent, /Sol Ön Çamurluk.*Değişen/);
+  assert.match(sent.getElementById('sections').textContent, /Sol Ön Çamurluk neden değişti/);
   const missing = await run('sh-0000000');
   assert.equal(missing.getElementById('title').textContent, 'İlan bulunamadı');
 });
@@ -154,7 +175,7 @@ test('rapor dosyaları uzak betik ve dinamik kod içermez', () => {
   const html = fs.readFileSync(path.join(__dirname, 'report.html'), 'utf8');
   assert.doesNotMatch(html, /<script[^>]+src=["']https?:/i);
   assert.doesNotMatch(html, /<script(\s[^>]*)?>(?!<\/script>)/i);
-  for (const file of ['report.js', 'report-page.js', 'expertise.js'])
+  for (const file of ['report.js', 'report-page.js', 'expertise.js', 'expertise-ui.js'])
     assert.doesNotMatch(
       fs.readFileSync(path.join(__dirname, file), 'utf8'),
       /\beval\(|new Function\(|\.innerHTML\s*=|fetch\(|XMLHttpRequest/

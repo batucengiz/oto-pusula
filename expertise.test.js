@@ -71,11 +71,87 @@ test('ekspertiz: "boyasız değişensiz" beyanı şemayla ve tramerle karşıla�
     ['guarantee', 'open', 'notary']
   );
   assert.equal(fine.clean, 'Boyasız değişensiz');
-  const painted = expertise.interpret({ description, damage: { ...clean, changed: ['Sol Ön Kapı'] } });
-  assert.equal(painted.risk.level, 'high');
-  assert.match(painted.conflicts[0].text, /temiz diyor.*şemada 1 parça işaretli/);
+  assert.equal(fine.claim.status, 'consistent');
+  assert.match(fine.claim.passed[0], /bütün parçalar orijinal/);
+  const changed = expertise.interpret({ description, damage: { ...clean, changed: ['Sol Ön Kapı'] } });
+  assert.equal(changed.risk.level, 'high');
+  assert.equal(changed.claim.status, 'contradicted');
+  assert.match(changed.claim.evidence[0].text, /Şemada 1 parça işaretli: Sol Ön Kapı \(değişen\)/);
+  assert.match(expertise.lines(changed)[1].text, /^Hatasız iddiası .*tutmuyor/);
+  // Boyasız ama tramerli: küçük tutar şüpheli, çok büyük tutar iddiayı çürütür.
   const tramer = expertise.interpret({ description, damage: clean, tramer: 45000 });
-  assert.ok(tramer.conflicts.some(conflict => /₺45\.000 tramer/.test(conflict.text)));
+  assert.equal(tramer.claim.status, 'doubtful');
+  assert.match(tramer.claim.evidence[0].text, /₺45\.000 tramer kaydı var\. Cam, far, tampon/);
+  assert.equal(tramer.risk.level, 'medium');
+  assert.equal(expertise.interpret({ description, damage: clean, tramer: 180000 }).claim.status, 'contradicted');
+  // Hatasız deyip yazının başka yerinde boyalı parça saymak.
+  const self = expertise.interpret({ description: 'Hatasız araç. Sol ön kapı boyalı.' });
+  assert.equal(self.claim.status, 'contradicted');
+  assert.equal(expertise.interpret({ description: 'Kaput boyalı.' }).claim.status, 'none');
+  // Ondalık nokta cümleyi bölmez: alıntı motor hacmini de içerir.
+  assert.equal(
+    expertise.interpret({ title: 'HATASIZ 2021 EGEA 1.4 URBAN' }).claim.claim,
+    'Hatasız 2021 egea 1.4 urban'
+  );
+});
+
+test('ekspertiz: profesyonel rapor tablosu, yapısal liste, değer etkisi, sorular ve kontrol listesi', () => {
+  const reading = expertise.interpret({
+    description: 'Sağ ön çamurluk değişen. Sağ marşpiyel ve şasi ucunda düzeltme var. Tavan lokal boyalı.',
+    damage: { local: [], painted: ['Motor Kaputu', 'Sağ Ön Çamurluk'], changed: [] },
+    tramer: 30000,
+    price: 1000000
+  });
+  assert.equal(reading.rows.length, 13);
+  const row = name => reading.rows.find(item => item.name === name);
+  assert.deepEqual(row('Sağ Ön Çamurluk'), {
+    name: 'Sağ Ön Çamurluk',
+    diagram: 'painted',
+    text: 'changed',
+    final: 'changed',
+    conflict: true,
+    impact: [2, 3]
+  });
+  assert.equal(row('Motor Kaputu').final, 'painted');
+  assert.equal(row('Tavan').final, 'local');
+  assert.equal(row('Sol Ön Kapı').final, 'original');
+  const structure = Object.fromEntries(reading.structure.map(item => [item.name, item.status]));
+  assert.equal(structure.Şasi, 'bad');
+  assert.equal(structure.Marşpiyel, 'bad');
+  assert.equal(structure.Podye, '');
+  // Değişen çamurluk 2–3, boyalı kaput 1,5–2,5, lokal tavan 1–2; şasi tam (10–20), marşpiyel yarım (1,5–3).
+  assert.deepEqual([reading.bargain.low, reading.bargain.high], [16, 30.5]);
+  assert.equal(reading.risk.level, 'high');
+  assert.ok(reading.questions.some(q => /Sağ Ön Çamurluk neden değişti/.test(q)));
+  assert.ok(reading.questions.some(q => /ilan yazısında değişen, şemada boyalı/.test(q)));
+  assert.ok(reading.questions.some(q => /Tramer kaydının dökümünü/.test(q)));
+  assert.ok(reading.inspection.some(item => /Boya kalınlığı ölçümü: Motor Kaputu, Tavan/.test(item)));
+  assert.ok(reading.inspection.some(item => /Ön darbe ihtimali/.test(item)));
+  assert.ok(reading.inspection.some(item => /Tavan işlemi/.test(item)));
+});
+
+test('ekspertiz: adres parçasından gelen yorum güvenli biçime getirilir', () => {
+  const reading = expertise.interpret({
+    description: 'Kaput değişen. Hatasız.',
+    damage: { local: [], painted: [], changed: [] },
+    price: 500000
+  });
+  const back = expertise.sanitize(JSON.parse(JSON.stringify(reading)));
+  assert.deepEqual(expertise.lines(back), expertise.lines(reading));
+  assert.deepEqual(back.rows, reading.rows);
+  const evil = expertise.sanitize({
+    rows: [{ name: 'Tavan', final: '<script>', impact: [1, 999] }],
+    risk: { level: 'evil' },
+    claim: { status: 'x' },
+    conflicts: [{ level: 'evil', text: 'a'.repeat(1000) }]
+  });
+  assert.equal(evil.rows.find(item => item.name === 'Tavan').final, '');
+  assert.deepEqual(evil.rows.find(item => item.name === 'Tavan').impact, [0, 0]);
+  assert.equal(evil.risk.level, 'unknown');
+  assert.equal(evil.claim.status, 'none');
+  assert.equal(evil.conflicts[0].level, 'info');
+  assert.equal(evil.conflicts[0].text.length, 300);
+  assert.equal(expertise.sanitize('x'), null);
 });
 
 test('ekspertiz: başlıklı listeler, olumsuzluk ve sayı beyanı', () => {
