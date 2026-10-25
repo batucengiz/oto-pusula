@@ -2,6 +2,13 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.16.1 — 2026-10-25
+
+- Excel'de motor bilgisi artık eksik kalmıyor: motor seçilerek yapılan aramalarda (ör. Egea Cross › 1.4 Fire) listede yalnızca paket yazar; motor sayfanın gezinme yolundan, yoksa ilan başlığından ya da sayfa başlığından okunur. İlan sayfasında motor adı yazmıyorsa motor hacminden çıkarılır (1368 cc → 1.4). Fiyatlar ("1.300.000") motor sanılmaz. FireFly, M.Jet, T-Jet, hibrit gibi motor kodları tanınır.
+- Excel'e yeni sütunlar: Yakıt, Vites, Kasa tipi, Motor gücü (hp), Motor hacmi (cc), Çekiş, Renk, İlan tarihi (sahibinden'deki), Okunan sayfa (ilan sayfası / arama listesi) ve **Eksik bilgi**. Eksik bilgi sütunu boş hücrenin sebebini yazar: "ilan sayfasında yazar, ilanı açıp analiz edin" ya da "ilan sayfasında yazmıyor". "İlanda (gün)" artık sahibinden'in ilan tarihinden sayılır.
+- Renk ve ilan tarihi arama listesinden; motor gücü, motor hacmi ve çekiş ilan sayfasından okunup saklanır.
+- Yeni arama formu: "Arama adı"na yazınca marka ve model önerilir ("fia" → Fiat Egea, Fiat Egea Cross…); seçince Marka ve Model alanları dolar. Şehir (81 il), yıl, km ve bütçe alanlarında öneri listesi var. Katalog'a Egea Cross eklendi.
+
 ## 7.16.0 — 2026-10-25
 
 - **Kayıtlı arama ve panel bildirimleri.** Panele yeni **Bildirimler** sayfası: aradığınız aracı (marka, model, paket/motor, yıl aralığı, en çok km, bütçe alt/üst, vites, yakıt, şehir) bir adla kaydedin (en fazla 30 arama). Formda marka/model/paket/yakıt/vites için otomatik tamamlama vardır.

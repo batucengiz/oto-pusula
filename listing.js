@@ -215,7 +215,7 @@
 
   // Motor kodları ve çekiş/teknik ekler: hacimden hemen sonra gelir, paket adı değildir.
   const ENGINE_WORDS =
-    /^(HDI|E-HDI|BLUEHDI|THP|VTI|TDI|TSI|TFSI|FSI|BLUEMOTION|DCI|TCE|SCE|MPI|CRDI|CDTI|CDI|D|T|I|VTEC|I-VTEC|IVTEC|FIRE|MULTIJET|MULTIAIR|JTD|JTDM|PURETECH|ECOBOOST|TDCI|DURATEC|D-4D|D4D|VVT-I|VVTI|GDI|T-GDI|TGDI|CVVT|D-CVVT|SKYACTIV|SKYACTIV-G|SKYACTIV-D|HYBRID|HIBRIT|DIZEL|DIESEL|BENZIN|LPG|TURBO|ECOTEC|DUALJET|BOOSTERJET|EVO|16V|8V|4MOTION|QUATTRO|XDRIVE|AWD|RWD|FWD|4X4|4WD|TID|TTID|E-TORQ|ETORQ)$/;
+    /^(HDI|E-HDI|BLUEHDI|THP|VTI|TDI|TSI|TFSI|FSI|BLUEMOTION|DCI|TCE|SCE|MPI|CRDI|CDTI|CDI|D|T|I|VTEC|I-VTEC|IVTEC|FIRE|MULTIJET|MULTIAIR|JTD|JTDM|PURETECH|ECOBOOST|TDCI|DURATEC|D-4D|D4D|VVT-I|VVTI|GDI|T-GDI|TGDI|CVVT|D-CVVT|SKYACTIV|SKYACTIV-G|SKYACTIV-D|HYBRID|HIBRIT|DIZEL|DIESEL|BENZIN|LPG|TURBO|ECOTEC|DUALJET|BOOSTERJET|EVO|16V|8V|4MOTION|QUATTRO|XDRIVE|AWD|RWD|FWD|4X4|4WD|TID|TTID|E-TORQ|ETORQ|FIREFLY|M\.?JET|T-?JET|E-?HYBRID|MHEV|PHEV|HEV|TGI|TCR|ECOBLUE|EBLUE|BLUEDCI|E-THP)$/;
 
   // Teknik metinden ("1.4 HDi Trendy", "1.6 TDI BlueMotion Midline Plus") hacim+motor kodu ve paket ayrılır.
   // Katalogda motor ve paket adları olmayan bütün markalarda paket ayrımı böylece de çalışır.
@@ -251,7 +251,15 @@
   // Öncelik: sayfada yapılandırılmış olarak yazan marka/seri (Marka/Seri sütunu, ilan bilgisi, gezinme yolu) →
   // model sütunu → ilan başlığı → sayfa başlığı. Katalog yalnızca yapılandırılmış bilgi yoksa tahmin için kullanılır;
   // sahibinden'deki her marka ve model katalogda olmasa da okunur.
-  function identifyVehicle({ context = '', title = '', pageTitle = '', brandHint = '', modelHint = '', version = '' }) {
+  function identifyVehicle({
+    context = '',
+    title = '',
+    pageTitle = '',
+    brandHint = '',
+    modelHint = '',
+    version = '',
+    levels = []
+  }) {
     const sources = [context, title, pageTitle].map(norm);
     const brandText = norm(brandHint);
     const modelText = norm(modelHint);
@@ -305,7 +313,16 @@
       const match = String(version).match(/(?:^|\s)(\d{3}[a-zA-Z]{0,2}(?:\s(?:d|e|i|h|CDI|BlueTEC|4MATIC))?)(?=\s|$)/);
       if (match) codeEngine = match[1];
     }
-    let trim = findTrim(sources[0] || sources[1]) || technical.trim;
+    // Satırda motor yoksa sırasıyla: gezinme yolundaki motor basamağı, ilan başlığı, sayfa başlığı ("Fiat Egea Cross
+    // 1.4 Fire Fiyatları"). Yalnızca hacim + motor kodu alınır; fiyatlar ("1.300.000") motor sanılmaz.
+    const crumbParts = technicalParts(levels.join(' '));
+    const fallbackEngine =
+      engine || technical.engine || codeEngine
+        ? ''
+        : crumbParts.engine ||
+          technicalParts(title).engine ||
+          technicalParts(String(pageTitle).replace(/\s*(Fiyatlar|sahibinden).*$/i, '')).engine;
+    let trim = findTrim(sources[0] || sources[1]) || technical.trim || crumbParts.trim;
     // Hacim yazmayan versiyonlar (elektrikli: "Long Range AWD", "V2 RWD Uzun Menzil"): model, kasa ve motor/çekiş
     // kelimeleri çıkarıldıktan sonra kalan, versiyon/paket sayılır.
     if (!trim && !technical.engine && version) {
@@ -328,7 +345,7 @@
       // Sayfadaki seri adı gösterilir ("I20" değil "i20", "Tiggo 8 Pro").
       model: labels?.model || (modelText === model ? String(modelHint).trim().slice(0, 40) : titleCase(model)),
       // Katalogdaki motor adı (kodu ilanda yazıyorsa) önce gelir; yoksa teknik metinden hacim + motor kodu.
-      engine: engine || technical.engine || codeEngine,
+      engine: engine || technical.engine || codeEngine || fallbackEngine,
       body: findBody(detailText),
       trim
     };
@@ -520,6 +537,34 @@
     return cleaned ? Number(cleaned) : NaN;
   }
 
+  // "09 Ekim 2026" (arama listesinde "08 Ekim⏎ 2026") → "2026-10-09".
+  const MONTHS = [
+    'OCAK',
+    'SUBAT',
+    'MART',
+    'NISAN',
+    'MAYIS',
+    'HAZIRAN',
+    'TEMMUZ',
+    'AGUSTOS',
+    'EYLUL',
+    'EKIM',
+    'KASIM',
+    'ARALIK'
+  ];
+  function turkishDate(text) {
+    const match = norm(text).match(/^(\d{1,2}) ([A-Z]+) (\d{4})$/);
+    const month = match ? MONTHS.indexOf(match[2]) : -1;
+    if (month < 0) return '';
+    return `${match[3]}-${String(month + 1).padStart(2, '0')}-${match[1].padStart(2, '0')}`;
+  }
+
+  // Motor hacmi (cc) → litre: 1368 → "1.4", 1598 → "1.6". Makul aralık dışındaysa boş.
+  function engineFromSize(text) {
+    const cc = digits(text);
+    return cc >= 600 && cc <= 8000 ? (Math.round(cc / 100) / 10).toFixed(1) : '';
+  }
+
   // "OsmaniyeDüziçi" gibi bitişik il+ilçe, küçük→büyük harf geçişinden ayrılır.
   function firstLine(text) {
     return (
@@ -549,13 +594,20 @@
   function crumbVehicle(crumbs) {
     const list = Array.isArray(crumbs) ? crumbs.map(item => String(item ?? '').trim()) : [];
     const root = list.findIndex(item => norm(item) === 'VASITA');
-    if (root < 0) return { brand: '', series: '', categories: [] };
+    if (root < 0) return { brand: '', series: '', levels: [], categories: [] };
     const categories = [];
     let next = root + 1;
     while (next < list.length && CATEGORIES.test(norm(list[next]))) categories.push(norm(list[next++]));
     const valid = value =>
       value && value.length <= 40 && !/FIYAT|ILAN/.test(norm(value)) && !CATEGORIES.test(norm(value)) ? value : '';
-    return { brand: valid(list[next]), series: valid(list[next + 1]), categories };
+    // Seriden sonraki basamaklar motor ve paket olur ("… › Egea Cross › 1.4 Fire › Urban"). Arama motor seçilerek
+    // yapıldıysa listedeki Model sütununda yalnızca paket yazar; motor bu basamaklardan alınır.
+    const levels = list
+      .slice(next + 2)
+      .map(valid)
+      .filter(Boolean)
+      .slice(0, 2);
+    return { brand: valid(list[next]), series: valid(list[next + 1]), levels, categories };
   }
 
   // Otomobil sayılmayan kategoriler: fiyatları araba piyasasıyla karşılaştırılamaz, depoda yer de kaplamasınlar.
@@ -597,7 +649,9 @@
     const brandIndex = headerIndex(headers, /^MARKA$/);
     const seriesIndex = headerIndex(headers, /^SERI$/);
     const fromCrumbs = crumbVehicle(raw?.crumbs);
-    const modelIndex = headerIndex(headers, /^MODEL$/);
+    const modelIndex = headerIndex(headers, /^(MODEL|VERSIYON|PAKET|MOTOR)$/);
+    const colorIndex = headerIndex(headers, /^RENK$/);
+    const dateIndex = headerIndex(headers, /^ILAN TARIHI$/);
     const rule = categoryRule(fromCrumbs.categories);
     const records = [];
     const skipped = [];
@@ -616,7 +670,8 @@
         pageTitle: raw.pageTitle,
         brandHint: brandIndex >= 0 ? cells[brandIndex] : fromCrumbs.brand,
         modelHint: seriesIndex >= 0 ? cells[seriesIndex] : fromCrumbs.series,
-        version: modelIndex >= 0 ? cells[modelIndex] : ''
+        version: modelIndex >= 0 ? cells[modelIndex] : '',
+        levels: seriesIndex >= 0 ? [] : fromCrumbs.levels
       });
       if (!vehicle) {
         skipped.push({ id: listingId, reason: 'marka/model tanınamadı' });
@@ -647,6 +702,8 @@
             price: priceFrom(row.price),
             url: row.href,
             city: firstLine(row.location),
+            color: colorIndex >= 0 ? cells[colorIndex] : '',
+            listedOn: dateIndex >= 0 ? turkishDate(cells[dateIndex]) : '',
             condition,
             conditionNote: note
           })
@@ -713,7 +770,8 @@
       title,
       brandHint: get('MARKA') || fromCrumbs.brand || (tabTitleUsable ? titleParts[0] : ''),
       modelHint: get('SERI') || fromCrumbs.series || (tabTitleUsable ? titleParts[1] : ''),
-      version: get('MODEL')
+      version: get('MODEL'),
+      levels: fromCrumbs.levels
     });
     if (!vehicle)
       throw new Error(
@@ -748,6 +806,14 @@
       price: priceFrom(raw.priceText),
       fuel: get('YAKIT / MOTOR TIPI', 'YAKIT TIPI', 'YAKIT'),
       transmission: get('VITES TIPI', 'VITES'),
+      // Motor adı hiçbir yerde yazmıyorsa (ör. "Model: Urban") motor hacminden: 1368 cc → "1.4".
+      engine: vehicle.engine || engineFromSize(get('MOTOR HACMI')),
+      enginePower: digits(get('MOTOR GUCU')),
+      engineSize: digits(get('MOTOR HACMI')),
+      drive: get('CEKIS'),
+      color: get('RENK'),
+      listedOn: turkishDate(get('ILAN TARIHI')),
+      detailRead: true,
       url: raw.url,
       city,
       condition: condition.condition,
@@ -885,17 +951,54 @@
     return { link: link.length > 2000 ? `https://wa.me/${record.sellerPhone}` : link, text: 'WhatsApp’tan yaz' };
   }
 
+  function listedSince(record) {
+    return [record.listedOn, record.relistOf?.firstSeen, record.firstSeen].filter(Boolean).sort()[0] || '';
+  }
+
+  // Excel'deki boş hücrelerin sebebi. Arama listesinde yalnızca marka, seri, model sütunu, yıl, km, renk, fiyat,
+  // tarih ve şehir yazar; yakıt, vites, kasa, motor gücü/hacmi, çekiş, kaporta şeması ve satıcı tipi ilan sayfasındadır.
+  // İlan sayfası okunduğu halde boş kalan alan, satıcının o bilgiyi doldurmadığı anlamına gelir.
+  const DETAIL_ONLY = [
+    ['engine', 'motor'],
+    ['fuel', 'yakıt'],
+    ['transmission', 'vites'],
+    ['body', 'kasa'],
+    ['enginePower', 'motor gücü'],
+    ['drive', 'çekiş'],
+    ['damage', 'kaporta şeması'],
+    ['sellerType', 'satıcı tipi']
+  ];
+  function missingInfo(record) {
+    const empty = DETAIL_ONLY.filter(([field]) => record[field] === undefined || record[field] === '').map(
+      ([, label]) => label
+    );
+    const notes = [];
+    if (!record.detailRead) {
+      if (empty.length) notes.push(`${empty.join(', ')}: ilan sayfasında yazar, ilanı açıp analiz edin`);
+    } else if (empty.length) notes.push(`${empty.join(', ')}: ilan sayfasında yazmıyor`);
+    if (!record.trim) notes.push('paket: ilanda yazmıyor');
+    return notes;
+  }
+
   // Excel'e aktarılacak piyasa tablosu (panel ve popup aynı dosyayı üretir). Fırsatlar fırsat puanına göre üstte.
   function marketTable(state, today = new Date()) {
+    // Sütunlar konuya göre gruplanır: değerlendirme → araç → fiyat → kaporta/hasar → satıcı → tarih → kaynak.
     const columns = [
       { title: 'İlana git', width: 11 },
       { title: 'Durum', width: 14 },
       { title: 'Fırsat puanı', width: 12 },
       { title: 'Fırsat', width: 14 },
       { title: 'Marka', width: 13 },
-      { title: 'Model', width: 12 },
+      { title: 'Model', width: 13 },
       { title: 'Motor', width: 15 },
-      { title: 'Paket', width: 13 },
+      { title: 'Paket', width: 15 },
+      { title: 'Yakıt', width: 11 },
+      { title: 'Vites', width: 11 },
+      { title: 'Kasa tipi', width: 14 },
+      { title: 'Motor gücü (hp)', width: 14 },
+      { title: 'Motor hacmi (cc)', width: 15 },
+      { title: 'Çekiş', width: 13 },
+      { title: 'Renk', width: 10 },
       { title: 'Yıl', width: 7 },
       { title: 'KM', width: 10, type: 'money' },
       { title: 'Şehir', width: 13 },
@@ -921,9 +1024,12 @@
       { title: 'Satıcı tel', width: 15 },
       { title: 'WhatsApp', width: 16 },
       { title: 'Takipte', width: 8 },
+      { title: 'İlan tarihi', width: 12 },
       { title: 'İlk görülme', width: 12 },
       { title: 'Son görülme', width: 12 },
       { title: 'İlanda (gün)', width: 11 },
+      { title: 'Okunan sayfa', width: 14 },
+      { title: 'Eksik bilgi', width: 44 },
       { title: 'İlan no', width: 12 },
       { title: 'Başlık', width: 40 }
     ];
@@ -964,6 +1070,13 @@
         record.model,
         record.engine,
         record.trim,
+        record.fuel,
+        record.transmission,
+        record.body,
+        record.enginePower ?? '',
+        record.engineSize ?? '',
+        record.drive || '',
+        record.color || '',
         record.year,
         record.km,
         record.city,
@@ -989,10 +1102,13 @@
         formatPhone(record.sellerPhone),
         whatsappCell(record),
         record.watched ? 'evet' : '',
+        record.listedOn || '',
         record.firstSeen,
         record.date,
-        // Yeniden yayınlanan araçta ilk ilanın tarihinden sayılır.
-        core.daysSince(record.relistOf?.firstSeen || record.firstSeen, today) ?? '',
+        // sahibinden'deki ilan tarihi ya da ilk görülme (hangisi eskiyse); yeniden yayınlanan araçta ilk ilanınki.
+        core.daysSince(listedSince(record), today) ?? '',
+        record.detailRead ? 'İlan sayfası' : 'Arama listesi',
+        missingInfo(record).join('; '),
         record.listingId,
         url ? { link: url, text: record.title || [record.brand, record.model].join(' ') } : record.title
       ];
