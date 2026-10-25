@@ -268,6 +268,42 @@
       .sort(bySize);
   }
 
+  // Seçilen modellerin ilan numaraları. mode 'keep': seçilenler dışındaki bütün ilanlar (yalnızca seçilenler kalsın).
+  function groupRemovalIds(groups, selected, mode = 'delete') {
+    const ids = [];
+    for (const group of groups)
+      for (const model of group.models) if (selected.has(model.key) === (mode !== 'keep')) ids.push(...model.ids);
+    return ids;
+  }
+
+  // Silinen ilanları ve silmeden önceki okunan sayfaları geri koyar ("Geri al"). Silmeden sonra eklenen ya da
+  // değişen kayıtlara dokunmaz: yalnızca hâlâ eksik olan ilanlar geri gelir.
+  function restoreRemoved(state, snapshot) {
+    const have = new Set(state.comparables.map(item => item.id));
+    const records = snapshot.records.filter(item => !have.has(item.id));
+    const comparables = [...state.comparables, ...records];
+    const back = new Set(records.map(item => item.id));
+    const before = new Map((snapshot.pages || []).map(page => [page.id, page]));
+    const current = new Set((state.pages || []).map(page => page.id));
+    const merge = (now, old) => [...new Set([...(now || []), ...(old || []).filter(id => back.has(id))])];
+    const pages = [
+      ...(state.pages || []).map(page => {
+        const old = before.get(page.id);
+        if (!old) return page;
+        return {
+          ...page,
+          listingIds: merge(page.listingIds, old.listingIds),
+          ...(old.lastIds ? { lastIds: merge(page.lastIds, old.lastIds) } : {})
+        };
+      }),
+      ...(snapshot.pages || []).filter(page => !current.has(page.id))
+    ];
+    return {
+      state: { ...state, comparables, pages: prunePages(pages, comparables) },
+      restored: records.length
+    };
+  }
+
   const api = {
     LIMITS,
     normalizeLog,
@@ -283,6 +319,8 @@
     prunePages,
     removeListings,
     listingGroups,
+    groupRemovalIds,
+    restoreRemoved,
     watchedAmong,
     removePage
   };

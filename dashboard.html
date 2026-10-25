@@ -188,6 +188,22 @@
             </summary>
             <div id="pages-list" class="pages-list"></div>
           </details>
+          <details class="panel pages-panel brand-panel" id="brand-panel" hidden>
+            <summary>
+              <span class="eyebrow">VERİ YÖNETİMİ</span> <strong id="brand-summary">Marka ve model</strong>
+              <small>— bir markayı ya da modeli silin, ya da yalnızca istediklerinizi bırakın</small>
+            </summary>
+            <div class="brand-actions">
+              <button class="button button-danger" id="brand-delete" type="button" disabled>Seçilenleri sil</button>
+              <button class="button button-secondary" id="brand-keep" type="button" disabled>
+                Yalnızca seçilenler kalsın
+              </button>
+              <button class="button button-secondary" id="brand-clear" type="button" disabled>Seçimi temizle</button>
+              <button class="button button-primary" id="brand-undo" type="button" hidden>Son silmeyi geri al</button>
+              <span id="brand-count" class="count-label"></span>
+            </div>
+            <div id="brand-list" class="brand-list"></div>
+          </details>
           <div class="table-toolbar">
             <label class="search-label"
               >İlan ara <input id="market-search" type="search" placeholder="Marka, model, şehir veya başlık" /></label
@@ -678,6 +694,7 @@
     <script src="remote-ai.js"></script>
     <script src="chat-history.js"></script>
     <script src="compare-ui.js"></script>
+    <script src="brand-manage.js"></script>
     <script src="alerts-ui.js"></script>
     <script src="dashboard.js"></script>
   </body>
