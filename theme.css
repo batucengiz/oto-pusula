@@ -2036,3 +2036,28 @@ a.compare-ref:focus-visible {
 .suggest-note.warn {
   background: rgba(245, 184, 75, 0.16);
 }
+
+/* ---------- sahibinden açılış sınırı uyarısı (open-gate.js) ---------- */
+.open-note {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  z-index: 1000;
+  box-sizing: border-box;
+  width: min(520px, calc(100vw - 32px));
+  margin: 0;
+  padding: 12px 16px;
+  transform: translateX(-50%);
+  border: 1px solid #fcd9a1;
+  border-left: 3px solid var(--warn);
+  border-radius: var(--r-sm);
+  background: var(--warn-bg);
+  color: #7c3a05;
+  font-size: 13px;
+  line-height: 1.45;
+  box-shadow: 0 10px 30px rgb(15 23 42 / 0.18);
+  cursor: pointer;
+}
+.open-note[hidden] {
+  display: none;
+}

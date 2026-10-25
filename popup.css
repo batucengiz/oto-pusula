@@ -431,3 +431,24 @@ small {
   font-style: normal;
   text-align: center;
 }
+
+.open-note {
+  position: fixed;
+  top: 8px;
+  left: 12px;
+  right: 12px;
+  z-index: 20;
+  margin: 0;
+  padding: 9px 12px;
+  border: 1px solid #7c5a1c;
+  border-radius: 10px;
+  background: #33250b;
+  color: #ffd999;
+  font-size: 12px;
+  line-height: 1.4;
+  box-shadow: 0 8px 22px rgb(0 0 0 / 0.4);
+  cursor: pointer;
+}
+.open-note[hidden] {
+  display: none;
+}
