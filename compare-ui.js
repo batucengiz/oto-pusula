@@ -182,8 +182,11 @@
           }
         );
         if (outcome.unavailable) {
-          answer.textContent =
-            'Bu bilgisayarda yapay zeka yok. Eklenti penceresinden (bir ilan sayfasında) ücretsiz Gemini anahtarı ekleyerek yorumu açabilirsiniz; yukarıdaki tablo yine geçerlidir.';
+          // Kurulum sayfası aynı eklenti içinde; bağlantı yeni sekmede açılır.
+          const setup = element('a', '', 'ücretsiz kurulum (1 dakika)');
+          setup.href = 'ai-setup.html';
+          setup.target = '_blank';
+          answer.replaceChildren('Yapay zeka yorumu için ', setup, ' yeterli. Tablo yine geçerlidir.');
         } else if (outcome.error) {
           answer.textContent = outcome.error;
           answer.className = 'compare-answer error';
@@ -191,8 +194,8 @@
           answer.textContent = outcome.answer || 'Cevap üretilemedi; tekrar deneyin.';
           status.textContent =
             outcome.mode === 'remote'
-              ? 'Kendi Gemini anahtarınızla: ilan özetleri Google’a gönderildi. Yapay zeka hata yapabilir; ekspertiz yerine geçmez.'
-              : 'Chrome’un bu bilgisayardaki yapay zekası; veri cihazdan çıkmadı. Yapay zeka hata yapabilir; ekspertiz yerine geçmez.';
+              ? 'Gemini ile: ilan özetleri Google’a gönderildi. Yapay zeka yanılabilir.'
+              : 'Cihazdaki yapay zeka ile; veri bilgisayardan çıkmadı. Yapay zeka yanılabilir.';
         }
       } catch {
         answer.textContent = 'Yapay zeka şu an cevap veremedi. Tablo yine geçerlidir.';

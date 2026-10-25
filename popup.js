@@ -405,6 +405,11 @@
   // İlan sohbeti: kullanıcı kendi Gemini anahtarını girdiyse o, girmediyse Chrome'un yerleşik yapay zekası.
   // İkisi de yoksa anahtar girme seçeneği gösterilir. Sohbetteki hiçbir hata analiz sonucunu veya popup'ı bozmaz.
   let chatSession = null;
+  const SETUP_PAGE = 'ai-setup.html';
+  // Chrome'un model indirmesi bu kadar süre hiç ilerlemezse kullanıcıya anahtarla hemen başlama önerilir.
+  const STALL_MS = 30000;
+  // Her yeni görünümde artar; geç tamamlanan model indirmesi artık görünmeyen bir sohbete oturum bırakmaz.
+  let chatView = 0;
   function closeChat() {
     try {
       chatSession?.destroy?.();
@@ -451,67 +456,89 @@
     return true;
   }
 
-  function renderKeyForm(chat) {
+  // Yapay zeka kurulumu: tek büyük düğme adım adım kurulum sayfasını yeni sekmede açar (popup o an kapanır, sayfa
+  // kullanıcıyı Google AI Studio'ya götürüp geri getirir). Anahtarı hazır olan buraya yapıştırır; anahtar denenir,
+  // çalışıyorsa kaydedilir. Anahtar girilmedikçe hiçbir istek atılmaz.
+  function renderKeyForm(chat, reason = '') {
     const remote = globalThis.OtoRemoteAI;
     const builtinReady = chat.found.status !== 'unavailable';
-    // Anahtar yok: kısa bir açıklama ve isteğe bağlı anahtar girişi. Varsayılan durumda hiçbir istek atılmaz.
-    const form = element('form', 'chat-form');
+    const card = element('div', 'ai-setup');
+    const head = element('div', 'ai-setup-head');
+    head.append(
+      element('span', 'ai-orb', '✦'),
+      element('h2', '', builtinReady ? 'Daha akıllı asistan' : 'Yapay zeka asistanı')
+    );
+    const text =
+      reason ||
+      (builtinReady
+        ? 'Ücretsiz Gemini anahtarıyla arıza, bakım ve pazarlık sorularına çok daha iyi cevap alırsınız.'
+        : 'Bu ilanı yapay zekaya sormak için ücretsiz bir Google anahtarı yeterli.');
+    const start = element('button', 'ai-setup-start', 'Kurulumu başlat · 1 dakika');
+    start.type = 'button';
+    start.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL(SETUP_PAGE) }));
+
+    const have = element('details', 'ai-setup-have');
+    const form = element('form', 'ai-key-form');
     const input = element('input');
     input.type = 'password';
     input.autocomplete = 'off';
-    input.placeholder = 'Gemini API anahtarı (AIza…)';
+    input.placeholder = 'AIza…';
     input.setAttribute('aria-label', 'Gemini API anahtarı');
-    const save = element('button', 'primary chat-send', 'Kaydet');
+    const save = element('button', 'ai-key-save', 'Kaydet');
     save.type = 'submit';
     form.append(input, save);
-    const note = element('p', 'muted chat-status', '');
-    const steps = element('ol', 'key-steps');
-    [
-      'Aşağıdaki düğmeyle Google AI Studio’yu açın, Google hesabınızla girin.',
-      '“Create API key / API anahtarı oluştur”a basın (kart bilgisi istenmez).',
-      'Oluşan “AIza…” ile başlayan anahtarı kopyalayıp buraya yapıştırın, Kaydet’e basın.'
-    ].forEach(text => steps.append(element('li', '', text)));
-    const getKey = element('button', 'secondary key-link', 'Ücretsiz anahtar al (Google AI Studio) ↗');
-    getKey.type = 'button';
-    getKey.addEventListener('click', () => chrome.tabs.create({ url: 'https://aistudio.google.com/app/apikey' }));
-    form.addEventListener('submit', event => {
-      event.preventDefault();
+    const note = element('p', 'ai-setup-note', '');
+    const check = async raw => {
+      const key = remote.findKey(raw);
+      if (!key) {
+        note.textContent = 'Bu bir Gemini anahtarına benzemiyor. Anahtar “AIza” ile başlar.';
+        note.className = 'ai-setup-note bad';
+        return;
+      }
+      save.disabled = true;
+      note.textContent = 'Anahtar deneniyor…';
+      note.className = 'ai-setup-note';
       try {
-        remote.saveKey(localStorage, input.value);
+        remote.saveKey(localStorage, await remote.testKey(key));
         closeChat();
         showChat(chat);
       } catch (error) {
         note.textContent = error.message || 'Anahtar kaydedilemedi.';
-        note.className = 'chat-status warning-line';
+        note.className = 'ai-setup-note bad';
+        save.disabled = false;
+      }
+    };
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      check(input.value);
+    });
+    // Yapıştırınca ayrıca Kaydet'e basmak gerekmez.
+    input.addEventListener('paste', event => {
+      const pasted = event.clipboardData?.getData('text');
+      if (remote.findKey(pasted)) {
+        event.preventDefault();
+        input.value = remote.findKey(pasted);
+        check(pasted);
       }
     });
-    const extra = [];
+    have.append(element('summary', '', 'Anahtarım var, yapıştıracağım'), form, note);
+
+    card.append(
+      head,
+      element('p', 'ai-setup-text', text),
+      start,
+      have,
+      element('p', 'ai-setup-fine', 'Anahtar eklerseniz sorularınız ve ilan bilgileri Google Gemini’ye gönderilir.')
+    );
     if (builtinReady) {
-      const back = element('button', 'secondary key-link', '← Cihazdaki yapay zekaya dön');
+      const back = element('button', 'ai-setup-back', '← Cihazdaki yapay zekayla devam et');
       back.type = 'button';
       back.addEventListener('click', () => showChat(chat));
-      extra.push(back);
+      card.append(back);
     }
-    chat.section.replaceChildren(
-      element('h2', '', 'YAPAY ZEKAYA SOR'),
-      element(
-        'p',
-        'muted',
-        builtinReady
-          ? 'Daha güçlü cevaplar için kendi Google Gemini API anahtarınızı (Google AI Studio’dan ücretsiz alınır) kullanabilirsiniz.'
-          : 'Bu tarayıcıda Chrome’un yerleşik yapay zekası yok. İsterseniz kendi Google Gemini API anahtarınızla (Google AI Studio’dan ücretsiz alınır) sohbeti açabilirsiniz.'
-      ),
-      element(
-        'p',
-        'warning-line',
-        'Anahtar girerseniz sorduğunuz sorular ve bu ilanın bilgileri cevap için Google’a gönderilir; ücretsiz anahtarlarda Google bu içerikleri ürünlerini geliştirmek için kullanabilir. Anahtar yalnızca bu bilgisayarda saklanır.'
-      ),
-      steps,
-      getKey,
-      form,
-      note,
-      ...extra
-    );
+    chatView += 1;
+    chat.section.classList?.remove('started');
+    chat.section.replaceChildren(card);
   }
 
   // Cevap metni güvenli DOM düğümlerine çevrilir (innerHTML kullanılmaz). Liste sohbetinde "İlan 3" ilanı açan bağlantı olur.
@@ -619,6 +646,8 @@
 
   function renderChat(chat, mode) {
     const { lines } = chat;
+    chatView += 1;
+    const view = chatView;
     const log = element('div', 'chat-log');
     log.setAttribute('aria-live', 'polite');
     const status = element('p', 'muted chat-status', '');
@@ -626,7 +655,7 @@
     const input = element('input');
     input.type = 'text';
     input.maxLength = assistant.MAX_QUESTION;
-    input.placeholder = chat.context.kind === 'list' ? 'Bu listedeki ilanlar hakkında sorun…' : 'Araç hakkında sorun…';
+    input.placeholder = chat.context.kind === 'list' ? 'Bu ilanlar hakkında sorun…' : 'Bu araç hakkında sorun…';
     input.setAttribute('aria-label', 'Yapay zekaya soru');
     const send = element('button', 'chat-send', '↑');
     send.setAttribute('aria-label', 'Sor');
@@ -692,15 +721,39 @@
         return chatSession;
       }
       status.textContent = 'Yapay zeka hazırlanıyor…';
-      chatSession = await assistant.createSession(
-        assistant.languageModel(),
-        lines,
-        mode.found.options,
-        loaded => {
-          status.textContent = `Yapay zeka modeli bu bilgisayara indiriliyor: %${Math.round(loaded * 100)} (tek seferlik)`;
-        },
-        system
-      );
+      // İndirme takılırsa (ör. %0'da kalırsa) bekletmek yerine anahtarla hemen başlama yolu gösterilir.
+      let moved = Date.now();
+      let best = 0;
+      let watch = null;
+      const look = () => {
+        if (Date.now() - moved >= STALL_MS) return showStall();
+        watch = setTimeout(look, 1000);
+      };
+      if (globalThis.OtoRemoteAI) watch = setTimeout(look, 1000);
+      let created;
+      try {
+        created = await assistant.createSession(
+          assistant.languageModel(),
+          lines,
+          mode.found.options,
+          loaded => {
+            if (loaded > best) {
+              best = loaded;
+              moved = Date.now();
+              status.className = 'muted chat-status';
+            }
+            status.textContent = `Model indiriliyor: %${Math.round(loaded * 100)} (bir kez)`;
+          },
+          system
+        );
+      } finally {
+        clearTimeout(watch);
+      }
+      if (view !== chatView) {
+        created?.destroy?.();
+        throw new Error('Sohbet kapatıldı.');
+      }
+      chatSession = created;
       status.textContent = '';
       return chatSession;
     }
@@ -751,8 +804,25 @@
       return node;
     }
 
-    const upgradeHint =
-      'Cevap yetersizse aşağıdan ücretsiz Gemini anahtarı ekleyerek daha güçlü bir yapay zeka kullanabilirsiniz.';
+    // Durum satırında kısa bir not ve anahtar kurulumuna götüren düğme.
+    function upgrade(text, label = 'Ücretsiz kur →') {
+      if (!globalThis.OtoRemoteAI) return;
+      const go = element('button', 'chat-inline-action', label);
+      go.type = 'button';
+      go.addEventListener('click', () => {
+        closeChat();
+        renderKeyForm(chat);
+      });
+      status.replaceChildren(element('span', '', text), go);
+    }
+    const upgradeHint = 'Cevap zayıf mı? Ücretsiz Gemini anahtarıyla çok daha iyi cevap alırsınız.';
+    function showStall() {
+      status.className = 'chat-status stalled';
+      upgrade(
+        'Model indirmesi ilerlemiyor. Beklemek yerine ücretsiz Gemini anahtarıyla hemen başlayabilirsiniz.',
+        'Anahtarla başla →'
+      );
+    }
 
     async function submit(text) {
       const question = assistant.question(text);
@@ -792,7 +862,7 @@
           }
           history?.add(recordId, question, answer).catch?.(() => {});
         }
-        if (mode.kind === 'builtin' && assistant.weakAnswer(answer)) status.textContent = upgradeHint;
+        if (mode.kind === 'builtin' && assistant.weakAnswer(answer)) upgrade(upgradeHint);
       } catch (error) {
         // Oturum kapatılır; bir sonraki soru temiz (tam bilgili) bir oturumla başlar.
         closeChat();
@@ -800,7 +870,8 @@
         reply.replaceChildren();
         reply.textContent = assistant.errorText(error, mode.kind);
         reply.className = 'chat-ai chat-error';
-        status.textContent = mode.kind === 'builtin' ? upgradeHint : '';
+        status.textContent = '';
+        if (mode.kind === 'builtin') upgrade(upgradeHint);
       } finally {
         setBusy(false);
         input.focus?.();
@@ -819,82 +890,74 @@
       submit(input.value);
     });
 
-    // Üst bilgi kartı (öneri / bulut modu) ve yazma kutusunun altındaki küçük notlar.
+    // Üst bilgi kartı (cihazdaki model için Gemini önerisi) ve yazma kutusunun altındaki tek satırlık not.
     const notices = [];
-    const fineprint = [];
+    const footer = element('div', 'chat-fineprint');
     if (mode.kind === 'builtin') {
       if (mode.found.status !== 'available')
-        status.textContent =
-          'İlk soruda Chrome yapay zeka modelini bu bilgisayara indirir (bir kez, birkaç GB); bu birkaç dakika sürebilir.';
-      else if (!mode.found.turkish)
-        status.textContent = 'Chrome’un yapay zekası Türkçeyi resmi olarak desteklemiyor; cevaplar kusurlu olabilir.';
+        status.textContent = 'İlk soruda Chrome modeli bir kez indirir (birkaç GB, birkaç dakika).';
+      else if (!mode.found.turkish) status.textContent = 'Cihazdaki model Türkçede zayıf olabilir.';
       if (globalThis.OtoRemoteAI) {
         const tip = element('details', 'chat-tip');
-        const upgrade = element('button', 'chat-tip-action', 'Ücretsiz anahtar ekle →');
-        upgrade.type = 'button';
-        upgrade.addEventListener('click', () => {
+        // Model daha inmediyse öneri açık gelir: indirme uzun sürebilir, anahtarla hemen başlanabilir.
+        tip.open = mode.found.status !== 'available';
+        const action = element('button', 'chat-tip-action', 'Ücretsiz kur →');
+        action.type = 'button';
+        action.addEventListener('click', () => {
           closeChat();
           renderKeyForm(chat);
         });
         tip.append(
-          element('summary', '', 'Önerimiz: daha güçlü cevaplar için ücretsiz Gemini anahtarı'),
+          element('summary', '', 'Önerimiz: Gemini ile daha akıllı cevaplar'),
           element(
             'p',
             '',
-            'Neden? Chrome’un yerleşik yapay zekası küçük bir model; genel araba bilgisi ve Türkçesi sınırlı. Ücretsiz Gemini API anahtarıyla kronik arıza, bakım, karşılaştırma gibi karmaşık sorulara çok daha doğru cevap alırsınız. İsteğe bağlıdır; eklerseniz sorularınız ve ilan bilgileri Google’a gönderilir.'
+            'Cihazdaki model küçük. Ücretsiz Gemini anahtarıyla arıza, bakım ve karşılaştırma sorularında çok daha iyi cevap alırsınız.'
           ),
-          upgrade
+          action
         );
         notices.push(tip);
       }
-      fineprint.push('Cihazdaki yapay zeka: ilan bilgileri bu bilgisayardan çıkmaz.');
+      footer.append(element('span', '', 'Cihazda çalışır, bilgiler bilgisayarınızdan çıkmaz. Yanılabilir.'));
     } else {
-      const forget = element('button', 'chat-tip-action', 'API anahtarını sil');
+      const forget = element('button', 'chat-forget', 'Anahtarı sil');
       forget.type = 'button';
+      forget.title = 'Gemini anahtarını bu bilgisayardan siler';
       forget.addEventListener('click', () => {
         closeChat();
         globalThis.OtoRemoteAI.clearKey(localStorage);
         showChat(chat);
       });
-      const card = element('div', 'chat-tip cloud');
-      card.append(
-        element(
-          'p',
-          '',
-          'Bulut modu: sorularınız ve bu ilanın bilgileri cevap için kendi API anahtarınızla Google Gemini’ye gönderilir.'
-        ),
-        forget
-      );
-      notices.push(card);
+      footer.append(element('span', '', 'Gemini ile çalışır; sorular Google’a gider. Yanılabilir.'), forget);
     }
-    fineprint.push('Yapay zeka hata yapabilir; ekspertiz yerine geçmez.');
 
     // Başlık: asistan adı, çalışma modu ve "Yapay zekaya kaydet" düğmesi.
     const head = element('div', 'chat-head');
-    const saveButton = element('button', 'chat-save', '☆ Yapay zekaya kaydet');
+    const saveButton = element('button', 'chat-save', '☆ Kaydet');
+    saveButton.title = 'Bu ilanı asistanın karşılaştırma listesine ekler';
     saveButton.type = 'button';
     const savedStrip = element('div', 'chat-saved');
     const title = element('div', 'chat-title');
-    title.append(element('span', 'chat-logo', '✦'), element('div', '', ''));
+    title.append(element('span', 'ai-orb', '✦'), element('div', '', ''));
     title.children[1].append(
-      element('h2', '', 'Oto Pusula Asistanı'),
+      element('h2', '', 'Asistan'),
       element(
         'small',
         `chat-mode ${mode.kind}`,
-        `${mode.kind === 'remote' ? 'Gemini · bulut' : 'Cihazda · gizli'}${listMode ? ` · bu sayfadaki ${chat.context.entries.length} ilan` : ''}`
+        `${mode.kind === 'remote' ? 'Gemini' : 'Cihazda'}${listMode ? ` · ${chat.context.entries.length} ilan` : ''}`
       )
     );
     head.append(title, saveButton);
 
     function paintSaved() {
       const saved = savedList.includes(recordId);
-      saveButton.textContent = saved ? '★ Kaydedildi' : '☆ Yapay zekaya kaydet';
+      saveButton.textContent = saved ? '★ Kayıtlı' : '☆ Kaydet';
       saveButton.className = saved ? 'chat-save on' : 'chat-save';
       const byId = new Map(store.load().comparables.map(item => [item.id, item]));
       const items = savedList.map(id => byId.get(id)).filter(Boolean);
       savedStrip.replaceChildren();
       if (!items.length) return;
-      savedStrip.append(element('span', 'muted', `Kayıtlı ilanlar (${items.length}/${history.MAX_SAVED}):`));
+      savedStrip.append(element('span', 'muted', `Kayıtlı (${items.length}/${history.MAX_SAVED})`));
       for (const record of items) {
         // İlan adına tıklayınca ilan yeni sekmede açılır (normal sayfa açılışı); × listeden çıkarır.
         const pill = element('span', `saved-pill${record.id === recordId ? ' current' : ''}`);
@@ -950,7 +1013,7 @@
     if (listMode) savedStrip.hidden = true;
 
     const composer = element('div', 'chat-composer');
-    composer.append(chips, form, element('p', 'chat-fineprint', fineprint.join(' ')));
+    composer.append(chips, form, footer);
     // Boş durum: karşılama ve dört başlangıç kartı. Bütçe kartı soruyu kutuya yazar, kullanıcı tamamlar.
     const empty = element('div', 'chat-empty');
     const name = listMode ? '' : [chat.context.record.brand, chat.context.record.model].filter(Boolean).join(' ');
@@ -982,7 +1045,7 @@
       cards.append(card);
     }
     empty.append(
-      element('span', 'chat-hello-logo', '✦'),
+      element('span', 'ai-orb big', '✦'),
       element(
         'p',
         'chat-hello',
@@ -994,8 +1057,8 @@
         'p',
         'muted',
         listMode
-          ? 'İstediğinizi yazın: bütçe, km, yıl, vites, yakıt ya da “en az riskli hangisi?”. Uygun ilanları süzüp karşılaştırırım.'
-          : 'Fiyat, km, kaporta, ekspertiz, pazarlık, kronik arızalar ya da kaydettiğiniz ilanlarla karşılaştırma.'
+          ? 'Bütçe, km, yıl ya da vites yazın; uygun ilanları süzüp karşılaştırayım.'
+          : 'Fiyat, kaporta, pazarlık ya da kronik arızalar: aklınıza geleni sorun.'
       ),
       cards
     );

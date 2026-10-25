@@ -241,7 +241,16 @@ const walk = (node, found = []) => {
 
 async function popupWithModel(
   LanguageModel,
-  { remote = false, storage = new Map(), fetch, opened = [], description = 'Temiz araç.', page, clipboard } = {}
+  {
+    remote = false,
+    storage = new Map(),
+    fetch,
+    opened = [],
+    description = 'Temiz araç.',
+    page,
+    clipboard,
+    timers = { setTimeout, clearTimeout }
+  } = {}
 ) {
   const nodes = new Map();
   const get = id => {
@@ -269,8 +278,8 @@ async function popupWithModel(
     Node: FakeNode,
     console,
     URL,
-    setTimeout,
-    clearTimeout,
+    setTimeout: timers.setTimeout,
+    clearTimeout: timers.clearTimeout,
     AbortController,
     ...(LanguageModel ? { LanguageModel } : {}),
     ...(fetch ? { fetch } : {}),
@@ -386,7 +395,7 @@ test('API anahtarı: biçim denetlenir, yalnızca bu cihazda saklanır, silinebi
   };
   const key = 'AIza' + 'x'.repeat(35);
   assert.equal(remoteAI.loadKey(storage), '');
-  assert.throws(() => remoteAI.saveKey(storage, 'sk-yanlis'), /geçersiz/);
+  assert.throws(() => remoteAI.saveKey(storage, 'sk-yanlis'), /benzemiyor/);
   assert.equal(remoteAI.saveKey(storage, ` ${key}\n`), key);
   assert.equal(remoteAI.loadKey(storage), key);
   remoteAI.clearKey(storage);
@@ -422,18 +431,26 @@ test('bulut oturumu: istek yalnızca Gemini adresine, anahtar başlıkta; geçmi
   await assert.rejects(assistant.ask(limited, 'soru'), /kullanım sınırına/);
 });
 
-test('popup: yerleşik yapay zeka yokken anahtar girilmedikçe hiçbir istek atılmaz; anahtarla bulut moduna geçer', async () => {
+// Sahte Gemini: model bilgisi (anahtar denemesi) ve cevap isteklerini ayırır.
+function fakeGemini(answer = 'Bulut cevabı.', { reject = false } = {}) {
   const requests = [];
   const fetch = async (url, init) => {
-    requests.push(url);
-    return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: 'Bulut cevabı.' }] } }] }) };
+    requests.push({ url, method: init?.method || 'GET' });
+    if (reject) return { ok: false, status: 400 };
+    return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: answer }] } }] }) };
   };
+  return { requests, fetch };
+}
+const settle = () => new Promise(resolve => setImmediate(resolve));
+
+test('popup: yerleşik yapay zeka yokken kurulum kartı; anahtar denenmeden kaydedilmez, denenince bulut moduna geçer', async () => {
+  const { requests, fetch } = fakeGemini();
   const storage = new Map();
   const opened = [];
   const chat = await popupWithModel(null, { remote: true, storage, fetch, opened });
-  assert.equal(chat.hidden, false, 'anahtar seçeneği gösterilir');
+  assert.equal(chat.hidden, false, 'kurulum kartı gösterilir');
   assert.ok(
-    walk(chat).some(node => /Google’a gönderilir/.test(node.textContent)),
+    walk(chat).some(node => /Google Gemini’ye gönderilir/.test(node.textContent)),
     'veri paylaşımı açıkça yazılır'
   );
   assert.equal(
@@ -441,49 +458,68 @@ test('popup: yerleşik yapay zeka yokken anahtar girilmedikçe hiçbir istek at�
     false,
     'anahtar yokken sohbet açılmaz'
   );
-  const getKey = walk(chat).find(node => /Ücretsiz anahtar al/.test(node.textContent));
-  getKey.click();
-  assert.deepEqual(opened, ['https://aistudio.google.com/app/apikey'], 'anahtar alma sayfası yeni sekmede açılır');
+  walk(chat)
+    .find(node => node.className === 'ai-setup-start')
+    .click();
+  assert.deepEqual(opened, ['ai-setup.html'], 'tek büyük düğme kurulum sayfasını açar');
   assert.equal(requests.length, 0);
 
   const form = walk(chat).find(node => node.tag === 'form');
   const input = form.children.find(node => node.tag === 'input');
   input.value = 'yanlış';
-  form.listeners.submit({ preventDefault() {} });
-  assert.ok(walk(chat).some(node => /geçersiz/.test(node.textContent)));
+  await form.listeners.submit({ preventDefault() {} });
+  assert.ok(walk(chat).some(node => /benzemiyor/.test(node.textContent)));
   assert.equal(storage.has('otoPusula_aiKey'), false);
+  assert.equal(requests.length, 0, 'biçimi yanlış anahtar Google’a gönderilmez');
 
-  input.value = 'AIza' + 'z'.repeat(35);
-  form.listeners.submit({ preventDefault() {} });
-  assert.ok(walk(chat).some(node => /Bulut modu/.test(node.textContent)));
+  // Yapıştırınca Kaydet'e basmadan denenir; çevresindeki metin atılır.
+  let prevented = false;
+  input.listeners.paste({
+    clipboardData: { getData: () => `API key: "AIza${'z'.repeat(35)}"` },
+    preventDefault() {
+      prevented = true;
+    }
+  });
+  await settle();
+  assert.ok(prevented);
+  assert.deepEqual(requests, [{ url: remoteAI.MODEL_URL, method: 'GET' }], 'önce anahtar denenir (cevap üretmeden)');
+  assert.equal(storage.get('otoPusula_aiKey'), 'AIza' + 'z'.repeat(35));
+  assert.ok(walk(chat).some(node => /Gemini ile çalışır/.test(node.textContent)));
   const chip = walk(chat).find(node => node.className === 'chat-chip');
   await chip.click();
-  assert.deepEqual(requests, [remoteAI.ENDPOINT]);
+  assert.equal(requests.at(-1).url, remoteAI.ENDPOINT);
   assert.ok(walk(chat).some(node => node.textContent === 'Bulut cevabı.'));
 
   walk(chat)
-    .find(node => /API anahtarını sil/.test(node.textContent))
+    .find(node => node.className === 'chat-forget')
     .click();
   assert.equal(
     [...storage.values()].some(value => /AIza/.test(value)),
     false,
     'anahtar silinir'
   );
-  assert.ok(walk(chat).some(node => node.tag === 'form' && node.children.some(child => child.type === 'password')));
+  assert.ok(walk(chat).some(node => node.className === 'ai-setup-start'));
+});
+
+test('popup: Google anahtarı reddederse kaydedilmez ve sebebi Türkçe yazılır', async () => {
+  const { requests, fetch } = fakeGemini('', { reject: true });
+  const storage = new Map();
+  const chat = await popupWithModel(null, { remote: true, storage, fetch });
+  const form = walk(chat).find(node => node.tag === 'form');
+  form.children.find(node => node.tag === 'input').value = 'AIza' + 'q'.repeat(35);
+  form.listeners.submit({ preventDefault() {} });
+  await settle();
+  assert.equal(requests.length, 1);
+  assert.equal(storage.has('otoPusula_aiKey'), false);
+  assert.ok(walk(chat).some(node => /kabul etmedi/.test(node.textContent)));
+  assert.equal(form.children.find(node => node.tag === 'button').disabled, false, 'tekrar denenebilir');
 });
 
 test('popup: yerleşik yapay zeka varken anahtarsız veri dışarı gitmez; öneri gösterilir, anahtar girilince bulut kullanılır', async () => {
-  const requests = [];
   const storage = new Map();
   const opened = [];
   const { api, calls } = fakeModel();
-  const fetch = async url => {
-    requests.push(url);
-    return {
-      ok: true,
-      json: async () => ({ candidates: [{ content: { parts: [{ text: 'Bulut cevabı, ayrıntılı.' }] } }] })
-    };
-  };
+  const { requests, fetch } = fakeGemini('Bulut cevabı, ayrıntılı.');
   const chat = await popupWithModel(api, { remote: true, storage, fetch, opened });
   await walk(chat)
     .find(node => node.className === 'chat-chip')
@@ -492,19 +528,24 @@ test('popup: yerleşik yapay zeka varken anahtarsız veri dışarı gitmez; öne
   assert.equal(requests.length, 0, 'anahtar yokken istek atılmaz');
   assert.ok(
     walk(chat).some(node => /Önerimiz/.test(node.textContent)),
-    'Gemini anahtarı önerisi görünür'
+    'Gemini önerisi görünür'
   );
 
   walk(chat)
-    .find(node => /Ücretsiz anahtar ekle/.test(node.textContent))
+    .find(node => node.className === 'chat-tip-action')
     .click();
   walk(chat)
-    .find(node => /Ücretsiz anahtar al/.test(node.textContent))
+    .find(node => node.className === 'ai-setup-start')
     .click();
-  assert.deepEqual(opened, ['https://aistudio.google.com/app/apikey']);
+  assert.deepEqual(opened, ['ai-setup.html']);
+  assert.ok(
+    walk(chat).some(node => /Cihazdaki yapay zekayla devam/.test(node.textContent)),
+    'geri dönülebilir'
+  );
   const form = walk(chat).find(node => node.tag === 'form');
   form.children.find(node => node.tag === 'input').value = 'AIza' + 'z'.repeat(35);
   form.listeners.submit({ preventDefault() {} });
+  await settle();
   assert.equal(
     walk(chat).some(node => /Önerimiz/.test(node.textContent)),
     false,
@@ -513,14 +554,95 @@ test('popup: yerleşik yapay zeka varken anahtarsız veri dışarı gitmez; öne
   await walk(chat)
     .find(node => node.className === 'chat-chip')
     .click();
-  assert.deepEqual(requests, [remoteAI.ENDPOINT]);
+  assert.deepEqual(
+    requests.map(request => request.url),
+    [remoteAI.MODEL_URL, remoteAI.ENDPOINT]
+  );
 
   walk(chat)
-    .find(node => /API anahtarını sil/.test(node.textContent))
+    .find(node => node.className === 'chat-forget')
     .click();
   assert.ok(
     walk(chat).some(node => /Önerimiz/.test(node.textContent)),
     'anahtar silinince cihazdaki yapay zekaya dönülür'
+  );
+});
+
+test('popup: model indirmesi ilerlemezse bunu söyler ve anahtar kurulumuna götürür', async () => {
+  // %0'da takılan indirme: create hiç bitmez, ilerleme hep 0.
+  const api = {
+    availability: async () => 'downloadable',
+    create: options =>
+      new Promise(() => {
+        options.monitor?.({
+          addEventListener: (name, listener) => name === 'downloadprogress' && listener({ loaded: 0 })
+        });
+      })
+  };
+  const realNow = Date.now;
+  let now = realNow();
+  Date.now = () => now;
+  const timers = [];
+  try {
+    const chat = await popupWithModel(api, {
+      remote: true,
+      timers: { setTimeout: fn => timers.push(fn) && timers.length, clearTimeout() {} }
+    });
+    const tip = walk(chat).find(node => node.className === 'chat-tip');
+    assert.equal(tip.open, true, 'model inmemişse öneri açık gelir');
+    walk(chat)
+      .find(node => node.className === 'chat-chip')
+      .click();
+    await settle();
+    assert.ok(walk(chat).some(node => /indiriliyor: %0/.test(node.textContent)));
+    now += 31000;
+    while (timers.length) timers.shift()();
+    const status = walk(chat).find(node => /chat-status/.test(node.className));
+    assert.match(status.className, /stalled/);
+    assert.ok(walk(status).some(node => /ilerlemiyor/.test(node.textContent)));
+    walk(status)
+      .find(node => node.className === 'chat-inline-action')
+      .click();
+    assert.ok(
+      walk(chat).some(node => node.className === 'ai-setup-start'),
+      'kurulum kartına geçilir'
+    );
+  } finally {
+    Date.now = realNow;
+  }
+});
+
+test('remoteAI: yapıştırılan metinden anahtar bulunur; deneme cevap üretmez, hatalar Türkçe', async () => {
+  const key = 'AIza' + 'k'.repeat(35);
+  assert.equal(remoteAI.findKey(`Anahtarınız:\n  ${key}  `), key);
+  assert.equal(remoteAI.findKey('sk-abc'), '');
+  const seen = [];
+  assert.equal(
+    await remoteAI.testKey(key, async (url, init) => {
+      seen.push([url, init.method, init.headers['x-goog-api-key']]);
+      return { ok: true };
+    }),
+    key
+  );
+  assert.deepEqual(seen, [[remoteAI.MODEL_URL, 'GET', key]]);
+  await assert.rejects(
+    remoteAI.testKey('yanlis', async () => ({ ok: true })),
+    /benzemiyor/
+  );
+  await assert.rejects(
+    remoteAI.testKey(key, async () => ({ ok: false, status: 403 })),
+    /kabul etmedi/
+  );
+  await assert.rejects(
+    remoteAI.testKey(key, async () => {
+      throw new TypeError('Failed to fetch');
+    }),
+    /bağlanılamadı/
+  );
+  assert.equal(
+    await remoteAI.testKey(key, async () => ({ ok: false, status: 429 })),
+    key,
+    'yoğunluk anahtarı geçersiz kılmaz'
   );
 });
 
@@ -568,7 +690,7 @@ test('popup: yapay zeka hata verirse, takılırsa ya da boş cevap verirse popup
         return session;
       }
     };
-    const chat = await popupWithModel(api);
+    const chat = await popupWithModel(api, { remote: true });
     const chip = walk(chat).find(node => node.className === 'chat-chip');
     await chip.click();
     assert.ok(

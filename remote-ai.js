@@ -6,7 +6,8 @@
 
   const KEY_STORAGE = 'otoPusula_aiKey';
   const MODEL = 'gemini-flash-latest';
-  const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+  const MODEL_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}`;
+  const ENDPOINT = `${MODEL_URL}:generateContent`;
   const MAX_TURNS = 8;
   const RETRY_MS = 1200;
   const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -15,6 +16,12 @@
   function normalizeKey(value) {
     const key = String(value ?? '').replace(/\s+/g, '');
     return /^AIza[0-9A-Za-z_-]{30,}$/.test(key) ? key : '';
+  }
+
+  // Yapıştırılan metnin içinden anahtarı bulur (tırnak, "API key:" gibi ekler ya da satır sonları olsa da).
+  function findKey(text) {
+    const match = String(text ?? '').match(/AIza[0-9A-Za-z_-]{30,}/);
+    return match ? normalizeKey(match[0]) : '';
   }
 
   function loadKey(storage) {
@@ -27,10 +34,7 @@
 
   function saveKey(storage, value) {
     const key = normalizeKey(value);
-    if (!key)
-      throw new Error(
-        'Anahtar geçersiz görünüyor. Google AI Studio’dan aldığınız “AIza…” ile başlayan anahtarı yapıştırın.'
-      );
+    if (!key) throw new Error('Bu bir Gemini anahtarına benzemiyor. Anahtar “AIza” ile başlar.');
     storage.setItem(KEY_STORAGE, key);
     return key;
   }
@@ -54,6 +58,22 @@
     const error = new Error(message);
     error.name = 'RemoteAIError';
     return error;
+  }
+
+  // Anahtarı soru sormadan dener: model bilgisini ister (cevap üretmez, kota harcamaz).
+  async function testKey(key, fetcher = root.fetch?.bind(root)) {
+    const clean = normalizeKey(key);
+    if (!clean) throw remoteError('Bu bir Gemini anahtarına benzemiyor. Anahtar “AIza” ile başlar.');
+    let response;
+    try {
+      response = await fetcher(MODEL_URL, { method: 'GET', headers: { 'x-goog-api-key': clean } });
+    } catch {
+      throw remoteError('Google’a bağlanılamadı. İnternet bağlantınızı kontrol edin.');
+    }
+    if (response.ok || response.status === 429) return clean;
+    if (response.status === 400 || response.status === 401 || response.status === 403)
+      throw remoteError('Google bu anahtarı kabul etmedi. AI Studio’dan anahtarı yeniden kopyalayıp yapıştırın.');
+    throw remoteError(errorMessage(response.status));
   }
 
   // LanguageModel oturumuyla aynı biçimde (prompt / destroy) çalışan, konuşma geçmişini tutan oturum.
@@ -112,7 +132,19 @@
     };
   }
 
-  const api = { KEY_STORAGE, MODEL, ENDPOINT, normalizeKey, loadKey, saveKey, clearKey, createSession };
+  const api = {
+    KEY_STORAGE,
+    MODEL,
+    MODEL_URL,
+    ENDPOINT,
+    normalizeKey,
+    findKey,
+    loadKey,
+    saveKey,
+    clearKey,
+    testKey,
+    createSession
+  };
   root.OtoRemoteAI = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);
