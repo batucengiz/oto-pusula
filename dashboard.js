@@ -1453,6 +1453,14 @@
   });
   paintThemeButton();
 
+  // Kenar çubuğundaki sürüm etiketi elle yazılmaz, eklenti dosyasından okunur.
+  try {
+    const version = globalThis.chrome?.runtime?.getManifest?.().version;
+    if (version) document.getElementById('app-version').textContent = `v${version}`;
+  } catch {
+    /* panel eklenti dışında açıldıysa etiket boş kalır */
+  }
+
   // Seçilen ilanları yapay zekayla karşılaştırma (compare-ui.js); dosya yoksa panel aynen çalışır.
   try {
     globalThis.OtoCompareUI?.mount({ evaluate: evaluateListings, shown: () => shownIds, labelFor, element });

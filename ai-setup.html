@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <script src="theme-mode.js"></script>
+    <title>Yapay zeka kurulumu | Oto Pusula</title>
+    <link rel="icon" href="icons/icon32.png" />
+    <link rel="stylesheet" href="ai-setup.css" />
+  </head>
+  <body>
+    <main class="setup">
+      <header class="setup-head">
+        <img src="icons/icon48.png" alt="" width="40" height="40" />
+        <div>
+          <h1>Yapay zeka asistanını aç</h1>
+          <p class="lead">Ücretsiz · yaklaşık 1 dakika · kart bilgisi gerekmez</p>
+        </div>
+      </header>
+
+      <section id="wizard" class="card">
+        <ol class="steps">
+          <li class="step active" data-step="1">
+            <span class="dot" aria-hidden="true">1</span>
+            <div class="step-body">
+              <h2>Google’dan ücretsiz anahtar alın</h2>
+              <a
+                id="open-studio"
+                class="button primary big"
+                href="https://aistudio.google.com/app/apikey"
+                target="_blank"
+                rel="noopener noreferrer"
+                >Google AI Studio’yu aç ↗</a
+              >
+              <ul class="how">
+                <li>Google hesabınızla girin. İlk seferde çıkan koşulları onaylayın.</li>
+                <li>
+                  <span class="fake-button">Create API key</span> düğmesine basın. Proje sorulursa önerileni seçin.
+                </li>
+                <li>Çıkan anahtarın yanındaki <strong>kopyala</strong> simgesine basın ve bu sekmeye dönün.</li>
+              </ul>
+            </div>
+          </li>
+          <li class="step" data-step="2">
+            <span class="dot" aria-hidden="true">2</span>
+            <div class="step-body">
+              <h2>Anahtarı buraya yapıştırın</h2>
+              <form id="key-form" class="key-form" autocomplete="off">
+                <input
+                  id="key-input"
+                  type="text"
+                  spellcheck="false"
+                  placeholder="AIza ile başlayan anahtar"
+                  aria-label="Gemini API anahtarı"
+                />
+                <button id="paste" class="button secondary" type="button">Yapıştır</button>
+              </form>
+              <p id="key-status" class="status" role="status"></p>
+            </div>
+          </li>
+          <li class="step" data-step="3">
+            <span class="dot" aria-hidden="true">3</span>
+            <div class="step-body">
+              <h2>Hazır</h2>
+              <p class="muted">Anahtar denenip kaydedilince asistan açılır.</p>
+            </div>
+          </li>
+        </ol>
+      </section>
+
+      <section id="ready" class="card ready" hidden>
+        <div class="ready-mark" aria-hidden="true">✓</div>
+        <h2>Asistan hazır</h2>
+        <p>
+          sahibinden.com’da bir ilan açın, Oto Pusula simgesine basın ve <strong>Bu sayfayı analiz et</strong> deyin.
+          Sorularınızı alttaki asistana yazın.
+        </p>
+        <p id="saved-key" class="muted"></p>
+        <div class="ready-actions">
+          <button id="close-tab" class="button primary" type="button">Tamam, sekmeyi kapat</button>
+          <button id="change-key" class="button secondary" type="button">Anahtarı değiştir</button>
+          <button id="remove-key" class="button ghost" type="button">Anahtarı sil</button>
+        </div>
+      </section>
+
+      <details class="privacy">
+        <summary>Neler gönderilir?</summary>
+        <p>
+          Yalnızca asistana sorduğunuz soru ve o ilanın bilgileri Google Gemini’ye gider. Ücretsiz anahtarlarda Google
+          bu içerikleri ürünlerini geliştirmek için kullanabilir; kişisel bilgi yazmayın. Anahtar yalnızca bu
+          bilgisayarda saklanır ve buradan istediğiniz an silinir.
+        </p>
+      </details>
+      <p class="credit">Oto Pusula · Batuhan Cengiz</p>
+    </main>
+    <script src="remote-ai.js"></script>
+    <script src="ai-setup.js"></script>
+  </body>
+</html>

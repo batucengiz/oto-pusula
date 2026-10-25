@@ -2,6 +2,13 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.11.0 — 2026-10-25
+
+- Yapay zeka kurulumu baştan: popup'ta tek büyük "Kurulumu başlat" düğmesi, eklentinin kendi sayfasında (ai-setup.html) üç adımlı sihirbaz açar: Google AI Studio'yu aç, anahtarı yapıştır, hazır. Yapıştırınca Kaydet'e basmak gerekmez; anahtar önce denenir (model bilgisi istenir, cevap üretilmez, kota harcanmaz), çalışıyorsa kaydedilir. Yapıştırılan metindeki tırnak, boşluk ve "API key:" gibi ekler atılır. "Yapıştır" düğmesi panodan okur, izin yoksa Ctrl+V'yi tarif eder.
+- Cihazdaki model indirmesi 30 saniye ilerlemezse (ör. %0'da kalırsa) popup bunu açıkça söyler ve "Anahtarla başla" ile kuruluma götürür. Model henüz inmemişse Gemini önerisi açık gelir.
+- Asistanın tasarımı yenilendi (chat.css): grafit zemin, tek vurgu rengi, balonsuz yapay zeka cevapları, sağda kullanıcı balonu, 2×2 başlangıç kartları, yuvarlak yazma kutusu. Hazır sorular yalnızca sohbet başlayınca görünür. Metinler kısaltıldı. Eski sohbet stilleri popup.css ve popup-theme.css'ten kaldırıldı.
+- Panel kenar çubuğundaki sürüm etiketi artık manifest'ten okunur (eskiden "v7.2" yazıyordu).
+
 ## 7.10.1 — 2026-10-24
 
 - Excel: "Tramer (TL, satıcı beyanı)" ve "İlanda (gün)" sütunları (yeniden yayınlanan araçta ilk ilanın tarihinden). Uyarılar sütununda 7.7'nin yeni uyarıları da yer alır.
