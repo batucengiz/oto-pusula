@@ -42,6 +42,7 @@
     normalizePages: parts.normalizePages,
     recordPage: parts.recordPage,
     removeListings: parts.removeListings,
+    listingGroups: parts.listingGroups,
     removePage: parts.removePage,
     safeSahibindenUrl: parts.safeSahibindenUrl,
     DEFAULTS: parts.DEFAULTS,

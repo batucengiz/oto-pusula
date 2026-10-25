@@ -9,7 +9,7 @@
   const BRANDS = {
     Fiat: {
       models:
-        'Egea, Linea, Doblo, Punto, Grande Punto, Albea, Palio, Tipo, 500, 500L, 500X, Fiorino, Panda, Bravo, Stilo, Marea, Tempra, Uno, Fullback',
+        'Egea, Egea Cross, Linea, Doblo, Punto, Grande Punto, Albea, Palio, Tipo, 500, 500L, 500X, Fiorino, Panda, Bravo, Stilo, Marea, Tempra, Uno, Fullback',
       trims:
         'Easy, Urban, Urban Plus, Lounge, Street, Cross, Pop, Dynamic, Active, Emotion, Sport, Mirror, Premio, Trekking, Safeline, Combi',
       engines: '1.3 Multijet, 1.4 Fire, 1.4 T-Jet, 1.6 Multijet, 1.5 Hybrid, 1.2 Fire, 0.9 Twinair, 1.9 JTD'
@@ -237,12 +237,17 @@
   const FUELS = ['Benzin', 'Dizel', 'LPG', 'Benzin & LPG', 'Hibrit', 'Elektrik'];
   const TRANSMISSIONS = ['Manuel', 'Otomatik', 'Yarı Otomatik'];
 
+  // Kayıtlı arama formundaki şehir önerisi (81 il).
+  const CITIES = list(
+    'Adana, Adıyaman, Afyonkarahisar, Ağrı, Aksaray, Amasya, Ankara, Antalya, Ardahan, Artvin, Aydın, Balıkesir, Bartın, Batman, Bayburt, Bilecik, Bingöl, Bitlis, Bolu, Burdur, Bursa, Çanakkale, Çankırı, Çorum, Denizli, Diyarbakır, Düzce, Edirne, Elazığ, Erzincan, Erzurum, Eskişehir, Gaziantep, Giresun, Gümüşhane, Hakkari, Hatay, Iğdır, Isparta, İstanbul, İzmir, Kahramanmaraş, Karabük, Karaman, Kars, Kastamonu, Kayseri, Kilis, Kırıkkale, Kırklareli, Kırşehir, Kocaeli, Konya, Kütahya, Malatya, Manisa, Mardin, Mersin, Muğla, Muş, Nevşehir, Niğde, Ordu, Osmaniye, Rize, Sakarya, Samsun, Şanlıurfa, Siirt, Sinop, Şırnak, Sivas, Tekirdağ, Tokat, Trabzon, Tunceli, Uşak, Van, Yalova, Yozgat, Zonguldak'
+  );
+
   const catalog = {};
   for (const [brand, data] of Object.entries(BRANDS)) {
     catalog[brand] = { models: list(data.models), trims: list(data.trims || ''), engines: list(data.engines || '') };
   }
 
-  const api = { BRANDS: catalog, FUELS, TRANSMISSIONS };
+  const api = { BRANDS: catalog, FUELS, TRANSMISSIONS, CITIES };
   root.OtoCatalog = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);

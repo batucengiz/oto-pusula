@@ -17,6 +17,38 @@
     return `${Math.round(hours / 24)} gün önce`;
   }
 
+  // "Arama adı" alanına yazılan metne göre "Marka Model" önerileri: önce kullanıcının kayıtlarındaki araçlar (sık olan
+  // önce), sonra gömülü katalog. "fia" → Fiat, Fiat Egea, Fiat Egea Cross…; "egea" → Fiat Egea. u/ü, i/ı farkı önemsenmez.
+  function vehicleOptions(typed, records = [], catalog = root.OtoCatalog, limit = 8) {
+    const core = root.OtoCore || require('./core.js');
+    const words = String(typed ?? '')
+      .split(/\s+/)
+      .map(core.key)
+      .filter(Boolean);
+    if (!words.length) return [];
+    const counts = new Map();
+    const add = (brand, model, weight) => {
+      const label = [brand, model].filter(Boolean).join(' ');
+      const id = core.key(label);
+      if (id) counts.set(label, (counts.get(label) || 0) + weight);
+    };
+    for (const record of records) if (record?.brand && record?.model) add(record.brand, record.model, 100);
+    for (const [brand, data] of Object.entries(catalog?.BRANDS || {})) {
+      add(brand, '', 1);
+      for (const model of data.models) add(brand, model, 1);
+    }
+    const seen = new Set();
+    return [...counts]
+      .filter(([label]) => {
+        const parts = label.split(' ').map(core.key);
+        return words.every(word => parts.some(part => part.startsWith(word)));
+      })
+      .sort((a, b) => b[1] - a[1] || a[0].split(' ').length - b[0].split(' ').length)
+      .map(([label]) => label)
+      .filter(label => !seen.has(core.key(label)) && seen.add(core.key(label)))
+      .slice(0, limit);
+  }
+
   // Eklenti simgesindeki sayı (rozet). Panel dışında (geliştirme sunucusu, testler) sessizce atlanır.
   function paintBadge(count, action = root.chrome?.action) {
     try {
@@ -297,7 +329,59 @@
     const form = $('search-form');
     const fields = ['name', 'brand', 'model', 'trim', 'city', 'yearMin', 'yearMax', 'kmMax', 'priceMin', 'priceMax'];
     const more = ['transmission', 'fuel', 'url'];
-    const suggester = root.OtoSuggest?.attach(form, () => [...state().stock, ...state().comparables]);
+    const records = () => [...state().stock, ...state().comparables];
+    const suggester = root.OtoSuggest?.attach(form, records);
+
+    // Yazarken öneri: tarayıcının kendi öneri listesi (datalist). Arama adında "Marka Model" seçilince marka ve
+    // model alanları da dolar; şehir, yıl, km ve bütçe için sık kullanılan değerler önerilir.
+    function datalist(input, values) {
+      const id = `${input.name}-options`;
+      let list = doc.getElementById(id);
+      if (!list) {
+        list = doc.createElement('datalist');
+        list.id = id;
+        form.append(list);
+        input.setAttribute('list', id);
+      }
+      list.replaceChildren(
+        ...values.map(value => Object.assign(doc.createElement('option'), { value: String(value) }))
+      );
+    }
+    const catalog = root.OtoCatalog;
+    const thisYear = new Date().getFullYear();
+    const years = Array.from({ length: 30 }, (_, i) => thisYear - i);
+    datalist(form.elements.yearMin, years);
+    datalist(form.elements.yearMax, years);
+    datalist(form.elements.kmMax, [25000, 50000, 75000, 100000, 125000, 150000, 200000, 250000]);
+    datalist(form.elements.priceMax, [500000, 750000, 1000000, 1250000, 1500000, 2000000, 2500000, 3000000]);
+    datalist(form.elements.priceMin, [250000, 500000, 750000, 1000000, 1500000, 2000000]);
+    if (catalog?.CITIES) datalist(form.elements.city, catalog.CITIES);
+    const nameInput = form.elements.name;
+    datalist(nameInput, []);
+    function fillVehicle() {
+      const picked = vehicleOptions(nameInput.value, records(), catalog, 50).find(
+        label => root.OtoCore.key(label) === root.OtoCore.key(nameInput.value)
+      );
+      if (!picked) return;
+      const brand = Object.keys(catalog?.BRANDS || {}).find(name =>
+        root.OtoCore.key(picked).startsWith(root.OtoCore.key(name))
+      );
+      const fromRecords = records().find(
+        record => root.OtoCore.key(`${record.brand} ${record.model}`) === root.OtoCore.key(picked)
+      );
+      const vehicle = fromRecords
+        ? { brand: fromRecords.brand, model: fromRecords.model }
+        : brand
+          ? { brand, model: picked.slice(brand.length).trim() }
+          : null;
+      if (!vehicle) return;
+      form.elements.brand.value = vehicle.brand;
+      form.elements.model.value = vehicle.model;
+    }
+    nameInput.addEventListener('input', () => {
+      datalist(nameInput, vehicleOptions(nameInput.value, records(), catalog));
+      fillVehicle();
+    });
 
     function openForm(search = null) {
       editing = search?.id || null;
@@ -407,7 +491,7 @@
     return { render, openForm, showMatches };
   }
 
-  const api = { mount, ago, paintBadge };
+  const api = { mount, ago, paintBadge, vehicleOptions };
   root.OtoAlertsUI = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);

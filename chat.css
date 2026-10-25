@@ -510,6 +510,60 @@
   color: var(--ai-muted);
   font-size: 11px;
 }
+.chat-scope-tag {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--ai-raised);
+  color: var(--ai-ink-2);
+  font-size: 11px;
+  font-weight: 650;
+}
+.chat .chat-scope {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed var(--ai-line-strong);
+}
+.chat .chat-scope[hidden],
+.chat .chat-scope-brand[hidden] {
+  display: none;
+}
+.chat .chat-scope-label {
+  color: var(--ai-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.chat .chat-scope-button {
+  padding: 4px 11px;
+  border: 1px solid var(--ai-line-strong);
+  border-radius: 999px;
+  background: var(--ai-raised);
+  color: var(--ai-ink-2);
+  font-size: 11.5px;
+  font-weight: 650;
+}
+.chat .chat-scope-button:hover {
+  background: var(--ai-raised-hover);
+}
+.chat .chat-scope-button.on {
+  border-color: var(--ai-accent);
+  background: color-mix(in srgb, var(--ai-accent) 14%, transparent);
+  color: var(--ai-accent-ink);
+}
+.chat .chat-scope-brand {
+  max-width: 100%;
+  padding: 4px 8px;
+  border: 1px solid var(--ai-line-strong);
+  border-radius: 8px;
+  background: var(--ai-field);
+  color: var(--ai-ink);
+  font-size: 11.5px;
+}
 .chat .chat-pick {
   position: relative;
   display: grid;

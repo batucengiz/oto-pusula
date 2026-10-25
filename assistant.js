@@ -359,15 +359,53 @@
     'Bu listede fiyatlar genel olarak nasıl?'
   ];
 
-  function listFacts(entries, today = new Date(), max = LIST_MAX) {
+  // Sohbetin baktığı kapsam: açık sayfadaki ilanlar ya da eklentinin kayıtlı (okunan tüm sayfalardaki) ilanları.
+  // Kayıtlı kapsamda total/pages/brand/mix popup'ta hesaplanır; cevapta ve kutuda hangi kapsama bakıldığı yazar.
+  const PAGE_SCOPE = Object.freeze({ kind: 'page', label: 'Bu sayfa', noun: 'sayfadaki' });
+  function savedScope({ total, pages = 0, brand = '', mix = '', matched } = {}) {
+    return {
+      kind: 'all',
+      label: brand ? `Kayıtlı ${brand} ilanları` : 'Tüm kayıtlı ilanlar',
+      noun: 'kayıtlı',
+      total,
+      pages,
+      brand,
+      mix,
+      matched
+    };
+  }
+
+  function listFacts(entries, today = new Date(), max = LIST_MAX, scope = PAGE_SCOPE) {
     const ranked = rankForCompare(entries);
     const lines = compareFacts(ranked, today, max);
     const priced = entries.filter(entry => entry.result?.center);
     const cheap = priced.filter(entry => entry.result.gap < 0).length;
-    lines.unshift(
-      `Sayfada ${entries.length} ilan okundu${entries.length > max ? `; fırsat puanına göre en iyi ${max} tanesi aşağıda` : ''}. Piyasa tahmini olan ${priced.length} ilanın ${cheap} tanesi piyasa ortasının altında.`
-    );
+    const best = entries.length > max ? `; fırsat puanına göre en iyi ${max} tanesi aşağıda` : '';
+    const stats = `Piyasa tahmini olan ${priced.length} ilanın ${cheap} tanesi piyasa ortasının altında.`;
+    if (scope.kind === 'all') {
+      const total = scope.total ?? entries.length;
+      const pages = scope.pages ? ` (${scope.pages} okunan sayfadan)` : '';
+      lines.unshift(
+        `${scope.label}: eklentide ${total} ilan kayıtlı${pages}. Soruya uyan ${entries.length} ilan değerlendirildi${best}. ${stats}`,
+        ...(scope.mix ? [`Dağılım: ${scope.mix}`] : [])
+      );
+    } else {
+      lines.unshift(`Sayfada ${entries.length} ilan okundu${best}. ${stats}`);
+    }
     return { lines, shown: ranked.slice(0, max) };
+  }
+
+  // Okunan (kayıtlı) ilanların hepsi modele verilemez: sorudaki şartlara (marka/model, bütçe, km, yıl, vites, yakıt)
+  // uyanlar seçilir, çok kalırsa en yeni cap tanesi değerlendirilir. Şarta uyan yoksa hepsi (en yeni cap) döner.
+  const POOL_MAX = 400;
+  function narrowRecords(question, records, cap = POOL_MAX) {
+    const entries = records.map(record => ({ record }));
+    const filter = listFilter(question, entries);
+    const found = filter.labels.length ? applyListFilter(entries, filter).map(entry => entry.record) : records;
+    const noMatch = filter.labels.length > 0 && !found.length;
+    const base = noMatch ? records : found;
+    const newest = [...base].sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, cap);
+    return { records: newest, matched: noMatch ? 0 : found.length, total: records.length, noMatch };
   }
 
   // Serbest sorudaki bütçe, km, yıl, vites, yakıt ve marka/model isteklerini kurala dayalı okur ("bütçem 800 bin,
@@ -409,14 +447,17 @@
     else if (/lpg/.test(text)) filter.fuel = /lpg/;
     else if (/benzin/.test(text)) filter.fuel = /benzin/;
     const names = new Set();
+    const seen = new Set();
     for (const { record } of entries)
-      for (const name of [record.brand, record.model])
+      for (const name of [record.brand, record.model]) {
+        // Yüzlerce kayıtta aynı ad için düzenli ifade tekrar tekrar kurulmasın.
+        if (!name || name.length < 2 || seen.has(name)) continue;
+        seen.add(name);
         if (
-          name &&
-          name.length > 1 &&
           new RegExp(`(^|[^a-zçğıöşü])${fold(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^a-zçğıöşü])`).test(text)
         )
           names.add(fold(name));
+      }
     if (names.size) filter.names = names;
     const lira = value => `${Math.round(value).toLocaleString('tr-TR')} TL`;
     if (filter.maxPrice) filter.labels.push(`en fazla ${lira(filter.maxPrice)}`);
@@ -449,31 +490,39 @@
   }
 
   // Soruya göre süzülmüş, sıralanmış ve kısaltılmış liste; popup her soruda bunu yeniden kurar.
-  function listContext(question, entries, today = new Date(), max = LIST_MAX) {
+  function listContext(question, entries, today = new Date(), max = LIST_MAX, scope = PAGE_SCOPE) {
     const filter = listFilter(question, entries);
     let pool = filter.labels.length ? applyListFilter(entries, filter) : entries;
     const noMatch = filter.labels.length && !pool.length;
     if (noMatch) pool = entries;
-    const { lines, shown } = listFacts(pool, today, max);
+    const { lines, shown } = listFacts(pool, today, max, scope);
+    // Kayıtlı kapsamda süzme popup'ta (tüm kayıtlar üzerinde) yapılır; sayılar oradan gelir.
+    const total = scope.kind === 'all' ? (scope.total ?? entries.length) : entries.length;
+    const matched = noMatch ? 0 : scope.kind === 'all' ? (scope.matched ?? pool.length) : pool.length;
     const head = filter.labels.length
       ? noMatch
         ? `Sorudaki şartlara (${filter.labels.join(', ')}) uyan ilan yok; bunu söyle ve en yakın seçenekleri öner.`
-        : `Sorudaki şartlara (${filter.labels.join(', ')}) uyan ${pool.length} ilan var (sayfadaki ${entries.length} ilandan).`
+        : `Sorudaki şartlara (${filter.labels.join(', ')}) uyan ${matched} ilan var (${scope.noun} ${total} ilandan).`
       : '';
     if (head) lines.unshift(head);
-    return { lines, shown, total: entries.length, matched: noMatch ? 0 : pool.length, filter, noMatch };
+    return { lines, shown, total, matched, filter, noMatch, scope };
   }
 
-  function listSystemPrompt(lines) {
+  function listSystemPrompt(lines, scope = PAGE_SCOPE) {
+    const where =
+      scope.kind === 'all'
+        ? 'Kullanıcı sahibinden.com’da birkaç sayfayı Oto Pusula ile analiz etti; aşağıda eklentide kayıtlı ilanlardan soruya göre seçilenler var. Cevabının ilk cümlesinde hangi kapsama baktığını kısaca söyle (ör. “Kayıtlı 23 ilana göre: …”). Farklı marka/modeller karışık olabilir; karşılaştırırken bunu gözet.'
+        : 'Kullanıcı sahibinden.com’da bir arama sonuçları sayfasına bakıyor; aşağıda o sayfadaki ilanlar var. Her zaman Türkçe ve sade yaz.';
     return [
       'Sen Oto Pusula adlı ikinci el araç eklentisinin asistanısın; otomobiller konusunda uzman, dürüst bir danışmansın.',
-      'Kullanıcı sahibinden.com’da bir arama sonuçları sayfasına bakıyor; aşağıda o sayfadaki ilanlar var. Her zaman Türkçe ve sade yaz.',
+      where,
+      'Her zaman Türkçe ve sade yaz.',
       'İlanlardan söz ederken numarasını ve kısa adını yaz (ör. “İlan 2 · Egea 2021, 850.000 TL”). Listede olmayan ilan, fiyat ya da özellik uydurma.',
       'Seçim sorularında fırsat puanını, piyasa ortasına göre farkı, km yorumunu, kaporta puanını ve uyarıları birlikte tart; neden seçtiğini her ilan için tek cümleyle söyle. Uyarısı olan ilanları neden riskli olduğuyla belirt.',
       'Listedeki bilgi yetmiyorsa (ör. kaporta şeması okunmamış) ilanı açıp analiz etmeyi öner. Kesin “al” deme; ekspertiz ve tramer kontrolünü hatırlat.',
       ...EXPERT_RULES,
       '',
-      'SAYFADAKİ İLANLAR:',
+      scope.kind === 'all' ? 'KAYITLI İLANLAR:' : 'SAYFADAKİ İLANLAR:',
       ...lines.map(line => `- ${line}`)
     ].join('\n');
   }
@@ -685,6 +734,10 @@
 
   const api = {
     listFilter,
+    narrowRecords,
+    savedScope,
+    PAGE_SCOPE,
+    POOL_MAX,
     applyListFilter,
     listContext,
     LIST_MAX,

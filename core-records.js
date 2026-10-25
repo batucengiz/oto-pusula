@@ -306,6 +306,22 @@
       ...(Number.isInteger(input.tramer) && input.tramer >= 0 && input.tramer <= 10000000
         ? { tramer: input.tramer }
         : {}),
+      // İlanın kendi bilgileri: renk ve ilan tarihi arama listesinde de, motor gücü/hacmi ve çekiş yalnızca ilan
+      // sayfasında yazar. detailRead: ilan sayfası en az bir kez okundu (Excel'de boş hücrenin sebebi buna göre yazılır).
+      ...(plain(input.color) ? { color: plain(input.color).slice(0, 30) } : {}),
+      ...(date(input.listedOn) ? { listedOn: date(input.listedOn) } : {}),
+      ...(Number.isInteger(number(input.enginePower)) &&
+      number(input.enginePower) > 0 &&
+      number(input.enginePower) < 2000
+        ? { enginePower: number(input.enginePower) }
+        : {}),
+      ...(Number.isInteger(number(input.engineSize)) &&
+      number(input.engineSize) >= 50 &&
+      number(input.engineSize) < 10000
+        ? { engineSize: number(input.engineSize) }
+        : {}),
+      ...(plain(input.drive) ? { drive: plain(input.drive).slice(0, 30) } : {}),
+      ...(input.detailRead === true ? { detailRead: true } : {}),
       // Satıcı numarası yalnızca kullanıcı popup'ta "kaydet" dediğinde gelir; otomatik toplanmaz.
       ...(/^905\d{9}$/.test(plain(input.sellerPhone)) ? { sellerPhone: plain(input.sellerPhone) } : {})
     };
