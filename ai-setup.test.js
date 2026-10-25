@@ -58,7 +58,7 @@ test('kurulum: yanlış metin ve reddedilen anahtar kaydedilmez, sebebi yazılı
   $('key-input').value = 'merhaba';
   $('key-form').dispatchEvent(new window.Event('submit', { cancelable: true }));
   await settle();
-  assert.match($('key-status').textContent, /benzemiyor/);
+  assert.match($('key-status').textContent, /anahtar değil/);
   assert.equal(requests.length, 0);
   paste(window, $('key-input'), KEY);
   await settle();
@@ -107,7 +107,7 @@ test('sürüm etiketi elle yazılmaz; asistan stili ve kurulum sayfası pakete g
 
 test('kurulum: Ctrl+V sayfanın her yerinde çalışır; adımlar ve rehber hep görünür', async () => {
   const { window, requests } = openPage();
-  assert.ok(window.document.querySelector('.mock-copy'), 'kopyala simgesi çizimde işaretli');
+  assert.ok(window.document.querySelector('.mock-key'), 'anahtar yazısı çizimde işaretli');
   assert.ok(window.document.querySelectorAll('.faq details').length >= 5, 'sık sorunlar listesi');
   paste(window, window.document.body, `anahtar: ${KEY}`);
   await settle();
@@ -161,4 +161,46 @@ test('pano izni isteğe bağlıdır: kurulumda zorunlu izin eklenmez', () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, 'manifest.json'), 'utf8'));
   assert.deepEqual(manifest.optional_permissions, ['clipboardRead']);
   assert.equal(manifest.permissions.includes('clipboardRead'), false);
+});
+
+test('yeni "AQ." anahtarları kabul edilir; proje adı ya da eksik anahtar açıkça söylenir', async () => {
+  const remote = require('./remote-ai.js');
+  const aq = 'AQ.Ab8RN6KyWoT6fCfj2pvFgiu09T62jH7B2Pr_xyz-12';
+  assert.equal(remote.findKey(`API key: "${aq}".`), aq);
+  assert.equal(remote.findKey('Default Gemini Project'), '');
+
+  const { window, $, requests } = openPage();
+  paste(window, $('key-input'), 'gen-lang-client-0123456789');
+  await settle();
+  assert.match($('key-status').textContent, /proje adı/);
+  assert.equal($('key-input').value, 'gen-lang-client-0123456789', 'yapıştırılan yazı kutuda görünür');
+  assert.equal(requests.length, 0);
+  paste(window, $('key-input'), 'AQ.kisa');
+  await settle();
+  assert.match($('key-status').textContent, /eksik kopyalanmış/);
+  paste(window, $('key-input'), aq);
+  await settle();
+  assert.equal(window.localStorage.getItem('otoPusula_aiKey'), aq);
+});
+
+test('anahtar başlıkta reddedilirse ?key= ile bir kez daha denenir ve çalışan biçim hatırlanır', async () => {
+  const remote = require('./remote-ai.js');
+  const aq = 'AQ.Ab8RN6KyWoT6fCfj2pvFgiu09T62jH7B2Pr_xyz-12';
+  const seen = [];
+  const fetcher = async (url, init) => {
+    seen.push({ url, header: init.headers?.['x-goog-api-key'] });
+    return url.includes('?key=') ? { ok: true, status: 200 } : { ok: false, status: 401 };
+  };
+  assert.equal(await remote.testKey(aq, fetcher), aq);
+  assert.equal(seen.length, 2);
+  assert.equal(seen[0].header, aq);
+  assert.match(seen[1].url, /\?key=AQ\.Ab8RN6/);
+});
+
+test('Google yeni bir anahtar biçimi çıkarırsa uzun tek parça yazı denenir; proje adı ve kısa yazı denenmez', () => {
+  const remote = require('./remote-ai.js');
+  assert.equal(remote.findKey('ya29x9Kd83jsLq02mZpQw7Rt5uYv1BnC4hG'), 'ya29x9Kd83jsLq02mZpQw7Rt5uYv1BnC4hG');
+  assert.equal(remote.findKey('gen-lang-client-0123456789012345678'), '');
+  assert.equal(remote.findKey('Default Gemini Project'), '');
+  assert.equal(remote.findKey('merhaba'), '');
 });

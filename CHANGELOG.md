@@ -2,6 +2,14 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.12.1 — 2026-10-25
+
+- Yapay zeka anahtarı: AI Studio'nun 28 Mayıs 2026'dan beri verdiği "AQ." ile başlayan yeni anahtarlar kabul edilir (eskiden yalnızca "AIza" kabul ediliyor, doğru anahtar "Panoda anahtar yok" hatası veriyordu). Google yeni bir biçim çıkarırsa, proje adına benzemeyen uzun tek parça yazı da denenir ve kabul kararını Google verir.
+- İstekler önce `x-goog-api-key` başlığıyla gönderilir; Google anahtarı reddederse aynı istek `?key=` ile bir kez daha denenir ve çalışan biçim oturum boyunca kullanılır.
+- Kurulum sayfasındaki rehber gerçek akışa göre düzeltildi: satırın sağındaki simgeler bazen proje adını kopyalıyor. Doğru yol: listedeki "…7VNA" yazısına tıkla, açılan pencerede "Anahtarı kopyala" (Copy key). Çizim buna göre yenilendi (A, B, C).
+- Yapıştırılan yazı anahtar değilse neyin kopyalandığı söylenir ("proje adı kopyalanmış", "anahtar eksik kopyalanmış") ve yazı kutuda görünür kalır.
+- Pano izni yoksa "Kutuya tıklayın, sonra Ctrl+V" yolu büyük gösterilir.
+
 ## 7.12.0 — 2026-10-25
 
 - Asistan cevaplarındaki "İlan 3" gibi etiketler tıklanabilir: ilan sahibinden'de arka planda yeni sekmede açılır, sohbet kapanmaz. Üzerine gelince model, yıl, km, fiyat ve şehir görünür. Açılan etiket ✓ ile işaretlenir.
