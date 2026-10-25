@@ -28,6 +28,7 @@
   const titles = {
     overview: ['Genel bakış', 'İzlediğiniz ilanları ve varsa stoğunuzu tek yerde görün.'],
     market: ['Piyasa ilanları', 'Analiz ettiğiniz ilanları piyasa aralığı ve fiyat geçmişiyle karşılaştırın.'],
+    alerts: ['Bildirimler', 'Kayıtlı aramalarınıza uyan yeni ve indirimli ilanlar; SMS ya da e-posta gönderilmez.'],
     stock: ['Araç stoğu', 'Fiyat aralıkları ve brüt farklar, yalnızca içe aktardığınız verilerden hesaplanır.'],
     comparables: ['Karşılaştırmalar', 'Fiyat tahmininde kullanılan tüm kayıtlar: okunan ilanlar ve CSV verileri.'],
     method: ['Yöntem ve veri', 'Hesabın sınırlarını ve veri yönetimini görün.']
@@ -842,7 +843,18 @@
     renderMarket();
     renderStock();
     renderComparables();
+    renderAlerts();
     showView(activeView);
+  }
+
+  // Kayıtlı aramalar ve bildirimler (alerts-ui.js); bir hata olursa panelin geri kalanı etkilenmez.
+  let alertsView = null;
+  function renderAlerts() {
+    try {
+      alertsView?.render();
+    } catch {
+      /* bildirim görünümü çizilemedi */
+    }
   }
 
   // Stok aracı için isteğe bağlı kondisyon seçimi; seçilmezse hesap ortalama kondisyona göredir.
@@ -1386,6 +1398,12 @@
         contacts: state.contacts,
         phoneSaves: state.phoneSaves,
         analyses: state.analyses,
+        // Eski yedekte kayıtlı arama yoksa mevcut aramalar korunur.
+        searches: Array.isArray(backup.searches)
+          ? globalThis.OtoAlerts.normalizeSearches(backup.searches)
+          : state.searches,
+        alerts: Array.isArray(backup.alerts) ? globalThis.OtoAlerts.normalizeAlerts(backup.alerts) : state.alerts,
+        alertPrefs: backup.alertPrefs ? globalThis.OtoAlerts.normalizePrefs(backup.alertPrefs) : state.alertPrefs,
         stock: backup.stock.map((item, i) =>
           core.normalizeRecord({ ...item, id: String(item.id).replace(/^stock-/, '') }, 'stock', i + 2)
         ),
@@ -1394,6 +1412,7 @@
         )
       };
       normalized.pages = core.prunePages(normalized.pages, normalized.comparables);
+      normalized.alerts = globalThis.OtoAlerts.prune(normalized.alerts, normalized.searches, normalized.comparables);
       if (
         (state.stock.length || state.comparables.length) &&
         !confirm('Yedek mevcut verilerin yerine geçecek. Devam edilsin mi?')
@@ -1409,7 +1428,14 @@
   $('clear-data').addEventListener('click', () => {
     if (!confirm('Bu cihazdaki stok ve karşılaştırma kayıtları silinecek. Önce JSON yedek indirdiniz mi?')) return;
     try {
-      const kept = { contacts: state.contacts, phoneSaves: state.phoneSaves, analyses: state.analyses };
+      // Kayıtlı aramalar ve bildirim ayarları kalır; ilanları silinen bildirimler gider.
+      const kept = {
+        contacts: state.contacts,
+        phoneSaves: state.phoneSaves,
+        analyses: state.analyses,
+        searches: state.searches,
+        alertPrefs: state.alertPrefs
+      };
       state = { ...store.empty(), ...kept };
       store.save(state);
       render();
@@ -1469,10 +1495,27 @@
     /* karşılaştırma açılamazsa panelin geri kalanı etkilenmez */
   }
 
+  try {
+    alertsView = globalThis.OtoAlertsUI?.mount({
+      state: () => state,
+      save,
+      evaluate: evaluateListings,
+      openUrl: openListingTab,
+      element,
+      labelFor,
+      notice,
+      showView
+    });
+  } catch {
+    alertsView = null;
+  }
+
   function begin() {
     state = store.load();
     render();
     if (globalThis.location?.hash === '#firsat') showDeals();
+    // Masaüstü bildirimine ya da popup'taki "Tüm bildirimler" bağlantısına tıklanınca.
+    if (globalThis.location?.hash === '#bildirimler') showView('alerts');
   }
   // Eklenti deposu eşzamansız okunur; okunamazsa localStorage'daki kayıtla devam edilir.
   if (store.usesExtensionStorage())

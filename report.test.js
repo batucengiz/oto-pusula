@@ -135,6 +135,7 @@ test('rapor sayfası kayıttan çizilir; ilan yoksa açıklama gösterir', async
       'core-limits.js',
       'core-deal.js',
       'core.js',
+      'alerts.js',
       'store.js',
       'assistant.js',
       'expertise.js',

@@ -2,6 +2,18 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.16.0 — 2026-10-25
+
+- **Kayıtlı arama ve panel bildirimleri.** Panele yeni **Bildirimler** sayfası: aradığınız aracı (marka, model, paket/motor, yıl aralığı, en çok km, bütçe alt/üst, vites, yakıt, şehir) bir adla kaydedin (en fazla 30 arama). Formda marka/model/paket/yakıt/vites için otomatik tamamlama vardır.
+- Popup'ta arama sayfasını analiz edince **"Bu aramayı kaydet, yeni ilanlarda haber ver"**: marka/model sayfadaki ilanların çoğundan çıkarılır, sayfanın adresi aramaya eklenir; kriterler panelde daraltılır. Kayıtlı aramanın sayfasında "Bu arama kayıtlı" yazar.
+- Bir arama ya da ilan sayfası analiz edildiğinde, kayıtlı aramaya uyan **daha önce hiç görülmemiş** ilanlar "Yeni ilan", görülmüş ve **fiyatı düşen** ilanlar "İndirim" bildirimi olur. Aynı ilan aynı fiyatla iki kez bildirilmez. Piyasanın en az %5 altındaki fırsat adayları "Fırsat" işaretiyle üstte durur; aramada "yalnızca fırsatları bildir" seçilebilir.
+- Popup'ta "🔔 Kayıtlı aramalarına uyanlar" özeti ("“Passat” aramana uyan 3 yeni ilan, 1 indirim; biri piyasanın %8 altında") ve en fazla 3 tıklanabilir ilan; tıklanan bildirim okundu olur.
+- Panelde zil ve kenar menüsünde okunmamış sayısı, eklenti simgesinde sayı (rozet). Bildirim kartında fiyat, indirim, piyasaya göre fark, fırsat puanı ve "İlana git"; "Okundu", "Tümünü okundu say", "Okunanları temizle", okunmamış/fırsat süzgeci.
+- Her aramanın kartında kriterler, uygun ilan, fırsat ve yeni bildirim sayısı; **Uygun ilanlar** kayıtlı ilanlardan anında süzülür. Arama düzenlenir, sessize alınır, silinir, kayıtlı sahibinden adresi tek tıkla açılır.
+- İsteğe bağlı **masaüstü bildirimi** (Chrome `notifications` izni isteğe bağlıdır, yalnızca kutu işaretlenince sorulur) ve **sessiz saatler** (gece yarısını aşabilir; bu sürede bildirim yalnızca panele düşer).
+- Bildirimler anlık değildir ve SMS/e-posta gönderilmez: eklenti sahibinden'i arka planda kontrol etmez, sayfa açmaz ya da yenilemez, sunucusu yoktur. Bildirimden ilan açma ortak sınırdan geçer (5 sn / 2 dakikada 5 sekme). Kayıtlı aramalar JSON yedeğe dahildir, "Yerel verileri temizle" ve örnek veri temizliğinde korunur.
+- Gelecek seçenekler (resmî veri anlaşması, sunucu, SMS, KVKK) için not: docs/BILDIRIM-YOL-HARITASI.md.
+
 ## 7.15.1 — 2026-10-25
 
 - sahibinden hesabının ban riskine karşı: ilan açma artık tek ortak sınırdan geçer. Eklenti sahibinden'e kendiliğinden hiç istek atmaz; ama 7.12.0'da eklenen popup yolları (sohbetteki "İlan N" bağlantıları, ilan kartları ve "N ilanın hepsini sekmelerde aç" düğmesi) bu yolla ilanları sınırsız ve art arda sekmelerde açabiliyordu; sahibinden bunu bot trafiği gibi görebilir.

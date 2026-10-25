@@ -20,6 +20,9 @@
         <nav aria-label="Ana menü">
           <button class="nav-button active" data-view="overview" type="button">Genel bakış</button>
           <button class="nav-button" data-view="market" type="button">Piyasa ilanları</button>
+          <button class="nav-button" data-view="alerts" type="button">
+            Bildirimler <span class="nav-count" id="nav-alert-count" hidden></span>
+          </button>
           <button class="nav-button" data-view="stock" type="button">Araç stoğu</button>
           <button class="nav-button" data-view="comparables" type="button">Karşılaştırmalar</button>
           <button class="nav-button" data-view="method" type="button">Yöntem ve veri</button>
@@ -50,6 +53,15 @@
             <p id="view-subtitle">İzlediğiniz ilanları ve varsa stoğunuzu tek yerde görün.</p>
           </div>
           <div class="top-actions">
+            <button
+              class="button button-secondary bell-button"
+              id="bell"
+              type="button"
+              aria-label="Bildirimler"
+              title="Bildirimler"
+            >
+              <span class="bell-count" id="bell-count" hidden></span>
+            </button>
             <button
               class="button button-secondary theme-toggle"
               id="theme-toggle"
@@ -246,6 +258,110 @@
             “temiz” anlamına gelmez. Hasar bilgisi satıcının ilandaki ifadesidir, ekspertiz doğrulaması değildir; ağır
             hasarlı ilanlar karşılaştırma havuzuna alınmaz. Uyarı rozetlerinin üzerine gelince açıklaması görünür.
           </p>
+        </section>
+
+        <section id="alerts-view" class="view" hidden>
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">KAYITLI ARAMALAR</span>
+              <h2>Bildirimler ve aramalarım</h2>
+              <p>
+                Aradığın aracı bir kez kaydet. sahibinden’de bir arama sayfasını analiz ettiğinde, kriterlerine uyan
+                yeni ilanlar ve fiyatı düşenler buraya düşer.
+              </p>
+            </div>
+            <div class="panel-actions">
+              <button class="button button-primary" id="search-add" type="button">+ Yeni arama</button
+              ><button class="button button-secondary" id="alerts-read-all" type="button">Tümünü okundu say</button
+              ><button class="button button-secondary" id="alerts-clear" type="button">Okunanları temizle</button>
+            </div>
+          </div>
+          <div class="alerts-layout">
+            <div>
+              <section class="panel">
+                <div class="panel-head alerts-head">
+                  <div>
+                    <span class="eyebrow">GELEN KUTUSU</span>
+                    <h2 id="alerts-title">Bildirimler</h2>
+                  </div>
+                  <label class="search-label"
+                    >Göster
+                    <select id="alerts-filter">
+                      <option value="all">Tümü</option>
+                      <option value="unread">Okunmamış</option>
+                      <option value="bargain">Yalnızca fırsatlar</option>
+                    </select></label
+                  >
+                </div>
+                <div id="alerts-list" class="alert-list"></div>
+              </section>
+              <section class="panel matches-panel" id="matches-panel" hidden>
+                <div class="panel-head alerts-head">
+                  <div>
+                    <span class="eyebrow">UYGUN İLANLAR</span>
+                    <h2 id="matches-title">Uygun ilanlar</h2>
+                  </div>
+                  <button class="button button-secondary" id="matches-close" type="button">Kapat</button>
+                </div>
+                <div id="matches-list" class="alert-list"></div>
+              </section>
+            </div>
+            <aside>
+              <section class="panel">
+                <div class="panel-head">
+                  <span class="eyebrow">ARAMALARIM</span>
+                  <h2 id="searches-title">Kayıtlı aramalar</h2>
+                </div>
+                <div id="searches-list" class="search-cards"></div>
+              </section>
+              <section class="panel alert-settings">
+                <div class="panel-head">
+                  <span class="eyebrow">AYARLAR</span>
+                  <h2>Bildirim ayarları</h2>
+                </div>
+                <label class="check-row"
+                  ><input type="checkbox" id="alerts-desktop" /> Masaüstü bildirimi de göster (Chrome)</label
+                >
+                <p class="table-note" id="alerts-desktop-note">
+                  Bildirimler her zaman bu panele ve eklenti simgesindeki sayıya düşer. Masaüstü bildirimi için Chrome
+                  bir kez izin sorar.
+                </p>
+                <div class="quiet-row">
+                  <label class="search-label"
+                    >Sessiz saatler
+                    <select id="quiet-from" aria-label="Başlangıç saati"></select></label
+                  ><span>–</span
+                  ><label class="search-label"
+                    ><span class="sr-only">Bitiş saati</span>
+                    <select id="quiet-to" aria-label="Bitiş saati"></select
+                  ></label>
+                </div>
+                <p class="table-note">Sessiz saatlerde masaüstü bildirimi çıkmaz; bildirim yine panele düşer.</p>
+              </section>
+              <details class="panel alert-help">
+                <summary>Bildirimler nasıl çalışır?</summary>
+                <ul>
+                  <li>
+                    Oto Pusula sahibinden’e kendi başına bağlanmaz, sayfa açmaz ya da yenilemez. Bildirimler, senin
+                    açtığın bir arama sayfasında “Bu sayfayı analiz et”e bastığında, okunan ilanlardan çıkar.
+                  </li>
+                  <li>
+                    En kolayı: sahibinden’de aramanı (ör. 2016–2020 Passat, İstanbul) kur, popup’ta analiz et ve “Bu
+                    aramayı kaydet”e bas. Sonraki ziyaretlerinde yalnızca yeni ve indirimli ilanlar bildirilir.
+                  </li>
+                  <li>
+                    “Fırsat” işareti, ilanın aynı model ve yakın yıldaki ilanların tahmini ortasının en az %5 altında
+                    olduğu ve ağır hasar/tavan değişeni görünmediği anlamına gelir. Ekspertiz yerine geçmez.
+                  </li>
+                  <li>
+                    Bilgisayarın kapalıyken de haber almak istersen sahibinden hesabındaki arama kaydetme ve bildirim
+                    seçeneklerine bakabilirsin; o bildirimleri sahibinden gönderir, Oto Pusula’nın bir parçası değildir.
+                  </li>
+                  <li>Tüm aramalar ve bildirimler yalnızca bu bilgisayarda saklanır; SMS ya da e-posta gönderilmez.</li>
+                </ul>
+              </details>
+            </aside>
+          </div>
         </section>
 
         <section id="stock-view" class="view" hidden>
@@ -508,12 +624,47 @@
       </div>
     </dialog>
 
+    <dialog id="search-dialog" class="dialog">
+      <form id="search-form">
+        <div class="dialog-head">
+          <h2 id="search-dialog-title">Yeni arama</h2>
+          <button class="icon-button" id="search-close" aria-label="Kapat" type="button">×</button>
+        </div>
+        <label>Arama adı<input name="name" maxlength="80" placeholder="Örn. Müşteri için Passat" /></label>
+        <div class="form-grid">
+          <label>Marka<input name="brand" placeholder="Örn. Volkswagen" /></label
+          ><label>Model<input name="model" placeholder="Örn. Passat" /></label
+          ><label>Paket / motor<input name="trim" placeholder="Örn. 1.6 TDI Highline" /></label
+          ><label>Şehir<input name="city" placeholder="Örn. İstanbul" /></label
+          ><label>En düşük yıl<input name="yearMin" type="number" min="1980" max="2100" /></label
+          ><label>En yüksek yıl<input name="yearMax" type="number" min="1980" max="2100" /></label
+          ><label>En çok km<input name="kmMax" type="number" min="0" step="1000" /></label
+          ><label>Bütçe üst sınırı (₺)<input name="priceMax" type="number" min="0" step="10000" /></label
+          ><label>Bütçe alt sınırı (₺)<input name="priceMin" type="number" min="0" step="10000" /></label
+          ><label>Vites<input name="transmission" placeholder="Örn. Otomatik" /></label
+          ><label>Yakıt<input name="fuel" placeholder="Örn. Dizel" /></label
+          ><label
+            >sahibinden arama adresi<input name="url" type="url" placeholder="https://www.sahibinden.com/..."
+          /></label>
+        </div>
+        <label class="check-row"
+          ><input type="checkbox" name="dealsOnly" /> Yalnızca fırsatları bildir (piyasanın en az %5 altında)</label
+        >
+        <p class="table-note" id="search-error" hidden></p>
+        <div class="dialog-actions">
+          <button class="button button-secondary" id="search-cancel" type="button">Vazgeç</button
+          ><button class="button button-primary" type="submit">Kaydet</button>
+        </div>
+      </form>
+    </dialog>
+
     <script src="core-records.js"></script>
     <script src="core-csv.js"></script>
     <script src="core-price.js"></script>
     <script src="core-limits.js"></script>
     <script src="core-deal.js"></script>
     <script src="core.js"></script>
+    <script src="alerts.js"></script>
     <script src="open-gate.js"></script>
     <script src="catalog.js"></script>
     <script src="suggest.js"></script>
@@ -527,6 +678,7 @@
     <script src="remote-ai.js"></script>
     <script src="chat-history.js"></script>
     <script src="compare-ui.js"></script>
+    <script src="alerts-ui.js"></script>
     <script src="dashboard.js"></script>
   </body>
 </html>

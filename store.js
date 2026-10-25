@@ -6,6 +6,7 @@
   // geliştirme sunucusu) localStorage kullanılır. Kayıt biçimi ikisinde de aynı JSON metnidir.
   const KEY = 'otoPusula_v1';
   const core = root.OtoCore || (typeof require === 'function' ? require('./core.js') : null);
+  const alerts = root.OtoAlerts || (typeof require === 'function' ? require('./alerts.js') : null);
 
   const area = () => root.chrome?.storage?.local || null;
   // ready() sonrası chrome.storage'daki son metin; load() ve save() bunu eşzamanlı kullanır.
@@ -96,6 +97,9 @@
       contacts: [],
       phoneSaves: [],
       analyses: [],
+      searches: [],
+      alerts: [],
+      alertPrefs: alerts.normalizePrefs(),
       sample: false
     };
   }
@@ -122,6 +126,10 @@
           contacts: core.normalizeLog(parsed.contacts),
           phoneSaves: core.normalizeLog(parsed.phoneSaves),
           analyses: core.normalizeLog(parsed.analyses, 50),
+          // Kayıtlı aramalar ve panel bildirimleri (alerts.js). İlanı ya da araması silinmiş bildirim düşer.
+          searches: alerts.normalizeSearches(parsed.searches),
+          alerts: alerts.prune(parsed.alerts, parsed.searches, comparables),
+          alertPrefs: alerts.normalizePrefs(parsed.alertPrefs),
           sample: !!parsed.sample
         };
       }

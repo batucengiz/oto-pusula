@@ -3,7 +3,15 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 // core.js, konularına bölünmüş core-*.js dosyalarını birleştirir; tarayıcıdaki sırayla yüklenir.
-const CORE_FILES = ['core-records.js', 'core-csv.js', 'core-price.js', 'core-limits.js', 'core-deal.js', 'core.js'];
+const CORE_FILES = [
+  'core-records.js',
+  'core-csv.js',
+  'core-price.js',
+  'core-limits.js',
+  'core-deal.js',
+  'core.js',
+  'alerts.js'
+];
 
 // Testin kontrol ettiği saat: Date.now() ve new Date() clock.now'dan okur (başlangıç gerçek saattir).
 function fakeDate(clock) {

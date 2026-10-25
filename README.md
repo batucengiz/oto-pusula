@@ -20,6 +20,10 @@
 
 ![Piyasa ilanları](docs/screenshots/piyasa-ilanlari.png)
 
+**Bildirimler (7.16):** kayıtlı aramalara uyan yeni ve indirimli ilanlar, fırsat işareti, okunmamış sayısı; sağda Aramalarım ve bildirim ayarları
+
+![Bildirimler](docs/screenshots/bildirimler.png)
+
 **Koyu tema:** üst çubuktaki ay/güneş düğmesiyle açık ve koyu tema arasında geçilir; seçim yapılmazsa bilgisayarın ayarı izlenir. Popup da aynı temayı kullanır.
 
 ![Koyu tema](docs/screenshots/koyu-tema.png)
@@ -61,6 +65,7 @@
 - **Seç ve karşılaştır (panel):** Piyasa ilanlarında 2–5 kayıtlı ilanı seçip yan yana tablo ve yapay zekanın “hangisi daha mantıklı, neden?” yorumunu alırsınız. Yapay zeka yoksa tablo yine görünür.
 - **Satıcıya sorulacaklar ve teklif gerekçesi:** İlan sayfasında, ilandaki eksik ve riskli noktalardan (şemasız kaporta, değişen parça, yüksek km, yoğun kullanım, çelişkili beyan) satıcıya sorulacak sorular listelenir; pazarlık önerisinin yanında gerekçeleri (piyasaya göre fark, benzerlerin kaçta kaçının daha ucuz olduğu, değişen parça, ilanda kalma süresi) yazılır. Bunlar yapay zeka olmadan da görünür.
 - **Satıcı sinyalleri (7.7):** Takip ettiğiniz ilanda **ani fiyat düşüşü** (kısa sürede tek seferde %5+ indirim: satıcı acil satıyor olabilir), **km düşürülmesi**, yaşına göre çok düşük km, **yeniden yayınlanan ilan** (aynı araç yeni ilan numarasıyla gelince ilk tarih ve ilk fiyat) ve ilan metnindeki **tramer tutarı** uyarı olarak gösterilir. Hepsi kendi kayıtlarınızdan hesaplanır; sahibinden'e ek istek atılmaz.
+- **Kayıtlı arama ve panel bildirimleri (7.16):** Aradığınız aracı (marka, model, paket/motor, yıl aralığı, en çok km, bütçe, vites, yakıt, şehir) panelin **Bildirimler** sayfasında bir adla kaydedersiniz; ya da sahibinden'de aramanızı kurup popup'ta analiz ettikten sonra **Bu aramayı kaydet**e basarsınız (marka/model sayfadaki ilanlardan çıkarılır). Sonra bir arama ya da ilan sayfasını analiz ettiğinizde, kriterlere uyan **daha önce görmediğiniz** ilanlar ve **fiyatı düşenler** bildirim olur: popup'ta "“Passat” aramana uyan 3 yeni ilan; biri piyasanın %8 altında" özeti, panelde zil ve okunmamış sayısı, eklenti simgesinde sayı. Piyasanın en az %5 altındaki fırsat adayları "Fırsat" olarak işaretlenir ve üstte durur; isterseniz arama "yalnızca fırsatları bildir"e alınır. Her aramanın kartında uygun ilan, fırsat ve yeni bildirim sayısı görünür; **Uygun ilanlar** listesi kayıtlı ilanlarınızdan anında süzülür. Arama sessize alınabilir. İsteğe bağlı **masaüstü bildirimi** (Chrome bir kez izin sorar) ve **sessiz saatler** (ör. 22:00–08:00, bu sürede yalnızca panele düşer) vardır. Bildirimler anlık değildir: eklenti sahibinden'i arka planda kontrol etmez, sayfa açmaz ya da yenilemez; siz aramanızı açıp analiz ettiğinizde hesaplanır. SMS ya da e-posta gönderilmez. İlanlar bildirimden de ortak açma sınırıyla açılır.
 - **Son ziyaretten beri (7.8):** Aynı arama sayfasını tekrar analiz ettiğinizde önceki okumaya göre yeni gelen, indirim/zam yapan ve artık görünmeyen ilanlar sayılır; en büyük indirimler tek tıkla açılır. Eklenti kendi kendine kontrol etmez, siz sayfayı açıp analiz ettiğinizde hesaplanır.
 - **Profesyonel ekspertiz raporu (7.14):** Renk kodlu araç şeması, parça parça şema / ilan yazısı / sonuç / değer etkisi tablosu, şasi-direk-podye-marşpiyel yapısal kontrolü, "hatasız" iddiasının şema ve tramerle çapraz kontrolü, parçaya özel satıcı soruları ve ekspertizde baktırılacaklar.
 - **Ekspertiz yorumu (7.13):** İlan sayfasını analiz edince popup, ilan yazısındaki ve sayfadaki ekspertiz bilgisini parça parça okur, satıcının boya/değişen şemasıyla karşılaştırır ve risk seviyesi, çelişkiler ve kaba pazarlık etkisiyle "Ekspertiz yorumu" kartı gösterir. Kullanıcının bir şey yüklemesi gerekmez. Rapor yalnızca fotoğrafsa ve Gemini anahtarı kayıtlıysa, rapor fotoğrafını büyütüp tek tıkla ekran görüntüsünü yorumlatabilirsiniz (sahibinden'e istek atılmaz).
@@ -113,6 +118,9 @@ core.js     (fiyat motoru: eşleştirme, düzeltme, ortanca/aralık, güven; fiy
     │
     ▼
 store.js ◀── dashboard.js  (panel: piyasa, stok, karşılaştırmalar; chrome.storage değişikliğiyle canlı güncellenir)
+
+alerts.js    (kayıtlı aramalar: kriter eşleştirme, analizde yeni/indirimli ilan bildirimi, sessiz saatler; ağ isteği yok)
+alerts-ui.js (panelde Bildirimler görünümü, zil ve okunmamış sayısı, simge rozeti)
 
 expertise-ui.js (renk kodlu araç şeması, parça ve yapısal kontrol tabloları; popup ve rapor sayfası)
 expertise.js (ekspertiz yorumu: ilan yazısı ve sayfadaki ekspertiz bölümü → parça parça bulgu, şema çelişkisi, risk, pazarlık etkisi; ağ isteği yok)
@@ -196,6 +204,7 @@ Sayfanın kendi betikleri çalıştırılmaz, ağ isteği yapılmaz. `fixtures/`
 - Chrome Web Mağazası yayını (gizlilik politikası hazır: docs/GIZLILIK.md)
 - Mobil uyumlu popup ve koyu tema
 - arabam.com gibi başka ilan siteleri için okuyucu (aynı fiyat motoru ile)
+- Anlık bildirim, SMS/e-posta: yalnızca sahibinden ile resmî bir veri anlaşması ya da API olursa (bkz. docs/BILDIRIM-YOL-HARITASI.md)
 
 ## Geliştirici
 

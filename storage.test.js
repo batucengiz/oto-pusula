@@ -3,7 +3,15 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
-const CORE_FILES = ['core-records.js', 'core-csv.js', 'core-price.js', 'core-limits.js', 'core-deal.js', 'core.js'];
+const CORE_FILES = [
+  'core-records.js',
+  'core-csv.js',
+  'core-price.js',
+  'core-limits.js',
+  'core-deal.js',
+  'core.js',
+  'alerts.js'
+];
 const KEY = 'otoPusula_v1';
 
 function fakeLocalStorage(initial = {}) {

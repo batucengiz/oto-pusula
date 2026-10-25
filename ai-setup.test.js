@@ -157,10 +157,11 @@ test('kurulum: pano izni yoksa bir kez istenir; izinle sekmeye dönünce panodak
   assert.ok(reads >= 3);
 });
 
-test('pano izni isteğe bağlıdır: kurulumda zorunlu izin eklenmez', () => {
+test('pano ve masaüstü bildirimi izinleri isteğe bağlıdır: kurulumda zorunlu izin eklenmez', () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, 'manifest.json'), 'utf8'));
-  assert.deepEqual(manifest.optional_permissions, ['clipboardRead']);
+  assert.deepEqual(manifest.optional_permissions, ['clipboardRead', 'notifications']);
   assert.equal(manifest.permissions.includes('clipboardRead'), false);
+  assert.equal(manifest.permissions.includes('notifications'), false);
 });
 
 test('yeni "AQ." anahtarları kabul edilir; proje adı ya da eksik anahtar açıkça söylenir', async () => {
