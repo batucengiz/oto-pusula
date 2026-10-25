@@ -15,6 +15,7 @@
     checklist = [],
     textFlags = [],
     expertise = [],
+    reading = null,
     pace = [],
     today
   }) {
@@ -58,6 +59,7 @@
       }))
     ];
     return {
+      reading,
       title: name,
       subtitle: record.title || '',
       url: record.url || '',
@@ -88,16 +90,62 @@
     for (const section of report.sections) {
       lines.push('', section.heading.toLocaleUpperCase('tr-TR'));
       for (const item of section.items) lines.push(`${section.check ? '☐' : '•'} ${item}`);
+      if (section.id === 'expertise' && report.reading?.rows) lines.push(...partLines(report.reading));
     }
     lines.push('', 'Satıcı beyanı ve ilan verisinden hazırlanmıştır; ekspertiz ve resmi değerleme yerine geçmez.');
     return lines.join('\n');
   }
 
-  // Popup'tan rapor sayfasına ilan kimliği, açıklama uyarıları ve ekspertiz yorumu (kaydedilmez) adres parçasıyla taşınır.
-  function encodeHash(id, textFlags = [], expertise = []) {
+  const STATUS = {
+    original: 'orijinal',
+    local: 'lokal boyalı',
+    painted: 'boyalı',
+    changed: 'değişen',
+    refit: 'sök-tak',
+    minor: 'çizik/göçük'
+  };
+
+  // Düz metin raporda parça parça kaporta tablosu (yalnızca işaretli parçalar ve çelişkiler).
+  function partLines(reading) {
+    const marked = reading.rows.filter(row => (row.final && row.final !== 'original') || row.conflict);
+    if (!marked.length) return [];
+    return [
+      'Parça durumu (şema / ilan yazısı):',
+      ...marked.map(
+        row =>
+          `  - ${row.name}: ${STATUS[row.final] || 'bilinmiyor'} (şema: ${STATUS[row.diagram] || '—'}, ilan yazısı: ${STATUS[row.text] || '—'})${row.conflict ? ' ÇELİŞKİ' : ''}`
+      )
+    ];
+  }
+
+  // Ekspertiz yorumunun parçaya özel soruları ve kontrolleri genel listelerin başına eklenir (tekrarsız).
+  // Genel listede, ekspertiz listesinin zaten kapsadığı konudaki maddeler atlanır (ör. iki ayrı "neden boyandı").
+  const TOPICS = [
+    /neden boyan/i,
+    /neden değişti|değişen parça/i,
+    /tramer/i,
+    /ekspertize? (?:götür|izin)|kurumsal ekspertiz/i,
+    /boya kalınlığı|macun/i,
+    /OBD|arıza tara/i
+  ];
+  function withExpertise(questions = [], checklist = [], reading = null) {
+    const merge = (first, rest) => [
+      ...new Set([
+        ...first,
+        ...rest.filter(item => !TOPICS.some(topic => topic.test(item) && first.some(own => topic.test(own))))
+      ])
+    ];
+    return {
+      questions: merge(reading?.questions || [], questions).slice(0, 12),
+      checklist: merge(reading?.inspection || [], checklist).slice(0, 16)
+    };
+  }
+
+  // Popup'tan rapor sayfasına ilan kimliği, açıklama uyarıları ve ekspertiz yorumu (kaydedilmez) adres parçasıyla
+  // taşınır. Yorum rapor sayfasında OtoExpertise.sanitize ile yeniden doğrulanır.
+  function encodeHash(id, textFlags = [], reading = null) {
     const flags = textFlags.slice(0, 8).map(({ label, level, text, quote }) => ({ label, level, text, quote }));
-    const lines = expertise.slice(0, 16).map(({ level, text }) => ({ level, text }));
-    return `#${encodeURIComponent(JSON.stringify({ id, flags, ...(lines.length ? { expertise: lines } : {}) }))}`;
+    return `#${encodeURIComponent(JSON.stringify({ id, flags, ...(reading ? { reading } : {}) }))}`;
   }
 
   function decodeHash(hash) {
@@ -115,16 +163,18 @@
             text: text(flag.text),
             quote: text(flag.quote)
           })),
-        expertise: (Array.isArray(value?.expertise) ? value.expertise.slice(0, 16) : [])
-          .filter(line => line && typeof line.text === 'string' && line.text)
-          .map(line => ({ level: level(line.level, ['bad', 'warn', 'good', 'info']), text: text(line.text) }))
+        // Ham yorum: rapor sayfası OtoExpertise.sanitize'dan geçirir. Aşırı büyük veri alınmaz.
+        reading:
+          value?.reading && typeof value.reading === 'object' && JSON.stringify(value.reading).length < 60000
+            ? value.reading
+            : null
       };
     } catch {
-      return { id: '', flags: [], expertise: [] };
+      return { id: '', flags: [], reading: null };
     }
   }
 
-  const api = { build, toText, encodeHash, decodeHash };
+  const api = { build, toText, encodeHash, decodeHash, withExpertise };
   root.OtoReport = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);

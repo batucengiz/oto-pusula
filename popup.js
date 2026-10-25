@@ -95,9 +95,9 @@
     return nodes;
   }
 
-  function openReport(record, textFlags = [], expertise = []) {
+  function openReport(record, textFlags = [], reading = null) {
     chrome.tabs.create({
-      url: chrome.runtime.getURL('report.html') + globalThis.OtoReport.encodeHash(record.id, textFlags, expertise)
+      url: chrome.runtime.getURL('report.html') + globalThis.OtoReport.encodeHash(record.id, textFlags, reading)
     });
   }
 
@@ -110,13 +110,13 @@
   }
 
   // "Ekspertize götür" raporu: yazdırılabilir sayfa (yeni sekmede) veya WhatsApp'a yapıştırılacak düz metin.
-  function reportNodes({ record, result, body, deal, advice, textFlags, paceLines, expertise = [] }) {
+  function reportNodes({ record, result, body, deal, advice, textFlags, paceLines, expertise = [], reading = null }) {
     const report = globalThis.OtoReport;
     const box = element('div', 'report-actions');
     const open = element('button', 'secondary', 'Ekspertiz raporunu aç');
     open.type = 'button';
     open.title = 'Fiyat, uyarılar, satıcı soruları ve ekspertiz listesi tek sayfada; yazdırılabilir.';
-    open.addEventListener('click', () => openReport(record, textFlags, expertise));
+    open.addEventListener('click', () => openReport(record, textFlags, reading));
     const copy = element('button', 'secondary', 'Raporu kopyala');
     copy.type = 'button';
     copy.addEventListener('click', async () => {
@@ -127,10 +127,14 @@
           body,
           deal,
           advice,
-          questions: assistant.sellerQuestions({ record, body, advice }),
-          checklist: assistant.inspectionChecklist({ record, body, advice, textFlags }),
+          ...report.withExpertise(
+            assistant.sellerQuestions({ record, body, advice }),
+            assistant.inspectionChecklist({ record, body, advice, textFlags }),
+            reading
+          ),
           textFlags,
           expertise,
+          reading,
           pace: paceLines,
           today: core.localDate()
         })
@@ -223,9 +227,10 @@
         );
       // Ekspertiz yorumu: ilan yazısındaki ve sayfadaki ekspertiz bilgisi, şemayla karşılaştırılarak kendiliğinden yorumlanır.
       let expertise = [];
+      let reading = null;
       try {
         if (raw?.kind === 'detail' && globalThis.OtoExpertise) {
-          const reading = globalThis.OtoExpertise.interpret({
+          reading = globalThis.OtoExpertise.interpret({
             description: raw.description,
             pageReport: raw.expertiseText,
             title: raw.title,
@@ -238,6 +243,7 @@
         }
       } catch {
         expertise = [];
+        reading = null;
       }
       const deal = core.dealScore(record, result);
       if (deal)
@@ -267,21 +273,22 @@
           const reasons = assistant.offerReasons({ record, result, body, advice });
           if (reasons.length) nodes.push(element('p', 'muted', `Gerekçe: ${reasons.join(' ')}`));
         }
-        if (raw?.kind === 'detail' && assistant)
+        if (raw?.kind === 'detail' && assistant) {
+          // Ekspertiz yorumundan gelen parçaya özel sorular ve kontroller genel listelerin başına eklenir.
+          const questions = assistant.sellerQuestions({ record, body, advice });
+          const checklist = assistant.inspectionChecklist({ record, body, advice, textFlags });
+          const lists = globalThis.OtoReport?.withExpertise(questions, checklist, reading) || { questions, checklist };
           nodes.push(
-            sellerQuestionNodes(assistant.sellerQuestions({ record, body, advice })),
-            listNodes(
-              'inspection-list',
-              'Ekspertiz kontrol listesi',
-              assistant.inspectionChecklist({ record, body, advice, textFlags })
-            )
+            sellerQuestionNodes(lists.questions),
+            listNodes('inspection-list', 'Ekspertiz kontrol listesi', lists.checklist)
           );
+        }
       } catch {
         /* ek bilgi gösterilemedi */
       }
       try {
         if (raw?.kind === 'detail' && assistant && globalThis.OtoReport)
-          nodes.push(reportNodes({ record, result, body, deal, advice, textFlags, paceLines, expertise }));
+          nodes.push(reportNodes({ record, result, body, deal, advice, textFlags, paceLines, expertise, reading }));
       } catch {
         /* rapor düğmeleri gösterilemedi */
       }
@@ -441,9 +448,23 @@
     );
     const list = element('ul');
     rest.forEach(line => list.append(element('li', line.level, line.text)));
+    // Üstte renk kodlu araç şeması ve lejant; şema çizilemezse (eski tarayıcı vb.) yalnızca metin gösterilir.
+    const top = element('div', 'ep-top');
+    const side = element('div', 'ep-side');
+    side.append(element('p', 'expertise-head', head.text.replace(/^Risk: [^.]+\.\s*/, '')));
+    try {
+      const ui = globalThis.OtoExpertiseUI;
+      if (ui && reading.rows && document.createElementNS) {
+        top.append(ui.diagram(document, reading));
+        side.append(ui.legend(document, reading));
+      }
+    } catch {
+      /* şema çizilemedi */
+    }
+    top.append(side);
     details.append(
       summary,
-      element('p', 'expertise-head', head.text.replace(/^Risk: [^.]+\.\s*/, '')),
+      top,
       list,
       element(
         'p',

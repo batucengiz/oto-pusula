@@ -320,3 +320,114 @@ small {
   display: inline;
   margin: 0;
 }
+
+/* Ekspertiz şeması (expertise-ui.js): renk kodları Türkiye'deki ekspertiz raporlarındaki alışılmış düzene göre. */
+.ep-top {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.ep-car {
+  flex: 0 0 auto;
+  width: 104px;
+  height: auto;
+}
+.ep-side {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.ep-part rect {
+  stroke: #8a99aa;
+  stroke-width: 1.5;
+}
+.ep-original rect,
+.ep-legend .ep-original .ep-swatch {
+  fill: #e7edf3;
+  background: #e7edf3;
+}
+.ep-local rect,
+.ep-legend .ep-local .ep-swatch {
+  fill: #f6d55c;
+  background: #f6d55c;
+}
+.ep-painted rect,
+.ep-legend .ep-painted .ep-swatch {
+  fill: #f39c4a;
+  background: #f39c4a;
+}
+.ep-changed rect,
+.ep-legend .ep-changed .ep-swatch {
+  fill: #e5534b;
+  background: #e5534b;
+}
+.ep-refit rect,
+.ep-minor rect,
+.ep-legend .ep-refit .ep-swatch {
+  fill: #5aa9e6;
+  background: #5aa9e6;
+}
+.ep-unknown rect,
+.ep-legend .ep-unknown .ep-swatch {
+  fill: #b9c3cd;
+  background: #b9c3cd;
+  opacity: 0.55;
+}
+.ep-unknown rect {
+  stroke-dasharray: 3 3;
+}
+.ep-conflict rect {
+  stroke: #c0262d;
+  stroke-width: 3.5;
+}
+.ep-mark {
+  fill: #ffffff;
+  font: 700 18px sans-serif;
+  paint-order: stroke;
+  stroke: #c0262d;
+  stroke-width: 3px;
+}
+.ep-glass {
+  fill: #9fb7cc;
+  opacity: 0.45;
+}
+.ep-wheel {
+  fill: #2b2f36;
+}
+.ep-front {
+  fill: #8a99aa;
+  font: 700 11px sans-serif;
+  letter-spacing: 1px;
+}
+.ep-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+}
+.ep-legend li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+}
+.ep-legend li::before {
+  display: none;
+}
+.ep-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 1px solid #8a99aa;
+  border-radius: 3px;
+}
+.ep-conflict-key .ep-swatch {
+  border: 2px solid #c0262d;
+  color: #c0262d;
+  font: 700 10px/9px sans-serif;
+  font-style: normal;
+  text-align: center;
+}

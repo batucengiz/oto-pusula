@@ -2,6 +2,15 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.14.0 — 2026-10-25
+
+- Profesyonel ekspertiz raporu: popup'taki "Ekspertiz yorumu" kartında ve yazdırılabilir raporda üstten renk kodlu araç şeması (orijinal, lokal boyalı, boyalı, değişen; şema ile ilan yazısının çeliştiği parçalar kırmızı çerçeve ve "!" ile).
+- Rapor sayfasında parça tablosu (13 parça: şema / ilan yazısı / sonuç / değer etkisi) ve yapısal kontrol tablosu (şasi, direkler, podye, marşpiyel, bagaj havuzu, iç çamurluk, ön panel: temiz / işlem görmüş / işlemli / bilgi yok).
+- "Hatasız" iddiasının çapraz kontrolü: şema, ilan yazısının geri kalanı, yapısal bulgular ve tramer birlikte değerlendirilir; sonuç "tutarlı", "şüpheli" ya da "tutmuyor" olarak gerekçeleriyle yazılır. Boyasız ama tramerli ilanda küçük tutar şüphe, çok büyük tutar çelişki sayılır (cam, far, tampon gibi boyasız onarımların da tramere yazıldığı belirtilir).
+- Değer etkisi parça bazında: değişen tavan ve arka çamurluk (kaynaklı parçalar) ağır, tampon hafif; yapısal işlemde en ağır bölge tam, diğerleri yarım sayılır. Oranlar kaba piyasa kabulüdür, resmi değer kaybı hesabı değildir.
+- Parçaya özel satıcı soruları ("Sağ ön çamurluk neden değişti, orijinal mi yan sanayi mi?", "ilan yazısında değişen, şemada orijinal: hangisi doğru?") ve ekspertizde baktırılacaklar (boyalı parçalarda boya kalınlığı ölçümü ve mikron aralıkları, değişen parçalarda cıvata/macun/etiket, ön veya arka darbe ihtimalinde şasi uçları ve panel, tavanda direkler). Genel listedeki aynı konulu maddeler tekrar edilmez.
+- İlan yazısında "1.4", "18.500" gibi ondalık noktalar artık cümle sonu sayılmıyor.
+
 ## 7.13.0 — 2026-10-25
 
 - Ekspertiz yorumu: ilan sayfasında "Bu sayfayı analiz et"e basınca popup'ta kendiliğinden "Ekspertiz yorumu" kartı çıkar. İlan yazısındaki ekspertiz bilgisi ("sağ ön çamurluk değişen, kaput boyalı, şasi temiz, motor sorunsuz", "Boyalı parçalar: …", "boyasız değişensiz", "2 parça boyalı") ve sayfada görünen bir ekspertiz bölümü varsa o, parça parça okunur.
