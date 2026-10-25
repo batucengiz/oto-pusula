@@ -1038,6 +1038,18 @@
       status.textContent = '';
       chat.section.classList?.add('started');
       log.append(bubble('me', question));
+      const chatter = assistant.smallTalk(question, listMode ? assistant.LIST_SUGGESTIONS : assistant.SUGGESTIONS);
+      if (chatter) {
+        // Sohbet mesajı: yapay zekaya gitmez, hata vermez; örnek sorular tıklanabilir çip olarak altta zaten durur.
+        const node = element('div', 'chat-msg ai');
+        const bubbleNode = element('div', 'chat-ai chat-rich');
+        bubbleNode.append(...richNodes(chatter, () => null));
+        node.append(bubbleNode);
+        log.append(node);
+        setBusy(false);
+        input.focus?.();
+        return;
+      }
       const holder = typing();
       log.append(holder);
       const reply = holder.children[0];

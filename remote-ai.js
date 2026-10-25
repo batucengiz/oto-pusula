@@ -5,9 +5,16 @@
   'use strict';
 
   const KEY_STORAGE = 'otoPusula_aiKey';
-  const MODEL = 'gemini-flash-latest';
-  const MODEL_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}`;
+  const BASE = 'https://generativelanguage.googleapis.com/v1beta';
+  // Google model adlarını zamanla kapatabilir; sırayla denenir, çalışan oturum boyunca hatırlanır. Hiçbiri yoksa
+  // Google'a "hangi modeller var?" diye sorulup en yeni flash modeli seçilir.
+  const MODELS = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+  const MODEL = MODELS[0];
+  const MODEL_URL = `${BASE}/models/${MODEL}`;
   const ENDPOINT = `${MODEL_URL}:generateContent`;
+  const endpointFor = model => `${BASE}/models/${model}:generateContent`;
+  let chosenModel = '';
+  let queryAuth = false;
   const MAX_TURNS = 8;
   const RETRY_MS = 1200;
   const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -37,11 +44,18 @@
   }
 
   // Anahtar önce başlıkta (x-goog-api-key) gönderilir; Google bunu reddederse adres parametresiyle (?key=) bir kez
-  // daha denenir. Hangisi çalıştıysa oturum boyunca o kullanılır.
+  // daha denenir. Hangisi çalıştıysa sonraki isteklerde o kullanılır.
   const REJECTED = new Set([400, 401, 403]);
   function keyed(url, init, key, inQuery) {
     if (!inQuery) return [url, { ...init, headers: { ...init.headers, 'x-goog-api-key': key } }];
-    return [`${url}?key=${encodeURIComponent(key)}`, init];
+    return [`${url}${url.includes('?') ? '&' : '?'}key=${encodeURIComponent(key)}`, init];
+  }
+  async function sendKeyed(url, init, key, fetcher) {
+    const first = await fetcher(...keyed(url, init, key, queryAuth));
+    if (queryAuth || !REJECTED.has(first.status)) return first;
+    const second = await fetcher(...keyed(url, init, key, true));
+    if (second.ok) queryAuth = true;
+    return second.ok ? second : first;
   }
 
   function loadKey(storage) {
@@ -67,63 +81,134 @@
     }
   }
 
-  function errorMessage(status) {
-    if (status === 400 || status === 401 || status === 403)
+  const withCode = (text, status) => (status ? `${text} (HTTP ${status})` : text);
+  const KEY_PROBLEM = /api key|api_key|permission|unauthenticated|credential/i;
+
+  function errorMessage(status, detail = '') {
+    if (status === 429) return 'API kullanım sınırına ulaşıldı. Bir dakika bekleyip tekrar deneyin.';
+    if (status === 404)
+      return withCode(
+        'Google bu yapay zeka modelini kapatmış olabilir. Eklentinin en son sürümünü indirip güncelleyin.',
+        status
+      );
+    if (status >= 500)
+      return withCode('Google’ın yapay zekası şu an yoğun. Birkaç saniye sonra tekrar deneyin.', status);
+    if (status === 400 && /location|region|not supported/i.test(detail))
+      return withCode('Gemini bulunduğunuz bölgede kullanılamıyor görünüyor.', status);
+    if (status === 401 || status === 403 || (status === 400 && (!detail || KEY_PROBLEM.test(detail))))
       return 'API anahtarı kabul edilmedi. Anahtarı kontrol edin ya da silip yeniden girin.';
-    if (status === 429) return 'API kullanım sınırına ulaşıldı. Biraz sonra tekrar deneyin.';
-    return 'Bulut yapay zekası şu an cevap veremedi. Biraz sonra tekrar deneyin.';
+    return withCode('Bulut yapay zekası şu an cevap veremedi. Biraz sonra tekrar deneyin.', status);
   }
 
-  function remoteError(message) {
+  function remoteError(message, status = 0, detail = '') {
     const error = new Error(message);
     error.name = 'RemoteAIError';
+    error.status = status;
+    error.detail = detail;
     return error;
   }
 
-  // Anahtarı soru sormadan dener: model bilgisini ister (cevap üretmez, kota harcamaz).
+  // Hata gövdesindeki sebep (anahtar içermez) konsola yazılır, kullanıcıya sebebe uygun Türkçe mesaj gösterilir.
+  async function failure(response) {
+    let detail = '';
+    try {
+      const body = typeof response.json === 'function' ? await response.json() : null;
+      detail = [body?.error?.status, body?.error?.message].filter(Boolean).join(': ');
+    } catch {
+      /* gövde okunamazsa yalnızca durum kodu kullanılır */
+    }
+    detail = detail.replace(/AIza[\w-]+|AQ\.[\w.-]+/g, '…').slice(0, 300);
+    try {
+      console.warn(`[Oto Pusula] Gemini HTTP ${response.status}${detail ? ` ${detail}` : ''}`);
+    } catch {
+      /* konsol yoksa sessizce geçilir */
+    }
+    return remoteError(errorMessage(response.status, detail), response.status, detail);
+  }
+
+  // Google'ın bu anahtar için sunduğu en yeni flash modelleri (yalnızca generateContent destekleyenler).
+  async function discoverModels(key, fetcher, skip) {
+    try {
+      const response = await sendKeyed(`${BASE}/models?pageSize=200`, { method: 'GET', headers: {} }, key, fetcher);
+      if (!response.ok) return [];
+      const list = (await response.json())?.models || [];
+      return list
+        .filter(item => (item.supportedGenerationMethods || []).includes('generateContent'))
+        .map(item => /^models\/(gemini-(\d+(?:\.\d+)?)-flash(-lite)?)$/.exec(item.name || ''))
+        .filter(match => match && !skip.has(match[1]))
+        .sort((x, y) => Number(Boolean(x[3])) - Number(Boolean(y[3])) || Number(y[2]) - Number(x[2]))
+        .slice(0, 3)
+        .map(match => match[1]);
+    } catch {
+      return [];
+    }
+  }
+
+  // Bir generateContent isteği: kayıtlı model, sonra yedek modeller, en son Google'ın model listesi. Yalnızca 404
+  // (model yok) bir sonraki modele geçirir; diğer hatalar olduğu gibi döner.
+  async function generate(key, body, fetcher, signal) {
+    const init = { method: 'POST', signal, headers: { 'Content-Type': 'application/json' }, body };
+    const tried = new Set();
+    let last;
+    const attempt = async model => {
+      tried.add(model);
+      last = await sendKeyed(endpointFor(model), init, key, fetcher);
+      if (last.ok) chosenModel = model;
+      return last.status !== 404;
+    };
+    for (const model of [chosenModel, ...MODELS]) {
+      if (model && !tried.has(model) && (await attempt(model))) return last;
+    }
+    for (const model of await discoverModels(key, fetcher, tried)) {
+      if (await attempt(model)) return last;
+    }
+    return last;
+  }
+
+  // Anahtarı denemek için çok kısa gerçek bir istek atılır (models listesi anahtar geçerli olsa da modeller
+  // kapalıysa başarılı görünürdü). Kota doluysa (429) anahtar yine de geçerlidir.
   async function testKey(key, fetcher = root.fetch?.bind(root)) {
     const clean = normalizeKey(key);
     if (!clean) throw remoteError(`Bu bir Gemini anahtarına benzemiyor. ${KEY_HINT}`);
     let response;
     try {
-      response = await fetcher(...keyed(MODEL_URL, { method: 'GET' }, clean, false));
-      if (REJECTED.has(response.status)) response = await fetcher(...keyed(MODEL_URL, { method: 'GET' }, clean, true));
+      response = await generate(
+        clean,
+        JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: 'Merhaba' }] }],
+          generationConfig: { maxOutputTokens: 8 }
+        }),
+        fetcher
+      );
     } catch {
       throw remoteError('Google’a bağlanılamadı. İnternet bağlantınızı kontrol edin.');
     }
     if (response.ok || response.status === 429) return clean;
-    if (response.status === 400 || response.status === 401 || response.status === 403)
-      throw remoteError('Google bu anahtarı kabul etmedi. AI Studio’dan anahtarı yeniden kopyalayıp yapıştırın.');
-    throw remoteError(errorMessage(response.status));
+    const error = await failure(response);
+    if (/anahtarı kabul edilmedi/.test(error.message))
+      throw remoteError(
+        'Google bu anahtarı kabul etmedi. AI Studio’dan anahtarı yeniden kopyalayıp yapıştırın.',
+        error.status,
+        error.detail
+      );
+    throw error;
   }
 
   // LanguageModel oturumuyla aynı biçimde (prompt / destroy) çalışan, konuşma geçmişini tutan oturum.
   function createSession(key, systemText, fetcher = root.fetch?.bind(root)) {
     const history = [];
     let closed = false;
-    let inQuery = false;
     return {
       remote: true,
       async prompt(text, { signal } = {}) {
         if (closed) throw new Error('Oturum kapalı.');
         const contents = [...history, { role: 'user', parts: [{ text }] }];
-        const init = {
-          method: 'POST',
-          signal,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: systemText }] },
-            contents,
-            generationConfig: { temperature: 0.3, maxOutputTokens: 1200 }
-          })
-        };
-        const send = async () => {
-          const first = await fetcher(...keyed(ENDPOINT, init, key, inQuery));
-          if (inQuery || !REJECTED.has(first.status)) return first;
-          const second = await fetcher(...keyed(ENDPOINT, init, key, true));
-          if (second.ok) inQuery = true;
-          return second.ok ? second : first;
-        };
+        const body = JSON.stringify({
+          systemInstruction: { parts: [{ text: systemText }] },
+          contents,
+          generationConfig: { temperature: 0.3, maxOutputTokens: 1200 }
+        });
+        const send = () => generate(key, body, fetcher, signal);
         let response;
         // Google'ın geçici yoğunluk hatası (5xx) ya da kopan bağlantıda bir kez daha denenir.
         for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -136,7 +221,7 @@
           }
           await wait(RETRY_MS);
         }
-        if (!response.ok) throw remoteError(errorMessage(response.status));
+        if (!response.ok) throw await failure(response);
         let data;
         try {
           data = await response.json();
@@ -204,6 +289,7 @@
     MODEL,
     MODEL_URL,
     ENDPOINT,
+    MODELS,
     KEY_HINT,
     normalizeKey,
     findKey,
