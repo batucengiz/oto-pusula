@@ -283,7 +283,7 @@
       'Kaporta bilgisi satıcı beyanıdır; gerektiğinde ekspertiz ve tramer kaydı öner. Kesin satın al / alma demek yerine artıları ve riskleri söyle.',
       'Birden çok parçalı ya da karmaşık sorularda soruyu parçalara ayır ve her parçaya kısa maddelerle cevap ver; bir kısmını bilmiyorsan diğer kısımları yine cevapla.',
       ...EXPERT_RULES,
-      'Araçlarla ilgisi olmayan konulardaki soruları kibarca geri çevir.',
+      'Selam, “naber”, teşekkür gibi kısa sohbet mesajlarına tek kısa, sıcak cümleyle karşılık ver ve 2-3 örnek araba sorusu öner. Araçlarla ilgisi olmayan diğer konularda (siyaset, ödev, kod, tarif gibi) cevap verme; tek cümleyle yalnızca araba ve ilanlar konusunda yardımcı olabildiğini söyle ve örnek sorular öner. Bunu asla hata gibi sunma.',
       '',
       'İLAN BİLGİLERİ:',
       ...lines.map(line => `- ${line}`)
@@ -509,6 +509,28 @@
     return !['RemoteAIError', 'NotAllowedError', 'TimeoutError', 'AbortError'].includes(error?.name);
   }
 
+  // "Selam", "naber", "teşekkürler" gibi kısa sohbet mesajları yapay zekaya gitmeden, hata vermeden, örnek sorularla
+  // karşılanır; hem yerleşik model hem Gemini için aynıdır.
+  const SMALL_TALK =
+    /^(selam(lar)?|slm|merhaba(lar)?|mrb|meraba|hey|hello|hi|naber|nbr|ne haber|nasılsın|nasılsınız|napıyon|ne yapıyorsun|günaydın|iyi günler|iyi akşamlar|iyi geceler|teşekkürler|teşekkür ederim|tşk|sağ ol|sağol|eyvallah|tamam|tamamdır|ok|okey|peki|süper|harika)( (abi|kardeş|hocam|dostum|asistan|usta|canım|yapay zeka|nasılsın|nasılsınız|çok))*$/;
+  function smallTalk(value, examples = SUGGESTIONS) {
+    const text = String(value ?? '')
+      .toLocaleLowerCase('tr-TR')
+      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!text || text.length > 40 || !SMALL_TALK.test(text)) return '';
+    const greeting = /teşekkür|tşk|sağ ?ol|eyvallah/.test(text)
+      ? 'Rica ederim!'
+      : /^(tamam|ok|okey|peki|süper|harika)/.test(text)
+        ? 'Süper!'
+        : 'Merhaba! İyiyim, teşekkürler.';
+    return `${greeting} Ben araba ve ilan asistanıyım. Şunları sorabilirsiniz:\n${examples
+      .slice(0, 4)
+      .map(example => `- ${example}`)
+      .join('\n')}`;
+  }
+
   function question(value) {
     return clean(value, MAX_QUESTION);
   }
@@ -671,6 +693,7 @@
     kmVerdict,
     compactFacts,
     retryable,
+    smallTalk,
     withContext,
     inspectionChecklist,
     COMPARE_MIN,

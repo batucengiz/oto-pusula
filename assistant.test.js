@@ -494,7 +494,7 @@ test('popup: yerleşik yapay zeka yokken kurulum kartı; anahtar denenmeden kayd
   });
   await settle();
   assert.ok(prevented);
-  assert.deepEqual(requests, [{ url: remoteAI.MODEL_URL, method: 'GET' }], 'önce anahtar denenir (cevap üretmeden)');
+  assert.deepEqual(requests, [{ url: remoteAI.ENDPOINT, method: 'POST' }], 'önce anahtar kısa bir istekle denenir');
   assert.equal(storage.get('otoPusula_aiKey'), 'AIza' + 'z'.repeat(35));
   assert.ok(walk(chat).some(node => /Gemini ile çalışır/.test(node.textContent)));
   const chip = walk(chat).find(node => node.className === 'chat-chip');
@@ -568,7 +568,7 @@ test('popup: yerleşik yapay zeka varken anahtarsız veri dışarı gitmez; öne
     .click();
   assert.deepEqual(
     requests.map(request => request.url),
-    [remoteAI.MODEL_URL, remoteAI.ENDPOINT]
+    [remoteAI.ENDPOINT, remoteAI.ENDPOINT]
   );
 
   walk(chat)
@@ -624,7 +624,7 @@ test('popup: model indirmesi ilerlemezse bunu söyler ve anahtar kurulumuna göt
   }
 });
 
-test('remoteAI: yapıştırılan metinden anahtar bulunur; deneme cevap üretmez, hatalar Türkçe', async () => {
+test('remoteAI: yapıştırılan metinden anahtar bulunur; deneme kısa bir istektir, hatalar Türkçe', async () => {
   const key = 'AIza' + 'k'.repeat(35);
   assert.equal(remoteAI.findKey(`Anahtarınız:\n  ${key}  `), key);
   assert.equal(remoteAI.findKey('sk-abc'), '');
@@ -636,7 +636,7 @@ test('remoteAI: yapıştırılan metinden anahtar bulunur; deneme cevap üretmez
     }),
     key
   );
-  assert.deepEqual(seen, [[remoteAI.MODEL_URL, 'GET', key]]);
+  assert.deepEqual(seen, [[remoteAI.ENDPOINT, 'POST', key]]);
   await assert.rejects(
     remoteAI.testKey('yanlis', async () => ({ ok: true })),
     /benzemiyor/
@@ -1194,4 +1194,55 @@ test('popup: anahtar varsa ekrandaki rapor fotoğrafı tek tıkla yorumlanır; s
       .join(' '),
     /risk orta/
   );
+});
+
+test('bulut hataları: model kapanınca yedek modele geçilir, sebep kullanıcıya özel yazılır', async () => {
+  const key = 'AIza' + 'm'.repeat(35);
+  const ok = {
+    ok: true,
+    status: 200,
+    json: async () => ({ candidates: [{ content: { parts: [{ text: 'Merhaba.' }] } }] })
+  };
+  const urls = [];
+  const session = remoteAI.createSession(key, 'S', async url => {
+    urls.push(url);
+    return /gemini-flash-latest/.test(url) ? { ok: false, status: 404 } : ok;
+  });
+  assert.equal(await session.prompt('soru'), 'Merhaba.');
+  assert.match(urls[1], /gemini-2\.5-flash:generateContent/);
+  await session.prompt('bir daha');
+  assert.match(urls.at(-1), /gemini-2\.5-flash:generateContent/, 'çalışan model hatırlanır');
+
+  const gone = remoteAI.createSession(key + 'x', 'S', async url => {
+    if (url.includes('/models?'))
+      return {
+        ok: true,
+        json: async () => ({
+          models: [
+            { name: 'models/gemini-3.8-flash', supportedGenerationMethods: ['generateContent'] },
+            { name: 'models/gemini-3.8-live', supportedGenerationMethods: ['bidiGenerateContent'] }
+          ]
+        })
+      };
+    return /gemini-3\.8-flash/.test(url) ? ok : { ok: false, status: 404 };
+  });
+  assert.equal(await gone.prompt('soru'), 'Merhaba.', 'bilinen modeller kapalıysa Google’ın listesinden seçilir');
+
+  const dead = remoteAI.createSession(key + 'y', 'S', async () => ({ ok: false, status: 404 }));
+  await assert.rejects(dead.prompt('soru'), /modelini kapatmış.*HTTP 404/);
+  const busy = remoteAI.createSession(key + 'z', 'S', async () => ({ ok: false, status: 503 }));
+  await assert.rejects(busy.prompt('soru'), /yoğun.*HTTP 503/);
+  const limited = remoteAI.createSession(key + 'q', 'S', async () => ({ ok: false, status: 429 }));
+  await assert.rejects(limited.prompt('soru'), /kullanım sınırı/);
+});
+
+test('sohbet mesajları (selam, naber) yapay zekaya gitmeden örnek sorularla karşılanır; gerçek sorular geçmez', () => {
+  for (const text of ['naber', 'Selam!', 'merhaba abi', 'teşekkürler', 'nasılsın', 'Tamam']) {
+    assert.match(assistant.smallTalk(text), /araba ve ilan asistanıyım/, text);
+  }
+  assert.match(assistant.smallTalk('naber'), /Bu fiyata değer mi\?/);
+  assert.match(assistant.smallTalk('teşekkürler'), /^Rica ederim/);
+  for (const text of ['bu araba nasıl', 'selam bu fiyata değer mi', 'tamam ama pazarlık nasıl yapılır', '']) {
+    assert.equal(assistant.smallTalk(text), '', text);
+  }
 });

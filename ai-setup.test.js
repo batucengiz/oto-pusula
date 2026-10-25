@@ -45,7 +45,7 @@ test('kurulum: üç adım; AI Studio düğmesi ikinci adıma geçirir, yapışt�
   paste(window, $('key-input'), `  ${KEY}\n`);
   await settle();
   assert.equal(requests.length, 1);
-  assert.equal(requests[0].method, 'GET', 'deneme cevap üretmez');
+  assert.equal(requests[0].method, 'POST', 'deneme çok kısa gerçek bir istektir');
   assert.equal(window.localStorage.getItem('otoPusula_aiKey'), KEY);
   assert.equal($('ready').hidden, false);
   assert.equal($('wizard').hidden, true);

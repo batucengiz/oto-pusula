@@ -2,6 +2,13 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.14.1 — 2026-10-25
+
+- Gemini "Bulut yapay zekası şu an cevap veremedi" hatası giderildi: Google model adını kapatınca ya da değiştirince tüm istekler 404 alıyordu. Artık model sırayla denenir (`gemini-flash-latest`, `gemini-2.5-flash`, `gemini-2.5-flash-lite`), hiçbiri yoksa Google'ın model listesinden en yeni flash modeli seçilir; çalışan model oturum boyunca hatırlanır.
+- Anahtar denemesi artık çok kısa gerçek bir istek atar (eskiden yalnızca model listesine bakıyordu, model kapalı olsa da "✓ çalışıyor" diyordu).
+- Hata mesajları sebebe göre: model kapanmış (404), Google yoğun (5xx), kullanım sınırı (429), bölge desteklenmiyor, anahtar reddedildi, bağlantı yok. Mesajın sonunda küçük bir "(HTTP 404)" notu vardır. Google'ın hata sebebi (anahtarsız) tarayıcı konsoluna yazılır.
+- "Selam", "naber", "teşekkürler" gibi sohbet mesajları hata vermez: kısa bir karşılık ve tıklanabilir örnek araba soruları gelir (yapay zekaya gitmeden, yerleşik model ve Gemini için aynı). Araba dışı sorularda sistem metni artık hata yerine "yalnızca araba ve ilanlarda yardımcı olabilirim" der.
+
 ## 7.14.0 — 2026-10-25
 
 - Profesyonel ekspertiz raporu: popup'taki "Ekspertiz yorumu" kartında ve yazdırılabilir raporda üstten renk kodlu araç şeması (orijinal, lokal boyalı, boyalı, değişen; şema ile ilan yazısının çeliştiği parçalar kırmızı çerçeve ve "!" ile).
