@@ -1134,6 +1134,145 @@ test('arama sayfası: listedeki tüm ilanlar hakkında serbest soru; soru şartl
   assert.equal(firstRefs[0].title, firstTitle);
 });
 
+test('arama sohbeti: okunan tüm sayfalardaki kayıtlı ilanlar varsayılan kapsamdır; kapsam ve marka seçilebilir', async () => {
+  const store = require('./store.js');
+  const storage = new Map();
+  const passat = (n, price) =>
+    core.normalizeRecord(
+      {
+        id: `sh-99887766${n}`,
+        source: 'sahibinden',
+        listingId: `99887766${n}`,
+        brand: 'Volkswagen',
+        model: 'Passat',
+        engine: '1.6 TDI',
+        year: 2016,
+        km: 120000 + n * 1000,
+        price,
+        city: 'Ankara',
+        date: '2026-10-20'
+      },
+      'comparable'
+    );
+  const seed = { getItem: () => null, setItem: () => {} };
+  store.save(
+    { ...store.load(seed), comparables: [passat(1, 900000), passat(2, 880000), passat(3, 950000), passat(4, 870000)] },
+    { setItem: (key, value) => storage.set(key, value) }
+  );
+  const page = searchPage([
+    ['1.4 Fire Urban', 2021, '90.000', '850.000 TL'],
+    ['1.4 Fire Urban', 2020, '110.000', '760.000 TL'],
+    ['1.3 Multijet Easy', 2019, '150.000', '720.000 TL'],
+    ['1.4 Fire Easy', 2022, '45.000', '935.000 TL'],
+    ['1.4 Fire Urban', 2020, '95.000', '790.000 TL']
+  ]);
+  const systems = [];
+  const api = {
+    availability: async () => 'available',
+    create: async options => {
+      systems.push(options.initialPrompts[0].content);
+      return { prompt: async () => '**Kısa cevap:** İlan 1 en mantıklısı.', destroy() {} };
+    }
+  };
+  const chat = await popupWithModel(api, { page, storage });
+  const all = walk(chat);
+  const button = text => all.find(node => node.className?.startsWith('chat-scope-button') && node.textContent === text);
+  const bar = all.find(node => node.className === 'chat-scope');
+  assert.equal(bar.hidden, false, 'kayıtlı ilan sayfadakinden fazla: kapsam seçici görünür');
+  assert.ok(button('Bu sayfa (5)'));
+  assert.match(button('Tüm kayıtlı (9)').className, /\bon\b/, 'varsayılan: tüm kayıtlı ilanlar');
+  assert.ok(all.some(node => node.className === 'chat-hello' && /^Kayıtlı 9 ilan hakkında/.test(node.textContent)));
+  assert.ok(all.some(node => node.className === 'chat-mode builtin' && /9 ilan/.test(node.textContent)));
+  const brandSelect = all.find(node => node.className === 'chat-scope-brand');
+  assert.deepEqual(
+    brandSelect.children.map(option => option.textContent),
+    ['Tüm markalar', 'Fiat (5)', 'Volkswagen (4)'],
+    'markalar kayıt sayısıyla'
+  );
+  const ask = async question => {
+    const form = walk(chat).find(node => node.tag === 'form');
+    form.children.find(node => node.tag === 'input').value = question;
+    await form.listeners.submit({ preventDefault() {} });
+    await new Promise(resolve => setImmediate(resolve));
+  };
+
+  // Sayfada olmayan Passat ilanları da sorulabilir; cevapta hangi kapsama bakıldığı yazar.
+  await ask('Passat için en mantıklı hangisi?');
+  assert.match(systems[0], /KAYITLI İLANLAR:/);
+  assert.match(systems[0], /Tüm kayıtlı ilanlar: eklentide 9 ilan kayıtlı/);
+  assert.match(systems[0], /Dağılım: .*Fiat Egea \d/);
+  assert.match(systems[0], /Cevabının ilk cümlesinde hangi kapsama baktığını/);
+  assert.match(systems[0], /Passat/);
+  assert.doesNotMatch(systems[0], /Egea 20\d\d model/, 'soru Passat dediği için Egea ilanları modele verilmez');
+  assert.ok(walk(chat).some(node => node.className === 'chat-scope-tag' && node.textContent === 'Tüm kayıtlı ilanlar'));
+  assert.ok(walk(chat).some(node => /9 ilandan 4 tanesi uyuyor/.test(node.textContent)));
+
+  // Marka seçilince yalnızca o marka kapsanır.
+  brandSelect.value = 'fiat';
+  brandSelect.listeners.change();
+  await ask('En ucuz hangisi?');
+  assert.match(systems[1], /Kayıtlı Fiat ilanları: eklentide 5 ilan kayıtlı/);
+  assert.doesNotMatch(systems[1].split('KAYITLI İLANLAR:')[1].split('ÖNCEKİ SOHBET')[0], /Passat/);
+
+  // Bu sayfa kapsamı: yalnızca açık sayfa; seçim hatırlanır.
+  button('Bu sayfa (5)').click();
+  assert.equal(storage.get('otoPusula_chatScope'), 'page');
+  assert.ok(walk(chat).some(node => node.className === 'chat-hello' && /^Bu sayfadaki 5 ilan/.test(node.textContent)));
+  await ask('Passat için en mantıklı hangisi?');
+  assert.match(systems[2], /SAYFADAKİ İLANLAR:/);
+  assert.match(systems[2], /Sayfada 5 ilan okundu/);
+  assert.doesNotMatch(systems[2].split('SAYFADAKİ İLANLAR:')[1].split('ÖNCEKİ SOHBET')[0], /Passat/);
+});
+
+test('kayıtlı havuz: soruya göre daraltılır, çok kayıtta en yeni 400 ile sınırlanır, şart bulunamazsa hepsi döner', () => {
+  const rec = (id, brand, model, price, date = '2026-10-01') => ({
+    id,
+    brand,
+    model,
+    price,
+    year: 2020,
+    km: 80000,
+    date
+  });
+  const records = [
+    rec('1', 'Volkswagen', 'Passat', 900000),
+    rec('2', 'Volkswagen', 'Passat', 700000),
+    rec('3', 'Fiat', 'Egea', 800000),
+    rec('4', 'Renault', 'Clio', 600000)
+  ];
+  const passat = assistant.narrowRecords('Passat hangisi iyi?', records);
+  assert.deepEqual(passat.records.map(item => item.id).sort(), ['1', '2']);
+  assert.equal(passat.matched, 2);
+  assert.equal(passat.total, 4);
+  const budget = assistant.narrowRecords('Bütçem 750 bin', records);
+  assert.deepEqual(budget.records.map(item => item.id).sort(), ['2', '4']);
+  const none = assistant.narrowRecords('Bütçem 100 bin', records);
+  assert.equal(none.noMatch, true);
+  assert.equal(none.records.length, 4, 'şart bulunamazsa en yakın seçenekler için hepsi verilir');
+  assert.equal(none.matched, 0);
+  const many = Array.from({ length: 900 }, (_, i) =>
+    rec(String(i), 'Fiat', 'Egea', 800000, `2026-${String(1 + (i % 9)).padStart(2, '0')}-15`)
+  );
+  const capped = assistant.narrowRecords('Egea', many);
+  assert.equal(capped.records.length, assistant.POOL_MAX);
+  assert.equal(capped.matched, 900, 'sayılar daraltmadan önceki gerçek sayıdır');
+  assert.ok(
+    capped.records.every(item => item.date >= '2026-0' + 1),
+    'en yeniler tutulur'
+  );
+  assert.ok(capped.records[0].date >= capped.records.at(-1).date);
+  // Kapsam metni: kayıtlı kapsamda toplam ve uyan sayısı kayıtlardan gelir.
+  const entries = records.slice(0, 2).map(record => ({ record, result: { center: 800000, gap: -0.1 } }));
+  const scope = assistant.savedScope({ total: 4, pages: 2, mix: 'Volkswagen Passat 2', matched: 2 });
+  const view = assistant.listContext('Passat', entries, new Date('2026-10-25'), 15, scope);
+  assert.equal(view.total, 4);
+  assert.equal(view.matched, 2);
+  assert.match(view.lines[0], /uyan 2 ilan var \(kayıtlı 4 ilandan\)/);
+  assert.match(view.lines.join('\n'), /Tüm kayıtlı ilanlar: eklentide 4 ilan kayıtlı \(2 okunan sayfadan\)/);
+  assert.match(assistant.listSystemPrompt(view.lines, scope), /KAYITLI İLANLAR:/);
+  assert.match(assistant.listSystemPrompt(view.lines), /SAYFADAKİ İLANLAR:/);
+});
+
 test('liste süzgeci: bütçe, km, yıl, vites, yakıt ve model sorudan okunur; uymayan yoksa en yakınlar önerilir', () => {
   const entries = [
     { record: { brand: 'Fiat', model: 'Egea', year: 2021, km: 90000, price: 850000, transmission: 'Manuel' } },

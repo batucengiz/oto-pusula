@@ -733,6 +733,23 @@
     chatSession = null;
   }
 
+  // Liste sohbetinin kapsam seçimi bu cihazda hatırlanır; varsayılan "tüm kayıtlı ilanlar".
+  const SCOPE_KEY = 'otoPusula_chatScope';
+  function loadScopeMode() {
+    try {
+      return localStorage.getItem(SCOPE_KEY) === 'page' ? 'page' : 'all';
+    } catch {
+      return 'all';
+    }
+  }
+  function saveScopeMode(mode) {
+    try {
+      localStorage.setItem(SCOPE_KEY, mode);
+    } catch {
+      /* seçim hatırlanmazsa varsayılan kullanılır */
+    }
+  }
+
   function chatSection(context) {
     closeChat();
     const section = element('section', 'chat');
@@ -915,6 +932,7 @@
     const box = element('div', 'chat-picks');
     if (meta) {
       const head = element('div', 'chat-criteria');
+      if (meta.scope?.kind === 'all') head.append(element('span', 'chat-scope-tag', meta.scope.label));
       for (const label of meta.filter.labels) head.append(element('span', 'chat-criterion', label));
       head.append(
         element(
@@ -1022,6 +1040,64 @@
     // Liste sohbeti: her soruda ilanlar soruya göre süzülür; önceki sorular yalnızca bu pencerede tutulur.
     let listView = null;
     const listTurns = [];
+    // Liste sohbetinin kapsamı: açık sayfa ("page") ya da eklentide kayıtlı, okunan tüm sayfalardaki ilanlar ("all",
+    // varsayılan). Kayıtlı kapsamda isteğe bağlı olarak tek marka seçilir. Yalnızca yerel kayıtlar kullanılır.
+    const scope = { mode: loadScopeMode(), brand: '' };
+    const savedListings = () => {
+      try {
+        const known = new Map(chat.context.entries.map(entry => [entry.record.id, entry.record]));
+        for (const item of store.load().comparables) if (item.source === 'sahibinden') known.set(item.id, item);
+        return [...known.values()];
+      } catch {
+        return chat.context.entries.map(entry => entry.record);
+      }
+    };
+    // Kayıtlı ilan sayfadakinden fazlaysa kapsam seçilebilir; değilse ikisi aynıdır.
+    const scopeChoosable = () => listMode && savedListings().length > chat.context.entries.length;
+    const effectiveMode = () => (scopeChoosable() ? scope.mode : 'page');
+
+    // Modele verilecek ilanlar: kapsama göre sayfadakiler ya da kayıtlı havuzdan soruya göre daraltılmış ve
+    // değerlendirilmiş olanlar.
+    function scopedEntries(question) {
+      if (effectiveMode() === 'page') return { entries: chat.context.entries, scope: assistant.PAGE_SCOPE };
+      let records = savedListings();
+      const groups = core.listingGroups(records);
+      const group = groups.find(item => item.key === scope.brand);
+      if (group) records = records.filter(item => group.ids.includes(item.id));
+      const narrowed = assistant.narrowRecords(question, records);
+      const all = store.load().comparables;
+      const page = new Map(chat.context.entries.map(entry => [entry.record.id, entry]));
+      const entries = narrowed.records.map(record => {
+        if (page.has(record.id)) return page.get(record.id);
+        const result = core.estimate(record, all);
+        return { record, result, deal: core.dealScore(record, result), advice: core.advise(record, result) };
+      });
+      const mix = core
+        .listingGroups(records)
+        .flatMap(brand =>
+          brand.models.map(model => ({ name: `${brand.label} ${model.label}`.trim(), count: model.count }))
+        )
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 6)
+        .map(item => `${item.name} ${item.count}`)
+        .join(', ');
+      let pages = 0;
+      try {
+        pages = (store.load().pages || []).length;
+      } catch {
+        /* sayfa sayısı yazılmaz */
+      }
+      return {
+        entries,
+        scope: assistant.savedScope({
+          total: records.length,
+          pages,
+          brand: group?.label || '',
+          mix,
+          matched: narrowed.matched
+        })
+      };
+    }
     // Kaydedilen ilanlar tek ilan sohbetinde "İlan 1, İlan 2…" diye modele verilir; bağlantılar bu sırayla eşleşir.
     let savedEntries = [];
     // Cevaptaki "İlan N" etiketlerini o cevabın ilan listesine bağlar.
@@ -1057,8 +1133,15 @@
       let system;
       if (listMode) {
         closeChat();
-        listView = assistant.listContext(question, chat.context.entries, new Date(), compact ? 8 : assistant.LIST_MAX);
-        system = assistant.withContext(assistant.listSystemPrompt(listView.lines), { history: listTurns });
+        const view = scopedEntries(question);
+        listView = assistant.listContext(
+          question,
+          view.entries,
+          new Date(),
+          compact ? 8 : assistant.LIST_MAX,
+          view.scope
+        );
+        system = assistant.withContext(assistant.listSystemPrompt(listView.lines, view.scope), { history: listTurns });
       } else if (chatSession) return chatSession;
       else
         system = compact
@@ -1305,15 +1388,14 @@
     const savedStrip = element('div', 'chat-saved');
     const title = element('div', 'chat-title');
     title.append(element('span', 'ai-orb', '✦'), element('div', '', ''));
-    title.children[1].append(
-      element('h2', '', 'Asistan'),
-      element(
-        'small',
-        `chat-mode ${mode.kind}`,
-        `${mode.kind === 'remote' ? 'Gemini' : 'Cihazda'}${listMode ? ` · ${chat.context.entries.length} ilan` : ''}`
-      )
-    );
+    title.children[1].append(element('h2', '', 'Asistan'), element('small', `chat-mode ${mode.kind}`, ''));
     head.append(title, saveButton);
+    const modeLabel = title.children[1].children[1];
+    const paintMode = () => {
+      const count = !listMode ? 0 : effectiveMode() === 'all' ? savedListings().length : chat.context.entries.length;
+      modeLabel.textContent = `${mode.kind === 'remote' ? 'Gemini' : 'Cihazda'}${listMode ? ` · ${count} ilan` : ''}`;
+    };
+    paintMode();
 
     function paintSaved() {
       const saved = savedList.includes(recordId);
@@ -1410,15 +1492,18 @@
       chipButtons.push(card);
       cards.append(card);
     }
+    const hello = element('p', 'chat-hello', '');
+    const paintHello = () => {
+      hello.textContent = listMode
+        ? effectiveMode() === 'all'
+          ? `Kayıtlı ${savedListings().length} ilan hakkında ne öğrenmek istersiniz?`
+          : `Bu sayfadaki ${chat.context.entries.length} ilan hakkında ne öğrenmek istersiniz?`
+        : `${name || 'Bu ilan'} hakkında ne öğrenmek istersiniz?`;
+    };
+    paintHello();
     empty.append(
       element('span', 'ai-orb big', '✦'),
-      element(
-        'p',
-        'chat-hello',
-        listMode
-          ? `Bu sayfadaki ${chat.context.entries.length} ilan hakkında ne öğrenmek istersiniz?`
-          : `${name || 'Bu ilan'} hakkında ne öğrenmek istersiniz?`
-      ),
+      hello,
       element(
         'p',
         'muted',
@@ -1428,7 +1513,49 @@
       ),
       cards
     );
-    chat.section.replaceChildren(head, savedStrip, ...notices, empty, log, status, composer);
+    // Kapsam seçici (yalnızca liste sohbeti ve kayıtlı ilan sayfadakinden fazlaysa): Bu sayfa / Tüm kayıtlı + marka.
+    const scopeBar = element('div', 'chat-scope');
+    scopeBar.hidden = !scopeChoosable();
+    const pageButton = element('button', 'chat-scope-button', '');
+    const allButton = element('button', 'chat-scope-button', '');
+    const brandSelect = element('select', 'chat-scope-brand');
+    brandSelect.setAttribute('aria-label', 'Marka');
+    pageButton.type = allButton.type = 'button';
+    const paintScope = () => {
+      const saved = savedListings();
+      pageButton.textContent = `Bu sayfa (${chat.context.entries.length})`;
+      allButton.textContent = `Tüm kayıtlı (${saved.length})`;
+      pageButton.className = scope.mode === 'page' ? 'chat-scope-button on' : 'chat-scope-button';
+      allButton.className = scope.mode === 'all' ? 'chat-scope-button on' : 'chat-scope-button';
+      const groups = core.listingGroups(saved);
+      brandSelect.replaceChildren(
+        ...[{ key: '', label: 'Tüm markalar', count: saved.length }, ...groups].map(group => {
+          const option = element('option', '', group.key ? `${group.label} (${group.count})` : group.label);
+          option.value = group.key;
+          return option;
+        })
+      );
+      brandSelect.value = scope.brand;
+      brandSelect.hidden = scope.mode !== 'all' || groups.length < 2;
+      paintMode();
+      paintHello();
+    };
+    const choose = mode => {
+      if (busy) return;
+      scope.mode = mode;
+      if (mode === 'page') scope.brand = '';
+      saveScopeMode(mode);
+      paintScope();
+    };
+    pageButton.addEventListener('click', () => choose('page'));
+    allButton.addEventListener('click', () => choose('all'));
+    brandSelect.addEventListener('change', () => {
+      scope.brand = brandSelect.value;
+      paintScope();
+    });
+    scopeBar.append(element('span', 'chat-scope-label', 'Kapsam'), pageButton, allButton, brandSelect);
+    if (scopeChoosable()) paintScope();
+    chat.section.replaceChildren(head, scopeBar, savedStrip, ...notices, empty, log, status, composer);
   }
 
   async function analyze() {
