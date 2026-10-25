@@ -6,6 +6,7 @@
   const store = globalThis.OtoStore;
   const assistant = globalThis.OtoAssistant;
   const openGate = globalThis.OtoOpenGate;
+  const alerts = globalThis.OtoAlerts;
   const $ = id => document.getElementById(id);
   const lira = value => `₺${Math.round(value).toLocaleString('tr-TR')}`;
   let activeTab = null;
@@ -94,6 +95,154 @@
         )
       );
     return nodes;
+  }
+
+  // --- Kayıtlı aramalar ve bildirimler (alerts.js) ---
+  const ALERTS_PAGE = 'dashboard.html#bildirimler';
+  function openAlertsPage() {
+    chrome.tabs.create({ url: chrome.runtime.getURL(ALERTS_PAGE) });
+  }
+
+  // Okunmamış bildirim sayısı popup düğmesinde ve eklenti simgesinde (rozet) görünür.
+  function paintAlertCount(state = store.load()) {
+    const count = alerts.unread(state.alerts);
+    $('alert-count').textContent = count > 99 ? '99+' : String(count);
+    $('alert-count').hidden = !count;
+    globalThis.OtoAlertsUI?.paintBadge(count);
+  }
+
+  // Masaüstü bildirimi yalnızca kullanıcı panelden açtıysa (isteğe bağlı izin) ve sessiz saatte değilse çıkar.
+  // Eklentinin arka plan betiği yoktur: bildirim yalnızca haber verir, ilanlar panelin Bildirimler sayfasındadır.
+  function notifyDesktop(fresh, state) {
+    try {
+      const prefs = alerts.normalizePrefs(state.alertPrefs);
+      if (!fresh.length || !prefs.desktop || alerts.isQuiet(prefs) || !chrome.notifications?.create) return;
+      chrome.notifications.create(`oto-pusula-${Date.now()}`, {
+        type: 'basic',
+        iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+        title: 'Oto Pusula · kayıtlı aramaların',
+        message: `${alerts.summarize(fresh, state.searches)} Panelde Bildirimler’e bak.`,
+        priority: 0
+      });
+    } catch {
+      /* masaüstü bildirimi çıkmasa da bildirim panelde ve popup'ta görünür */
+    }
+  }
+
+  function markListingRead(listingId) {
+    const state = store.load();
+    const ids = state.alerts.filter(item => item.listingId === listingId).map(item => item.id);
+    if (!ids.length) return;
+    const next = { ...state, alerts: alerts.markRead(state.alerts, ids) };
+    store.save(next);
+    paintAlertCount(next);
+  }
+
+  // Bu analizde kayıtlı aramalara uyan yeni ve indirimli ilanlar; en fazla 3 ilan tıklanır, gerisi panelde.
+  function alertNodes(outcome) {
+    const fresh = outcome.alerts || [];
+    if (!fresh.length) return [];
+    const nodes = [
+      element('h2', '', '🔔 KAYITLI ARAMALARINA UYANLAR'),
+      element('p', 'since-summary', alerts.summarize(fresh, outcome.state.searches))
+    ];
+    const records = new Map(outcome.evaluated.map(({ record }) => [record.id, record]));
+    const shown = new Set();
+    for (const item of fresh) {
+      const record = records.get(item.listingId);
+      if (!record || shown.has(item.listingId) || shown.size >= 3) continue;
+      shown.add(item.listingId);
+      const button = element('button', 'deal alert-deal');
+      button.type = 'button';
+      button.append(
+        element('strong', '', `${record.brand} ${record.model} ${record.engine || ''}`.trim()),
+        element(
+          'span',
+          '',
+          item.kind === 'drop' && item.from
+            ? `İndirim: ${lira(item.from)} → ${lira(item.price)}`
+            : `Yeni ilan · ${lira(item.price)}`
+        ),
+        ...(Number.isFinite(item.gap) && Math.round(Math.abs(item.gap) * 100)
+          ? [
+              element(
+                'span',
+                item.bargain ? 'alert-bargain' : '',
+                `${item.bargain ? 'Fırsat · ' : ''}piyasanın %${Math.round(Math.abs(item.gap) * 100)} ${item.gap < 0 ? 'altında' : 'üstünde'}`
+              )
+            ]
+          : []),
+        element(
+          'span',
+          '',
+          [record.year, `${record.km.toLocaleString('tr-TR')} km`, record.city].filter(Boolean).join(' · ')
+        )
+      );
+      button.addEventListener('click', () => {
+        if (openGate.open(core.listingUrl(record), url => chrome.tabs.create({ url }), openNote))
+          markListingRead(record.id);
+      });
+      nodes.push(button);
+    }
+    const all = element('button', 'link-button', 'Tüm bildirimler panelde ↗');
+    all.type = 'button';
+    all.addEventListener('click', openAlertsPage);
+    nodes.push(all);
+    return nodes;
+  }
+
+  // Arama sayfasında: bu aramayı kaydet. Marka/model sayfadaki ilanlardan çıkarılır, kriterler panelde daraltılır.
+  function saveSearchNodes(outcome, raw) {
+    if (raw?.kind !== 'search' || !alerts) return [];
+    const url = core.safeSahibindenUrl(raw.url);
+    const saved = outcome.state.searches.find(search => search.url && search.url === url);
+    if (saved)
+      return [
+        element('p', 'muted', `🔔 Bu arama “${saved.name}” adıyla kayıtlı; uyan yeni ilanlar panelde bildirilir.`)
+      ];
+    const box = element('div', 'save-search');
+    const button = element('button', 'secondary', '🔔 Bu aramayı kaydet, yeni ilanlarda haber ver');
+    button.type = 'button';
+    button.addEventListener('click', () => {
+      const state = store.load();
+      const page = state.pages.find(item => item.url === url);
+      const search = alerts.fromPage(
+        outcome.evaluated.map(({ record }) => record),
+        { title: page?.title, url }
+      );
+      if (!search) {
+        box.replaceChildren(
+          element(
+            'p',
+            'muted',
+            'Bu sayfada tek bir marka/model öne çıkmıyor. Aramanı panelde kriterleriyle oluşturabilirsin.'
+          )
+        );
+        openAlertsPage();
+        return;
+      }
+      if (state.searches.length >= alerts.MAX_SEARCHES) {
+        box.replaceChildren(
+          element('p', 'warning-line', `En fazla ${alerts.MAX_SEARCHES} arama kaydedilebilir; panelden birini sil.`)
+        );
+        return;
+      }
+      store.save({ ...state, searches: [search, ...state.searches] });
+      const edit = element('button', 'link-button', 'Kriterleri panelde düzenle ↗');
+      edit.type = 'button';
+      edit.addEventListener('click', openAlertsPage);
+      box.replaceChildren(
+        element('p', 'stats', `🔔 Kaydedildi: ${search.name}`),
+        element(
+          'p',
+          'muted',
+          `${alerts.criteria(search).join(' · ')}. Bu sayfayı sonra tekrar analiz ettiğinde yeni ve indirimli ilanlar bildirilir.`
+        ),
+        edit
+      );
+    });
+    box.append(button);
+    return [box];
   }
 
   function openReport(record, textFlags = [], reading = null) {
@@ -197,6 +346,7 @@
       );
 
     if (outcome.evaluated.length === 1) {
+      nodes.push(...alertNodes(outcome));
       const { record, result } = outcome.evaluated[0];
       nodes.push(element('h2', '', 'BU İLAN'));
       nodes.push(
@@ -301,6 +451,7 @@
       return nodes;
     }
 
+    nodes.push(...alertNodes(outcome));
     nodes.push(...sinceLastNodes(outcome.sinceLast));
     nodes.push(element('h2', '', 'BU SAYFADAKİ FIRSAT ADAYLARI (UYGUN VE ALTI)'));
     if (!outcome.highlights.length) {
@@ -339,6 +490,7 @@
       nodes.push(button);
       if (globalThis.OtoReport) nodes.push(reportLink(record));
     }
+    nodes.push(...saveSearchNodes(outcome, raw));
     // Arama sayfası sohbeti: sayfadaki tüm ilanlar hakkında serbest soru. Yalnızca okunan veri kullanılır.
     try {
       if (outcome.evaluated.length >= 2 && assistant?.listContext) {
@@ -1293,6 +1445,8 @@
       outcome.state = saved.state;
       outcome.roomDropped = saved.dropped;
       showResult(describe(outcome, injection?.result));
+      paintAlertCount(outcome.state);
+      notifyDesktop(outcome.alerts, outcome.state);
     } catch (error) {
       const quota = store.isQuota(error);
       showResult(
@@ -1404,6 +1558,10 @@
     chrome.tabs.create({ url: chrome.runtime.getURL('dashboard.html#firsat') });
     window.close();
   });
+  $('open-alerts').addEventListener('click', () => {
+    openAlertsPage();
+    window.close();
+  });
   $('open-dashboard').addEventListener('click', () => {
     chrome.tabs.create({ url: chrome.runtime.getURL('dashboard.html') });
     window.close();
@@ -1411,7 +1569,10 @@
 
   // Kayıtlar eklenti deposundan okunmadan analiz düğmesi açılmaz; eski localStorage kaydı burada aktarılır.
   storeReady
-    .then(() => chrome.tabs.query({ active: true, currentWindow: true }))
+    .then(() => {
+      paintAlertCount();
+      return chrome.tabs.query({ active: true, currentWindow: true });
+    })
     .then(([tab]) => {
       activeTab = tab && isSahibinden(tab.url) ? tab : null;
       $('analyze').disabled = !activeTab;

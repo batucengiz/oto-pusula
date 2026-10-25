@@ -6,7 +6,15 @@ const core = require('./core.js');
 const assistant = require('./assistant.js');
 const remoteAI = require('./remote-ai.js');
 // core.js, konularına bölünmüş core-*.js dosyalarını birleştirir; tarayıcıdaki sırayla yüklenir.
-const CORE_FILES = ['core-records.js', 'core-csv.js', 'core-price.js', 'core-limits.js', 'core-deal.js', 'core.js'];
+const CORE_FILES = [
+  'core-records.js',
+  'core-csv.js',
+  'core-price.js',
+  'core-limits.js',
+  'core-deal.js',
+  'core.js',
+  'alerts.js'
+];
 
 const today = new Date('2026-10-24T12:00:00Z');
 const record = (extras = {}) =>

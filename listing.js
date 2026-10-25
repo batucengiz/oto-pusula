@@ -4,6 +4,7 @@
   // Sahibinden sayfasından gelen ham metni (extract.js çıktısı) kayıt modeline çevirir.
   // DOM'a erişmez; bu sayede tamamı Node testleriyle doğrulanabilir.
   const core = root.OtoCore || (typeof require === 'function' ? require('./core.js') : null);
+  const alerts = root.OtoAlerts || (typeof require === 'function' ? require('./alerts.js') : null);
   const MAX_PAGE_ROWS = 200;
 
   const CATALOG = {
@@ -1075,7 +1076,11 @@
       // Spam sayaçları örnek veri temizliğinde bile sıfırlanmaz.
       contacts: core.normalizeLog(state.contacts),
       phoneSaves: core.normalizeLog(state.phoneSaves),
-      analyses
+      analyses,
+      // Kayıtlı aramalar ve ayarlar da örnek veri temizliğinde korunur.
+      searches: alerts.normalizeSearches(state.searches),
+      alerts: alerts.normalizeAlerts(state.alerts),
+      alertPrefs: alerts.normalizePrefs(state.alertPrefs)
     };
     const byId = new Map(comparables.map(item => [item.id, item]));
     const now = new Date(`${today}T12:00:00Z`);
@@ -1091,6 +1096,17 @@
       .filter(({ record, result }) => core.dealEligible(record, result))
       .sort((a, b) => core.compareDeals(a.deal, b.deal) || a.result.gap - b.result.gap)
       .slice(0, 3);
+    // Kayıtlı aramalara uyan yeni ya da indirimli ilanlar panele bildirim olarak düşer.
+    let fresh = [];
+    if (next.searches.length) {
+      fresh = alerts.detect(
+        next.searches,
+        evaluated,
+        new Map(base.comparables.map(item => [item.id, item])),
+        next.alerts
+      );
+      next.alerts = alerts.addAlerts(next.alerts, fresh);
+    }
     const drops = evaluated.filter(({ change }) => change && change.amount < 0).length;
     const suddenDrops = evaluated.filter(({ record }) => core.suddenDrop(record, now)).length;
     return {
@@ -1102,6 +1118,7 @@
       drops,
       suddenDrops,
       sinceLast,
+      alerts: fresh,
       clearedSample: !!state.sample,
       pace: core.browsePace(analyses)
     };

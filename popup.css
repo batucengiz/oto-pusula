@@ -452,3 +452,31 @@ small {
 .open-note[hidden] {
   display: none;
 }
+
+/* Kayıtlı aramalar ve bildirimler */
+.alert-count {
+  display: inline-block;
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 99px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 18px;
+  text-align: center;
+}
+.alert-bargain {
+  color: #047857;
+  font-weight: 700;
+}
+.save-search {
+  margin: 10px 0;
+}
+.save-search button {
+  width: 100%;
+}
+/* Kartlardaki bilgi satırları alt alta (fiyat, fark, yıl/km birbirine yapışmasın). */
+.deal span {
+  display: block;
+}
