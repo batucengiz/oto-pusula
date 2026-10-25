@@ -1046,21 +1046,37 @@ test('arama sayfası: listedeki tüm ilanlar hakkında serbest soru; soru şartl
     refs.map(node => node.textContent),
     ['İlan 1', 'İlan 2']
   );
+  assert.match(refs[0].title, /^Fiat Egea .* · 20\d\d · [\d.]+ km · ₺[\d.]+/, 'üzerine gelince başlık, km ve fiyat');
+  const firstTitle = refs[1].title;
   refs[0].click();
   assert.equal(opened.length, 1);
   assert.match(opened[0], /^https:\/\/www\.sahibinden\.com\/ilan\//);
-  const picks = walk(chat).filter(node => node.className === 'chat-pick');
-  assert.equal(picks.length, 2, 'sözü geçen ilanların ayrıntı kartları');
-  assert.ok(
-    walk(chat).some(node => /5 ilan okundu · şartlara uyan 2 · en iyi 2 ilan incelendi/.test(node.textContent))
+  assert.equal(refs[0].className, 'chat-ref opened');
+  const picks = walk(chat).filter(node => /^chat-pick /.test(node.className));
+  assert.equal(picks.length, 2, 'sözü geçen ilanların kartları');
+  assert.deepEqual(
+    picks.map(card => walk(card).find(node => node.className === 'chat-pick-no').textContent),
+    ['1', '2']
   );
+  assert.ok(walk(picks[0]).some(node => node.className === 'chat-pick-price' && /^₺[\d.]+$/.test(node.textContent)));
+  assert.ok(walk(chat).some(node => node.className === 'chat-criterion' && node.textContent === 'en fazla 800.000 TL'));
+  assert.ok(walk(chat).some(node => /5 ilandan 2 tanesi uyuyor/.test(node.textContent)));
+  const openAll = walk(chat).find(node => node.className === 'chat-open-all');
+  openAll.click();
+  assert.equal(opened.length, 3, 'hepsini aç: kart başına bir sekme');
+  assert.match(openAll.textContent, /Hepsi açıldı/);
 
   // Şartsız ikinci soru: tüm liste, önceki soru bağlamda.
   form.children.find(node => node.tag === 'input').value = 'En az riskli hangisi?';
   await form.listeners.submit({ preventDefault() {} });
+  await new Promise(resolve => setImmediate(resolve));
   assert.equal(systems.length, 2, 'her soruda liste yeniden süzülür');
   assert.match(systems[1], /Sayfada 5 ilan okundu/);
   assert.match(systems[1], /ÖNCEKİ SOHBET/);
+  // İlk cevaptaki bağlantılar ikinci sorudan sonra da kendi ilanlarını gösterir.
+  const firstRefs = walk(chat).filter(node => /^chat-ref/.test(node.className) && node.textContent === 'İlan 2');
+  assert.equal(firstRefs.length, 2);
+  assert.equal(firstRefs[0].title, firstTitle);
 });
 
 test('liste süzgeci: bütçe, km, yıl, vites, yakıt ve model sorudan okunur; uymayan yoksa en yakınlar önerilir', () => {

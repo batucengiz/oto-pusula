@@ -77,6 +77,22 @@
       return link;
     }
 
+    // Yapay zeka yorumundaki "İlan 2" gibi etiketler, tablodaki aynı numaralı ilanı yeni sekmede açan bağlantı olur.
+    function linkedText(text, entries) {
+      return String(text)
+        .split(/(İlan \d{1,2})/)
+        .filter(Boolean)
+        .map(part => {
+          const match = /^İlan (\d{1,2})$/.exec(part);
+          const record = match ? entries[Number(match[1]) - 1]?.record : null;
+          if (!record?.url) return part;
+          const link = listingLink(record, part);
+          link.className = 'compare-ref';
+          link.title = `${[labelFor(record), record.engine, record.year].filter(Boolean).join(' · ')} · ${lira(record.price)} — ilanı aç`;
+          return link;
+        });
+    }
+
     function updateCount() {
       const count = picked.size;
       $('ai-compare-count').textContent =
@@ -194,7 +210,7 @@
           localStorage,
           entries,
           text => {
-            answer.textContent = text;
+            answer.replaceChildren(...linkedText(text, entries));
           },
           text => {
             status.textContent = text;
@@ -210,7 +226,7 @@
           answer.textContent = outcome.error;
           answer.className = 'compare-answer error';
         } else {
-          answer.textContent = outcome.answer || 'Cevap üretilemedi; tekrar deneyin.';
+          answer.replaceChildren(...linkedText(outcome.answer || 'Cevap üretilemedi; tekrar deneyin.', entries));
           status.textContent =
             outcome.mode === 'remote'
               ? 'Gemini ile: ilan özetleri Google’a gönderildi. Yapay zeka yanılabilir.'
