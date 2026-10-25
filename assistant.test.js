@@ -5,6 +5,8 @@ const vm = require('node:vm');
 const core = require('./core.js');
 const assistant = require('./assistant.js');
 const remoteAI = require('./remote-ai.js');
+// Testlerde yeniden deneme beklemeleri kısaltılır (davranış aynı, yalnızca süre).
+Object.assign(remoteAI.POLICY, { baseMs: 1, maxWaitMs: 5 });
 // core.js, konularına bölünmüş core-*.js dosyalarını birleştirir; tarayıcıdaki sırayla yüklenir.
 const CORE_FILES = [
   'core-records.js',
@@ -465,7 +467,7 @@ test('bulut oturumu: istek yalnızca Gemini adresine, anahtar başlıkta; geçmi
     error => error.name === 'RemoteAIError' && /anahtarı kabul edilmedi/.test(error.message)
   );
   const limited = remoteAI.createSession('AIza' + 'k'.repeat(35), 'S', async () => ({ ok: false, status: 429 }));
-  await assert.rejects(assistant.ask(limited, 'soru'), /kullanım sınırına/);
+  await assert.rejects(assistant.ask(limited, 'soru'), /kullanım sınırı doldu/);
 });
 
 // Sahte Gemini: model bilgisi (anahtar denemesi) ve cevap isteklerini ayırır.
@@ -906,7 +908,8 @@ test('kısaltılmış bilgi, yeniden deneme kuralı ve km yorumu', () => {
   assert.match(assistant.kmVerdict(40000), /çok yüksek/);
 });
 
-test('bulut oturumu: geçici sunucu hatası ve kopan bağlantıda bir kez daha dener, 4xx’te denemez', async () => {
+test('bulut oturumu: geçici sunucu hatası ve kopan bağlantıda yeniden dener, 4xx’te denemez', async () => {
+  const fast = { policy: { ...remoteAI.POLICY, baseMs: 1, maxWaitMs: 5 } };
   const ok = {
     ok: true,
     status: 200,
@@ -920,7 +923,7 @@ test('bulut oturumu: geçici sunucu hatası ve kopan bağlantıda bir kez daha d
   assert.equal(calls, 2);
 
   calls = 0;
-  const flaky = remoteAI.createSession('AIza' + 'k'.repeat(35), 'S', async () => {
+  const flaky = remoteAI.createSession('AIza' + 'f'.repeat(35), 'S', async () => {
     if (++calls === 1) throw new TypeError('Failed to fetch');
     return ok;
   });
@@ -928,15 +931,20 @@ test('bulut oturumu: geçici sunucu hatası ve kopan bağlantıda bir kez daha d
   assert.equal(calls, 2);
 
   calls = 0;
-  const offline = remoteAI.createSession('AIza' + 'k'.repeat(35), 'S', async () => {
-    calls += 1;
-    throw new TypeError('Failed to fetch');
-  });
+  const offline = remoteAI.createSession(
+    'AIza' + 'o'.repeat(35),
+    'S',
+    async () => {
+      calls += 1;
+      throw new TypeError('Failed to fetch');
+    },
+    fast
+  );
   await assert.rejects(offline.prompt('soru'), /bağlanılamadı/);
-  assert.equal(calls, 2);
+  assert.equal(calls, remoteAI.MODELS.length * remoteAI.POLICY.rounds, 'her model, her turda bir kez');
 
   calls = 0;
-  const denied = remoteAI.createSession('AIza' + 'k'.repeat(35), 'S', async () => {
+  const denied = remoteAI.createSession('AIza' + 'd'.repeat(35), 'S', async () => {
     calls += 1;
     return { ok: false, status: 400 };
   });
@@ -1288,4 +1296,163 @@ test('sohbet mesajları (selam, naber) yapay zekaya gitmeden örnek sorularla ka
   for (const text of ['bu araba nasıl', 'selam bu fiyata değer mi', 'tamam ama pazarlık nasıl yapılır', '']) {
     assert.equal(assistant.smallTalk(text), '', text);
   }
+});
+
+// Dayanıklı istek katmanı (7.16): Google'ın geçici hatalarında kullanıcıya hemen hata gösterilmez.
+const answerOf = (text, extra = {}) => ({
+  ok: true,
+  status: 200,
+  json: async () => ({ candidates: [{ content: { parts: [{ text }] }, ...extra }] })
+});
+
+test('dayanıklı istek: 503’te aynı istekte yedek modele geçer, yoğun model sonraki soruda sona alınır', async () => {
+  const urls = [];
+  const notes = [];
+  const session = remoteAI.createSession(
+    'AIza' + 'b'.repeat(35),
+    'S',
+    async url => {
+      urls.push(url);
+      return /gemini-flash-latest/.test(url) ? { ok: false, status: 503 } : answerOf('Yedekten cevap.');
+    },
+    { onRetry: info => notes.push(info.reason) }
+  );
+  assert.equal(await session.prompt('soru'), 'Yedekten cevap.');
+  assert.equal(urls.length, 2, 'bekleme olmadan ikinci modele geçilir');
+  assert.match(urls[1], /gemini-2\.5-flash:/);
+  assert.deepEqual(notes, ['busy'], 'popup’a kısa durum bildirilir');
+  await session.prompt('ikinci soru');
+  assert.match(urls.at(-1), /gemini-2\.5-flash:/, 'yoğun model bir süre denenmez');
+  assert.equal(urls.length, 3);
+});
+
+test('dayanıklı istek: 429’da model başına kota için sıradakine geçer; uzun bekleme gerekiyorsa hemen söyler', async () => {
+  const urls = [];
+  const session = remoteAI.createSession('AIza' + 'q'.repeat(35), 'S', async url => {
+    urls.push(url);
+    return /lite/.test(url) ? answerOf('Lite cevabı.') : { ok: false, status: 429 };
+  });
+  assert.equal(await session.prompt('soru'), 'Lite cevabı.');
+
+  const quotaBody = (quotaId, retry) => ({
+    ok: false,
+    status: 429,
+    headers: { get: () => null },
+    clone() {
+      return this;
+    },
+    json: async () => ({
+      error: {
+        status: 'RESOURCE_EXHAUSTED',
+        message: 'Quota exceeded',
+        details: [
+          { '@type': 'type.googleapis.com/google.rpc.QuotaFailure', violations: [{ quotaId }] },
+          { '@type': 'type.googleapis.com/google.rpc.RetryInfo', retryDelay: `${retry}s` }
+        ]
+      }
+    })
+  });
+  let calls = 0;
+  const started = Date.now();
+  const daily = remoteAI.createSession('AIza' + 'y'.repeat(35), 'S', async () => {
+    calls += 1;
+    return quotaBody('GenerateRequestsPerDayPerProjectPerModel-FreeTier', 3600);
+  });
+  await assert.rejects(daily.prompt('soru'), /bugünkü ücretsiz kullanım hakkı doldu/);
+  assert.equal(calls, remoteAI.MODELS.length, 'her model bir kez denenir, saatlerce beklenmez');
+  assert.ok(Date.now() - started < 2000);
+  const minute = remoteAI.createSession('AIza' + 'w'.repeat(35), 'S', async () =>
+    quotaBody('GenerateRequestsPerMinutePerProjectPerModel-FreeTier', 50)
+  );
+  await assert.rejects(minute.prompt('soru'), /dakikalık ücretsiz kullanım sınırı/);
+});
+
+test('dayanıklı istek: takılan deneme süre sınırında kesilip sıradaki modele geçilir; kullanıcı iptali hemen durdurur', async () => {
+  const urls = [];
+  const session = remoteAI.createSession(
+    'AIza' + 't'.repeat(35),
+    'S',
+    async (url, init) => {
+      urls.push(url);
+      if (/gemini-flash-latest/.test(url))
+        return new Promise((resolve, reject) =>
+          init.signal.addEventListener('abort', () => reject(Object.assign(new Error('x'), { name: 'AbortError' })))
+        );
+      return answerOf('Hızlı cevap.');
+    },
+    { policy: { ...remoteAI.POLICY, tryMs: 30 } }
+  );
+  assert.equal(await session.prompt('soru'), 'Hızlı cevap.');
+  assert.equal(urls.length, 2);
+
+  const controller = new AbortController();
+  const stuck = remoteAI.createSession('AIza' + 'u'.repeat(35), 'S', async () => ({ ok: false, status: 503 }), {
+    policy: { ...remoteAI.POLICY, baseMs: 5000, maxWaitMs: 5000 }
+  });
+  const pending = stuck.prompt('soru', { signal: controller.signal });
+  setTimeout(() => controller.abort(), 20);
+  await assert.rejects(pending, error => error.name === 'AbortError');
+});
+
+test('cevap okuma: düşünce parçaları atılır, kesilen cevap “…” ile biter, güvenlik filtresi ayrı söylenir, boş cevap bir kez daha istenir', async () => {
+  const key = 'AIza' + 'r'.repeat(35);
+  const thoughtful = remoteAI.createSession(key, 'S', async () => ({
+    ok: true,
+    json: async () => ({
+      candidates: [{ content: { parts: [{ text: 'iç düşünce', thought: true }, { text: 'Asıl cevap.' }] } }]
+    })
+  }));
+  assert.equal(await thoughtful.prompt('soru'), 'Asıl cevap.');
+  const cut = remoteAI.createSession(key, 'S', async () => answerOf('Yarım cevap', { finishReason: 'MAX_TOKENS' }));
+  assert.equal(await cut.prompt('soru'), 'Yarım cevap…');
+  const blocked = remoteAI.createSession(key, 'S', async () => ({
+    ok: true,
+    json: async () => ({ promptFeedback: { blockReason: 'SAFETY' } })
+  }));
+  await assert.rejects(blocked.prompt('soru'), /güvenlik filtresine/);
+  let calls = 0;
+  const flaky = remoteAI.createSession(key, 'S', async () =>
+    ++calls === 1 ? { ok: true, json: async () => ({ candidates: [] }) } : answerOf('İkinci denemede geldi.')
+  );
+  assert.equal(await flaky.prompt('soru'), 'İkinci denemede geldi.');
+  let body;
+  const roomy = remoteAI.createSession(key, 'S', async (url, init) => {
+    body = JSON.parse(init.body);
+    return answerOf('Tamam.');
+  });
+  await roomy.prompt('soru');
+  assert.ok(body.generationConfig.maxOutputTokens >= 4096, 'düşünen modellerde cevap bütçesi yetsin');
+});
+
+test('sistem metni: rakam uydurmama, “bilgi ilanda yok”, konu dışı ve dil kuralları her sohbet türünde', () => {
+  for (const text of [
+    assistant.systemPrompt(['Araç: X.']),
+    assistant.compareSystemPrompt(['İlan 1: X.']),
+    assistant.listSystemPrompt(['İlan 1: X.'])
+  ]) {
+    assert.match(text, /yalnızca verilen bilgilerden aynen al/);
+    assert.match(text, /bu bilgi ilanda yok/);
+    assert.match(text, /yalnızca listede olan numaraları/);
+    assert.match(text, /Yalnızca araçlar/);
+    assert.match(text, /Yalnızca düzgün Türkçe/);
+  }
+});
+
+test('popup: bulut hatasında tek satır Türkçe mesaj ve “Yeniden sor” düğmesi çıkar', async () => {
+  const storage = new Map([[remoteAI.KEY_STORAGE, 'AIza' + 'p'.repeat(35)]]);
+  let fail = true;
+  const fetch = async () => (fail ? { ok: false, status: 403 } : answerOf('Şimdi oldu.'));
+  const chat = await popupWithModel(null, { remote: true, storage, fetch });
+  await walk(chat)
+    .find(node => node.className === 'chat-chip')
+    .click();
+  await settle();
+  const error = walk(chat).find(node => node.className === 'chat-ai chat-error');
+  assert.match(error.textContent, /anahtarı kabul edilmedi/);
+  const again = walk(chat).find(node => node.textContent === 'Yeniden sor');
+  assert.ok(again, 'hatada tekrar sorma düğmesi var');
+  fail = false;
+  await again.click();
+  await settle();
+  assert.ok(walk(chat).some(node => node.textContent === 'Şimdi oldu.'));
 });
