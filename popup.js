@@ -95,9 +95,9 @@
     return nodes;
   }
 
-  function openReport(record, textFlags = []) {
+  function openReport(record, textFlags = [], expertise = []) {
     chrome.tabs.create({
-      url: chrome.runtime.getURL('report.html') + globalThis.OtoReport.encodeHash(record.id, textFlags)
+      url: chrome.runtime.getURL('report.html') + globalThis.OtoReport.encodeHash(record.id, textFlags, expertise)
     });
   }
 
@@ -110,13 +110,13 @@
   }
 
   // "Ekspertize götür" raporu: yazdırılabilir sayfa (yeni sekmede) veya WhatsApp'a yapıştırılacak düz metin.
-  function reportNodes({ record, result, body, deal, advice, textFlags, paceLines }) {
+  function reportNodes({ record, result, body, deal, advice, textFlags, paceLines, expertise = [] }) {
     const report = globalThis.OtoReport;
     const box = element('div', 'report-actions');
     const open = element('button', 'secondary', 'Ekspertiz raporunu aç');
     open.type = 'button';
     open.title = 'Fiyat, uyarılar, satıcı soruları ve ekspertiz listesi tek sayfada; yazdırılabilir.';
-    open.addEventListener('click', () => openReport(record, textFlags));
+    open.addEventListener('click', () => openReport(record, textFlags, expertise));
     const copy = element('button', 'secondary', 'Raporu kopyala');
     copy.type = 'button';
     copy.addEventListener('click', async () => {
@@ -130,6 +130,7 @@
           questions: assistant.sellerQuestions({ record, body, advice }),
           checklist: assistant.inspectionChecklist({ record, body, advice, textFlags }),
           textFlags,
+          expertise,
           pace: paceLines,
           today: core.localDate()
         })
@@ -220,6 +221,24 @@
               : 'Kaporta: bu sayfada boya/değişen şeması bulunamadı (satıcı doldurmamış olabilir).'
           )
         );
+      // Ekspertiz yorumu: ilan yazısındaki ve sayfadaki ekspertiz bilgisi, şemayla karşılaştırılarak kendiliğinden yorumlanır.
+      let expertise = [];
+      try {
+        if (raw?.kind === 'detail' && globalThis.OtoExpertise) {
+          const reading = globalThis.OtoExpertise.interpret({
+            description: raw.description,
+            pageReport: raw.expertiseText,
+            title: raw.title,
+            damage: raw.damage,
+            tramer: record.tramer,
+            price: record.price
+          });
+          expertise = globalThis.OtoExpertise.lines(reading);
+          nodes.push(expertiseNodes(expertise, reading));
+        }
+      } catch {
+        expertise = [];
+      }
       const deal = core.dealScore(record, result);
       if (deal)
         nodes.push(
@@ -262,13 +281,15 @@
       }
       try {
         if (raw?.kind === 'detail' && assistant && globalThis.OtoReport)
-          nodes.push(reportNodes({ record, result, body, deal, advice, textFlags, paceLines }));
+          nodes.push(reportNodes({ record, result, body, deal, advice, textFlags, paceLines, expertise }));
       } catch {
         /* rapor düğmeleri gösterilemedi */
       }
       if (raw?.kind === 'detail') nodes.push(...whatsappNodes(raw, record));
       if (raw?.kind === 'detail')
-        nodes.push(chatSection({ record, result, body, deal, advice, textFlags, description: raw.description }));
+        nodes.push(
+          chatSection({ record, result, body, deal, advice, textFlags, expertise, description: raw.description })
+        );
       return nodes;
     }
 
@@ -403,6 +424,104 @@
     }
     details.append(element('summary', '', `İlan açıklamasında dikkat (${flags.length})`), list);
     return details;
+  }
+
+  // Ekspertiz yorumu kartı: ilk satır risk hükmü, altında parça parça bulgular, çelişkiler ve pazarlık etkisi.
+  function expertiseNodes(lines, reading) {
+    const details = element('details', `expertise ${reading.risk.level}`);
+    details.open = true;
+    const [head, ...rest] = lines;
+    const summary = element('summary', '', 'Ekspertiz yorumu');
+    summary.append(
+      element(
+        'span',
+        'expertise-badge',
+        `Risk: ${{ low: 'düşük', medium: 'orta', high: 'yüksek', unknown: 'bilinmiyor' }[reading.risk.level]}`
+      )
+    );
+    const list = element('ul');
+    rest.forEach(line => list.append(element('li', line.level, line.text)));
+    details.append(
+      summary,
+      element('p', 'expertise-head', head.text.replace(/^Risk: [^.]+\.\s*/, '')),
+      list,
+      element(
+        'p',
+        'muted',
+        `Kaynak: ${[...reading.sources, reading.diagramKnown && 'boya/değişen şeması'].filter(Boolean).join(', ')}. Satıcı beyanıdır; aracı yine ekspertizde doğrulatın.`
+      )
+    );
+    details.append(...reportImageNodes(lines, reading));
+    return details;
+  }
+
+  // Rapor yalnızca fotoğraf olarak varsa: kullanıcı fotoğrafı sahibinden'de büyütür, tek tıkla ekran görüntüsü
+  // Gemini'ye yorumlatılır. Görüntü sekmeden alınır; sahibinden'e istek atılmaz, fotoğraf yeniden indirilmez.
+  function reportImageNodes(lines, reading) {
+    const remote = globalThis.OtoRemoteAI;
+    let key = '';
+    try {
+      key = remote?.loadKey(localStorage) || '';
+    } catch {
+      key = '';
+    }
+    if (!key) {
+      if (!reading.image) return [];
+      const hint = element(
+        'p',
+        'muted',
+        'Rapor fotoğrafını da yorumlatmak için yapay zeka kurulumunu yapın (Gemini anahtarı). '
+      );
+      const setup = element('button', 'link-button inline', 'Kurulumu aç');
+      setup.type = 'button';
+      setup.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL(SETUP_PAGE) }));
+      hint.append(setup);
+      return [hint];
+    }
+    const box = element('div', 'expertise-image');
+    const button = element('button', 'secondary', 'Ekrandaki rapor fotoğrafını yorumla');
+    button.type = 'button';
+    button.title = 'Görünen sekmenin ekran görüntüsü Gemini anahtarınızla Google’a gönderilir.';
+    const note = element(
+      'p',
+      'muted',
+      `${reading.image ? 'Satıcı raporun fotoğraflarda olduğunu yazmış. ' : ''}Rapor fotoğrafını sahibinden’de büyütüp bu düğmeye basın; ekranın görüntüsü Google’a gönderilir.`
+    );
+    const answer = element('div', 'expertise-answer');
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      button.textContent = 'Rapor okunuyor…';
+      answer.replaceChildren();
+      try {
+        const image = await chrome.tabs.captureVisibleTab({ format: 'jpeg', quality: 85 });
+        const text = await remote.describeImage(key, { image, ...globalThis.OtoExpertise.imagePrompt(lines) });
+        if (!text || /^RAPOR_YOK/.test(text))
+          answer.append(
+            element(
+              'p',
+              'warning-line',
+              'Ekranda bir ekspertiz raporu görünmüyor. Rapor fotoğrafını büyütüp tekrar deneyin.'
+            )
+          );
+        // Model başlıkları satır satır yazar; her başlık ayrı paragraf olsun.
+        else answer.append(...richNodes(text.replace(/\n(?=\*\*)/g, '\n\n')));
+      } catch (error) {
+        answer.append(
+          element(
+            'p',
+            'warning-line',
+            error?.name === 'RemoteAIError'
+              ? error.message
+              : 'Ekran görüntüsü alınamadı. Sayfayı yenileyip yeniden analiz edin.'
+          )
+        );
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Ekrandaki rapor fotoğrafını yorumla';
+      }
+    });
+    box.append(note, button, answer);
+    return [box];
   }
 
   // Kapalı gelen, tıklayınca açılan basit madde listesi.

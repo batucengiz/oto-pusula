@@ -98,6 +98,32 @@
         damage = { local: [], painted: [], changed: [] };
       }
     }
+    // Sayfada açıkça görünen bir ekspertiz bölümü varsa (başlığı "Ekspertiz Raporu", "Ekspertiz Bilgileri" vb.)
+    // metni okunur. Menü, bağlantı, düğme ve pencerelerdeki "Ekspertiz Raporu Oluştur" gibi yazılar atlanır;
+    // açıklama zaten ayrıca okunduğu için onun içi de atlanır. Hiçbir şeye tıklanmaz, rapor açılmaz.
+    const EXPERTISE_HEADING = /^(araç )?ekspertiz (raporu|bilgileri|bilgisi|sonucu|sonuçları|detayları)\s*:?$/i;
+    const EXPERTISE_WORDS = /boyal|değişen|orijinal|orjinal|lokal|sorunsuz|şasi|hasar/i;
+    let expertiseText = '';
+    const headings = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    while (!expertiseText && headings.nextNode()) {
+      if (!EXPERTISE_HEADING.test(headings.currentNode.nodeValue.trim())) continue;
+      const node = headings.currentNode.parentElement;
+      if (
+        !node ||
+        node.closest(
+          'a, button, nav, header, footer, form, script, .modal, [role="dialog"], [role="menu"], #classifiedDescription'
+        )
+      )
+        continue;
+      let box = node.parentElement;
+      // Başlığın yanında içerik barındıran en yakın kutu (yalnızca başlığı içeren sarmalayıcılar atlanır).
+      const heading = lines(node).length;
+      for (let depth = 0; box && depth < 4 && lines(box).length < heading + 20; depth++) box = box.parentElement;
+      const found = lines(box);
+      if (found.length >= heading + 20 && found.length <= 6000 && EXPERTISE_WORDS.test(found)) {
+        expertiseText = found.slice(0, 4000);
+      }
+    }
     return {
       kind: 'detail',
       url: location.href,
@@ -117,6 +143,7 @@
         '',
       info: info.slice(0, 60),
       description: text(description).slice(0, 12000),
+      expertiseText,
       damage,
       // Yalnızca kullanıcı "Telefonu göster"e bastıktan sonra ekranda görünen metin okunur;
       // eklenti numarayı göstermek için hiçbir şeye tıklamaz.

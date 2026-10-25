@@ -163,7 +163,17 @@
 
   // Eklentinin bu ilan için hesapladığı her şey, modele düz Türkçe cümleler olarak verilir.
   // Model hesap yapmaz; yalnızca bu bilgileri yorumlar.
-  function facts({ record, result, body, deal, advice, textFlags = [], description, today = new Date() }) {
+  function facts({
+    record,
+    result,
+    body,
+    deal,
+    advice,
+    textFlags = [],
+    expertise = [],
+    description,
+    today = new Date()
+  }) {
     const lines = [];
     const name = [record.brand, record.model, record.engine, record.trim].filter(Boolean).join(' ');
     lines.push(`Araç: ${name}${record.title ? ` (ilan başlığı: “${clean(record.title, 200)}”)` : ''}.`);
@@ -214,6 +224,10 @@
       lines.push(
         `İlan açıklamasında dikkat – ${flag.label}: ${flag.text} (satıcının cümlesi: «${clean(flag.quote, 120)}»)`
       );
+    // Eklentinin ilan yazısı, sayfadaki ekspertiz bölümü ve şemadan çıkardığı ekspertiz yorumu.
+    expertise.forEach((line, index) =>
+      lines.push(`${index ? 'Ekspertiz yorumu' : 'Ekspertiz özeti'}: ${clean(line.text, 300)}`)
+    );
     const reasons = offerReasons({ record, result, body, advice });
     if (advice?.offer)
       lines.push(
@@ -265,7 +279,7 @@
       'Kilometre sorulursa toplam km’yi değil, yıllık ortalamayı ve İLAN BİLGİLERİ’ndeki km yorumunu kullan; yüksek km’de triger/zincir, debriyaj, şanzıman ve yürüyen aksam bakımını, düşük km’de km müdahalesi kontrolünü hatırlat.',
       'Soru yazım hatalı, kısa ya da dağınık olsa da en olası anlamıyla cevapla; gerçekten anlaşılmıyorsa tek kısa soruyla netleştir.',
       'Teklif sorulursa eklentinin açılış ve hedef rakamlarını gerekçeleriyle söyle; başka rakam uydurma. Satıcıya ne sorulacağı sorulursa önerilen soruları madde madde ver.',
-      'Ekspertiz sorulursa “Ekspertizde baktırılması önerilenler” maddelerini ver ve bu marka/modelin bilinen kronik noktalarını (emin değilsen belirterek) ekle. Pazarlıkta ne denileceği sorulursa gerekçelere dayanan, kibar ve kısa örnek cümleler öner. İlan açıklamasındaki şüpheli ifadeler sorulursa “İlan açıklamasında dikkat” maddelerini açıkla; madde yoksa belirgin bir risk ifadesi bulunmadığını ama ekspertizin yine gerekli olduğunu söyle.',
+      'Ekspertiz sorulursa önce “Ekspertiz yorumu” satırlarını (risk, parça parça bulgular, çelişkiler, pazarlık etkisi) özetle, sonra “Ekspertizde baktırılması önerilenler” maddelerini ver ve bu marka/modelin bilinen kronik noktalarını (emin değilsen belirterek) ekle. Pazarlıkta ne denileceği sorulursa gerekçelere dayanan, kibar ve kısa örnek cümleler öner. İlan açıklamasındaki şüpheli ifadeler sorulursa “İlan açıklamasında dikkat” maddelerini açıkla; madde yoksa belirgin bir risk ifadesi bulunmadığını ama ekspertizin yine gerekli olduğunu söyle.',
       'Kaporta bilgisi satıcı beyanıdır; gerektiğinde ekspertiz ve tramer kaydı öner. Kesin satın al / alma demek yerine artıları ve riskleri söyle.',
       'Birden çok parçalı ya da karmaşık sorularda soruyu parçalara ayır ve her parçaya kısa maddelerle cevap ver; bir kısmını bilmiyorsan diğer kısımları yine cevapla.',
       ...EXPERT_RULES,
@@ -482,7 +496,7 @@
 
   // Karmaşık soruda model bağlamı kaldıramazsa kullanılan kısa bilgi: ağır satırlar atılır, satırlar kısaltılır.
   const BULKY =
-    /^(Benzer ilan:|Satıcının ilan açıklamasından|Ekspertizde baktırılması|Satıcıya sorulması|İlan açıklamasında dikkat)/;
+    /^(Benzer ilan:|Satıcının ilan açıklamasından|Ekspertizde baktırılması|Ekspertiz yorumu:|Satıcıya sorulması|İlan açıklamasında dikkat)/;
   function compactFacts(lines, max = 12) {
     return lines
       .filter(line => !BULKY.test(line))

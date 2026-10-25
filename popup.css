@@ -226,3 +226,97 @@ small {
   cursor: pointer;
   opacity: 0.8;
 }
+
+/* Ekspertiz yorumu kartı: risk rozetine göre kenar rengi, her bulguda seviye noktası. */
+.expertise {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-left: 3px solid #8aa0b8;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.expertise.low {
+  border-left-color: #3ddc97;
+}
+.expertise.medium {
+  border-left-color: #ffcf8a;
+}
+.expertise.high {
+  border-left-color: #ff9b8f;
+}
+.expertise summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 700;
+}
+.expertise-badge {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 11px;
+}
+.expertise.low .expertise-badge {
+  color: #3ddc97;
+}
+.expertise.medium .expertise-badge {
+  color: #ffcf8a;
+}
+.expertise.high .expertise-badge {
+  color: #ff9b8f;
+}
+.expertise-head {
+  margin: 6px 0 4px;
+}
+.expertise ul {
+  margin: 4px 0;
+  padding-left: 0;
+  list-style: none;
+}
+.expertise li {
+  position: relative;
+  margin-bottom: 4px;
+  padding-left: 14px;
+}
+.expertise li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #8aa0b8;
+}
+.expertise li.good::before {
+  background: #3ddc97;
+}
+.expertise li.warn::before {
+  background: #ffcf8a;
+}
+.expertise li.bad::before {
+  background: #ff9b8f;
+}
+.expertise-image {
+  margin-top: 6px;
+}
+.expertise-answer h4 {
+  margin: 8px 0 2px;
+}
+.expertise-answer ul {
+  padding-left: 16px;
+}
+.expertise-answer li {
+  padding-left: 0;
+  list-style: disc;
+}
+.expertise-answer li::before {
+  display: none;
+}
+.link-button.inline {
+  display: inline;
+  margin: 0;
+}

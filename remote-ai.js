@@ -160,6 +160,45 @@
     };
   }
 
+  // Tek seferlik görüntü yorumu (ör. kullanıcının ekranda açtığı ekspertiz raporu). Görüntü ve metin yalnızca
+  // kullanıcı düğmeye bastığında Google'a gönderilir; konuşma geçmişine yazılmaz.
+  async function describeImage(key, { image, prompt, system }, fetcher = root.fetch?.bind(root)) {
+    const match = String(image ?? '').match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
+    if (!match) throw remoteError('Ekran görüntüsü alınamadı.');
+    const init = {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: system }] },
+        contents: [
+          { role: 'user', parts: [{ inline_data: { mime_type: match[1], data: match[2] } }, { text: prompt }] }
+        ],
+        generationConfig: { temperature: 0.2, maxOutputTokens: 1400 }
+      })
+    };
+    let response;
+    try {
+      response = await fetcher(...keyed(ENDPOINT, init, key, false));
+      if (REJECTED.has(response.status)) {
+        const second = await fetcher(...keyed(ENDPOINT, init, key, true));
+        if (second.ok) response = second;
+      }
+    } catch {
+      throw remoteError('Google’a bağlanılamadı. İnternet bağlantınızı kontrol edin.');
+    }
+    if (!response.ok) throw remoteError(errorMessage(response.status));
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      throw remoteError(errorMessage(0));
+    }
+    return (data?.candidates?.[0]?.content?.parts || [])
+      .map(part => part?.text || '')
+      .join('')
+      .trim();
+  }
+
   const api = {
     KEY_STORAGE,
     MODEL,
@@ -172,7 +211,8 @@
     saveKey,
     clearKey,
     testKey,
-    createSession
+    createSession,
+    describeImage
   };
   root.OtoRemoteAI = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

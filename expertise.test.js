@@ -1,0 +1,178 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const expertise = require('./expertise.js');
+
+const clean = { local: [], painted: [], changed: [] };
+const texts = reading => expertise.lines(reading).map(line => line.text);
+
+test('ekspertiz: parça parça bulgular, şasi ve mekanik durum okunur', () => {
+  const reading = expertise.interpret({
+    description:
+      'Sağ ön çamurluk değişen, kaput ve sol ön kapı boyalı. Sağ arka kapıda lokal boya var.\n' +
+      'Şasi, direk, podye temiz. Motor şanzıman sorunsuz. Airbag açmamış.\nTÜV SÜD raporlu.',
+    price: 1000000
+  });
+  const byName = Object.fromEntries(reading.parts.map(part => [part.name, part.status]));
+  assert.deepEqual(byName, {
+    'Sağ Ön Çamurluk': 'changed',
+    'Motor Kaputu': 'painted',
+    'Sol Ön Kapı': 'painted',
+    'Sağ Arka Kapı': 'local'
+  });
+  const checks = Object.fromEntries(reading.checks.map(check => [check.name, check.status]));
+  assert.deepEqual(checks, {
+    Şasi: 'good',
+    Direkler: 'good',
+    Podye: 'good',
+    Motor: 'good',
+    Şanzıman: 'good',
+    Airbag: 'good'
+  });
+  assert.equal(reading.provider, 'TÜV SÜD D-Expert');
+  assert.equal(reading.risk.level, 'medium');
+  assert.equal(reading.diagramKnown, false);
+  assert.ok(reading.bargain.low > 0 && reading.bargain.high > reading.bargain.low);
+  const lines = texts(reading);
+  assert.match(lines[0], /^Risk: orta\. .*Sağ Ön Çamurluk/);
+  assert.ok(lines.includes('Değişen: Sağ Ön Çamurluk.'));
+  assert.ok(lines.some(line => /^Pazarlık etkisi: .*%\d.*₺/.test(line)));
+});
+
+test('ekspertiz: ilan yazısı ile boya/değişen şeması çelişirse yüksek risk', () => {
+  const reading = expertise.interpret({
+    description: 'Kaput değişen, sol ön kapı boyalı.',
+    damage: { ...clean, painted: ['Motor Kaputu'] }
+  });
+  assert.equal(reading.risk.level, 'high');
+  assert.deepEqual(
+    reading.conflicts.map(conflict => conflict.level),
+    ['bad', 'warn']
+  );
+  assert.match(reading.conflicts[0].text, /Motor Kaputu: ilan yazısında değişen, şemada boyalı/);
+  // Lokal boya ile boya farkı çelişki sayılmaz.
+  const near = expertise.interpret({
+    description: 'Kaput lokal boyalı.',
+    damage: { ...clean, painted: ['Motor Kaputu'] }
+  });
+  assert.equal(near.conflicts.length, 0);
+});
+
+test('ekspertiz: "boyasız değişensiz" beyanı şemayla ve tramerle karşılaştırılır', () => {
+  const description =
+    'EKSPERTİZ BİLGİSİ\nBOYASIZ DEĞİŞENSİZ\n**ARAÇLARIMIZ EKSPERTİZ GARANTİLİDİR**\n' +
+    'DİLEDİĞİNİZ KURUMSAL EKSPERTİZ NOKTASINA GÖSTEREBİLİRSİNİZ\nEKSPERTİZ RAPORUNUZU NOTER SATIŞ SÖZLEŞMENİZE İŞLEMEKTEYİZ';
+  const fine = expertise.interpret({ description, damage: clean });
+  assert.equal(fine.risk.level, 'low');
+  assert.equal(fine.conflicts.length, 0);
+  assert.deepEqual(
+    fine.claims.map(claim => claim.id),
+    ['guarantee', 'open', 'notary']
+  );
+  assert.equal(fine.clean, 'Boyasız değişensiz');
+  const painted = expertise.interpret({ description, damage: { ...clean, changed: ['Sol Ön Kapı'] } });
+  assert.equal(painted.risk.level, 'high');
+  assert.match(painted.conflicts[0].text, /temiz diyor.*şemada 1 parça işaretli/);
+  const tramer = expertise.interpret({ description, damage: clean, tramer: 45000 });
+  assert.ok(tramer.conflicts.some(conflict => /₺45\.000 tramer/.test(conflict.text)));
+});
+
+test('ekspertiz: başlıklı listeler, olumsuzluk ve sayı beyanı', () => {
+  const reading = expertise.interpret({
+    description:
+      'Boyalı parçalar: sol arka çamurluk, bagaj kapağı. Değişen yok. 3 parça boyalı. Tavan boya yok. Sol direkte düzeltme işlemi var.',
+    damage: { ...clean, painted: ['Sol Arka Çamurluk', 'Bagaj Kapağı'] }
+  });
+  const byName = Object.fromEntries(reading.parts.map(part => [part.name, part.status]));
+  assert.deepEqual(byName, { 'Sol Arka Çamurluk': 'painted', 'Bagaj Kapağı': 'painted', Tavan: 'original' });
+  assert.deepEqual(
+    reading.checks.map(check => [check.name, check.status]),
+    [['Direkler', 'bad']]
+  );
+  assert.ok(reading.conflicts.some(conflict => /3 parça boyalı yazıyor, şemada 2/.test(conflict.text)));
+  assert.equal(reading.risk.level, 'high');
+  assert.match(reading.risk.reasons[0], /Yapısal bölgede işlem: Direkler/);
+});
+
+test('ekspertiz: mekanik uyarılar, ekspertize kapalı ilan ve rapor fotoğrafı', () => {
+  const reading = expertise.interpret({
+    description: 'Motorda yağ kaçağı var. Ekspertiz yok, kapora alınır. Ekspertiz raporu son fotoğrafta.'
+  });
+  assert.deepEqual(
+    reading.checks.map(check => [check.name, check.status]),
+    [['Motor', 'bad']]
+  );
+  assert.ok(reading.image);
+  assert.ok(reading.claims.some(claim => claim.id === 'closed'));
+  assert.equal(reading.risk.level, 'high');
+  // Kısa alıntı: telefon numarası gizlenir.
+  const quoted = expertise.interpret({ description: 'Motor sorunsuz, bilgi için 0532 111 22 33 arayın' });
+  assert.doesNotMatch(quoted.checks[0].quote, /0532|111 22/);
+});
+
+test('ekspertiz: ekspertizle ilgisiz metinden bulgu üretilmez', () => {
+  const reading = expertise.interpret({
+    description:
+      '2023 MODEL i20 1.4 100 BG OTOMATİK\nORJİNAL MULTIMEDIA EKRAN - GERİ GÖRÜŞ KAMERASI\nBOYASIZ GÖÇÜK DÜZELTME yapılır'
+  });
+  assert.equal(reading.found, false);
+  assert.equal(reading.risk.level, 'unknown');
+  assert.match(texts(reading)[0], /bulunamadı/);
+  assert.deepEqual(expertise.lines(null), []);
+});
+
+test('ekspertiz: yalnızca şema varsa yorum şemadan yapılır; tavan değişeni yüksek risk', () => {
+  const reading = expertise.interpret({ damage: { ...clean, changed: ['Tavan'] }, price: 500000 });
+  assert.equal(reading.risk.level, 'high');
+  assert.match(texts(reading)[0], /yalnızca satıcının şemasına dayanıyor/);
+  assert.ok(reading.bargain.low >= 12);
+});
+
+test('ekspertiz: sayfadaki ekspertiz bölümü okunur ve açıklamadan önce gelir', () => {
+  const reading = expertise.interpret({
+    description: 'Kaput boyalı.',
+    pageReport: 'Ekspertiz Raporu\nSol ön kapı: Boyalı\nKaput: Değişen\nŞasi: Orijinal\nMotor: İyi'
+  });
+  assert.deepEqual(reading.sources, ['sayfadaki ekspertiz bölümü', 'ilan açıklaması']);
+  const byName = Object.fromEntries(reading.parts.map(part => [part.name, part.status]));
+  assert.equal(byName['Motor Kaputu'], 'changed');
+  assert.equal(byName['Sol Ön Kapı'], 'painted');
+});
+
+test('ekspertiz: okuyucu sayfadaki ekspertiz bölümünü alır, menü bağlantılarını almaz', () => {
+  const { extractFromHtml } = require('./tools/verify-page.js');
+  const url = 'https://www.sahibinden.com/ilan/vasita-otomobil-1234567890/detay';
+  const page = body =>
+    `<html><body><ul class="classifiedInfoList"><li><strong>Marka</strong><span>Fiat</span></li></ul>${body}</body></html>`;
+  const raw = extractFromHtml(
+    page(
+      '<nav><a>Ekspertiz Raporu</a></nav><div><h3>Ekspertiz Raporu</h3><ul><li>Kaput: Değişen</li><li>Şasi: Orijinal</li></ul></div>'
+    ),
+    url
+  );
+  assert.equal(raw.expertiseText, 'Ekspertiz Raporu\nKaput: Değişen\nŞasi: Orijinal');
+  const menuOnly = extractFromHtml(
+    page('<ul><li class="add-expertise-report"><a>Ekspertiz Raporu Oluştur</a></li></ul><a>Ekspertiz Raporu</a>'),
+    url
+  );
+  assert.equal(menuOnly.expertiseText, '');
+});
+
+test('ekspertiz: kayıtlı gerçek ilan sayfalarında yanlış ekspertiz bölümü bulunmaz', t => {
+  const dir = path.join(__dirname, 'fixtures');
+  const files = ['boyali.html', 'temiz.html', 'ilan-orijinal.html'].filter(file => fs.existsSync(path.join(dir, file)));
+  if (!files.length) return t.skip('fixtures klasörü yok');
+  const { extractFromHtml } = require('./tools/verify-page.js');
+  for (const file of files) {
+    const raw = extractFromHtml(fs.readFileSync(path.join(dir, file), 'utf8'));
+    assert.equal(raw.expertiseText, '', file);
+    const reading = expertise.interpret({ description: raw.description, title: raw.title, damage: raw.damage });
+    assert.notEqual(reading.risk.level, 'unknown', file);
+  }
+});
+
+test('ekspertiz dosyası ağ isteği ve dinamik kod içermez', () => {
+  const source = fs.readFileSync(path.join(__dirname, 'expertise.js'), 'utf8');
+  assert.doesNotMatch(source, /\beval\(|new Function\(|innerHTML|fetch\(|XMLHttpRequest|chrome\./);
+});
