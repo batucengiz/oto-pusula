@@ -55,7 +55,8 @@
               <h2>Anahtarı kopyalayın</h2>
               <p class="hint">Açılan sayfa aşağıdakine benzer. İşaretli yerlere bakın.</p>
 
-              <!-- AI Studio "API Anahtarları" ekranının sade çizimi: A = oluştur düğmesi, B = kopyala simgesi -->
+              <!-- AI Studio "API Anahtarları" ekranının sade çizimi: A = oluştur düğmesi, B = anahtar yazısı, C = açılan
+                   penceredeki "Anahtarı kopyala". Satırın sağındaki simgeler proje adını kopyalayabildiği için işaretlenmez. -->
               <figure class="mock" aria-label="AI Studio API Anahtarları ekranının çizimi">
                 <div class="mock-bar"><span></span><span></span><span></span><em>aistudio.google.com/api-keys</em></div>
                 <div class="mock-body">
@@ -75,14 +76,22 @@
                         <span>Key</span><span>Project</span><span>Billing Tier</span><span></span>
                       </div>
                       <div class="mock-row">
-                        <span><u>…7VNA</u><small>Default Gemini API Key</small></span>
+                        <span
+                          ><u class="mock-key">…7VNA<b class="pin">B</b></u
+                          ><small>Default Gemini API Key</small></span
+                        >
                         <span><u>Default Gemini Project</u></span>
                         <span>Free tier</span>
-                        <span class="mock-icons"
-                          ><span class="mock-copy" title="Kopyala">⧉<b class="pin">B</b></span
-                          ><span>$</span><span>▮</span><span>⋮</span></span
+                        <span class="mock-icons" title="Bu simgelere basmayın"
+                          ><span>⧉</span><span>$</span><span>▮</span><span>⋮</span></span
                         >
                       </div>
+                    </div>
+                    <!-- B'ye tıklayınca açılan pencere -->
+                    <div class="mock-dialog">
+                      <strong>API anahtarı</strong>
+                      <span class="mock-secret">AQ.Ab8R••••••••••••••7VNA</span>
+                      <span class="mock-copykey">⧉ Anahtarı kopyala<b class="pin">C</b></span>
                     </div>
                   </div>
                 </div>
@@ -104,12 +113,24 @@
                   <div>
                     <strong>Listede anahtar varsa</strong>
                     <p>
-                      Satırın sağındaki <strong>ilk simgeye</strong> (<span class="ui icon">⧉</span> kopyala) basın.
-                      Listede görünen <span class="mono">…7VNA</span> gibi yazı anahtarın yalnızca sonudur; onu elle
-                      kopyalamayın.
+                      Satırın solundaki mavi <span class="mono">…7VNA</span> gibi yazıya <strong>tıklayın</strong>. Bu
+                      yazı anahtarın yalnızca sonudur; tıklayınca anahtarın penceresi açılır.
                     </p>
                   </div>
                 </div>
+                <div class="path">
+                  <b class="pin static">C</b>
+                  <div>
+                    <strong>Açılan pencerede</strong>
+                    <p>
+                      <span class="ui">Anahtarı kopyala</span> (İngilizce ekranda <span class="ui">Copy key</span>)
+                      düğmesine basın. Anahtar “AQ.” (eski anahtarlarda “AIza”) ile başlar.
+                    </p>
+                  </div>
+                </div>
+                <p class="warn-note">
+                  Satırın sağındaki simgelere (⧉ $ ⋮) basmayın: bazıları anahtarı değil proje adını kopyalar.
+                </p>
               </div>
             </div>
           </li>
@@ -118,16 +139,17 @@
             <span class="dot" aria-hidden="true">3</span>
             <div class="step-body">
               <h2>Bu sekmeye dönüp yapıştırın</h2>
-              <p class="hint">
-                Kutuya tıklamanıza gerek yok: bu sayfada <span class="kbd">Ctrl</span> + <span class="kbd">V</span>’ye
-                basmanız yeterli.
+              <!-- Pano izni yoksa en kolay yol: kutuya tıklayıp Ctrl+V. İzin verildiyse küçülür. -->
+              <p id="manual-paste" class="manual-paste">
+                Kutuya tıklayın, sonra <span class="kbd big">Ctrl</span> + <span class="kbd big">V</span>
+                <small>Mac’te <span class="kbd">⌘</span> + <span class="kbd">V</span></small>
               </p>
               <form id="key-form" class="key-form" autocomplete="off">
                 <input
                   id="key-input"
                   type="text"
                   spellcheck="false"
-                  placeholder="AIza ile başlayan anahtar"
+                  placeholder="AQ. ya da AIza ile başlayan anahtar"
                   aria-label="Gemini API anahtarı"
                 />
                 <button id="paste" class="button primary" type="button">Panodan yapıştır</button>
@@ -158,8 +180,8 @@
         <details>
           <summary>Listede yalnızca “…7VNA” gibi kısa bir yazı var</summary>
           <p>
-            O yazı anahtarın son dört harfidir, tamamı gizlidir. Satırın sağındaki ilk simgeye (⧉) basınca anahtarın
-            tamamı kopyalanır. Sonra bu sekmeye dönüp Ctrl+V’ye basın.
+            O yazı anahtarın son dört harfidir, tamamı gizlidir. Yazının üstüne tıklayın; açılan pencerede “Anahtarı
+            kopyala” (Copy key) düğmesine basın. Sonra bu sekmeye dönüp kutuya tıklayın ve Ctrl+V’ye basın.
           </p>
         </details>
         <details>
@@ -177,10 +199,18 @@
           </p>
         </details>
         <details>
+          <summary>“Bu bir anahtar değil” ya da proje adı yapıştı</summary>
+          <p>
+            Satırın sağındaki simgeler bazen anahtarı değil proje adını (“Default Gemini Project” ya da
+            “gen-lang-client-…”) kopyalar. AI Studio’da <span class="mono">…7VNA</span> yazısına tıklayın, açılan
+            pencerede “Anahtarı kopyala”ya basın.
+          </p>
+        </details>
+        <details>
           <summary>“Google bu anahtarı kabul etmedi” yazıyor</summary>
           <p>
-            Anahtar eksik kopyalanmış olabilir. AI Studio’da kopyala simgesine yeniden basıp tekrar yapıştırın. Doğru
-            anahtar “AIza” ile başlar ve 39 karakterdir.
+            Anahtar eksik kopyalanmış olabilir. AI Studio’da anahtar yazısına tıklayıp “Anahtarı kopyala”ya yeniden
+            basın ve tekrar yapıştırın. Doğru anahtar “AQ.” ya da “AIza” ile başlar ve tek parça, uzun bir yazıdır.
           </p>
         </details>
         <details>

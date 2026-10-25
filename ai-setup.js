@@ -49,15 +49,24 @@
     setStep(1);
   }
 
+  const HOW = 'AI Studio’da …7VNA gibi anahtar yazısına tıklayın, açılan pencerede “Anahtarı kopyala”ya basın.';
+
+  // Yapıştırılan metin anahtar değilse ne kopyalandığını açıkça söyler. Satırdaki simgeler çoğu zaman proje adını
+  // ("Default Gemini Project", "gen-lang-client-…" ya da proje numarası) kopyalar.
+  function wrongPaste(raw) {
+    const text = String(raw ?? '').trim();
+    if (!text) return `Pano boş. ${HOW}`;
+    const shown = text.length > 32 ? `${text.slice(0, 32)}…` : text;
+    if (/^(AIza|AQ\.)/.test(text)) return `Anahtar eksik kopyalanmış (“${shown}”). ${HOW}`;
+    if (/project|proje|gen-lang-client|^projects\/|^\d{6,}$/i.test(text))
+      return `Bu bir anahtar değil, proje adı kopyalanmış (“${shown}”). ${HOW}`;
+    return `Bu bir anahtar değil (“${shown}”). Proje adı ya da başka bir yazı kopyalanmış olabilir. ${HOW}`;
+  }
+
   async function check(raw) {
     const key = remote.findKey(raw);
     if (!key) {
-      say(
-        String(raw ?? '').trim()
-          ? 'Bu bir Gemini anahtarına benzemiyor. Anahtar “AIza” ile başlar. AI Studio’da kopyala simgesine (⧉) basın.'
-          : 'Önce AI Studio’da anahtarın yanındaki kopyala simgesine (⧉) basın.',
-        'bad'
-      );
+      say(wrongPaste(raw), 'bad');
       return;
     }
     if (checking) return;
@@ -96,12 +105,19 @@
     }
   }
 
+  // Pano izni yoksa "kutuya tıkla, Ctrl+V" yolu büyük gösterilir; izin varsa küçük bir not olarak kalır.
+  async function showManualPaste(flash = false) {
+    const box = $('manual-paste');
+    box.classList.toggle('quiet', await hasClipboardPermission());
+    if (flash) box.classList.add('flash');
+  }
+
   // Sekmeye dönünce: izin verilmişse panodaki anahtar en üstte gösterilir, tek tıkla kaydedilir.
   async function back() {
     if (document.visibilityState === 'hidden' || busy()) return;
     if (step >= 2) setStep(3);
     if (!(await hasClipboardPermission())) {
-      if (step >= 2 && !input.value) say('Anahtarı kopyaladıysanız şimdi Ctrl+V’ye basın.');
+      if (step >= 2 && !input.value) say('Anahtarı kopyaladıysanız kutuya tıklayıp Ctrl+V’ye basın.');
       return;
     }
     try {
@@ -126,8 +142,9 @@
   document.addEventListener('paste', event => {
     if (busy()) return;
     const text = event.clipboardData?.getData('text') || '';
-    if (event.target === input && !remote.findKey(text)) return;
     event.preventDefault();
+    // Anahtar değilse yapıştırılan yazı kutuda görünür ki kullanıcı neyi kopyaladığını görsün.
+    if (!remote.findKey(text)) input.value = text.trim();
     check(text);
   });
   input.addEventListener('input', () => {
@@ -142,9 +159,10 @@
     try {
       const text = await readClipboard(true);
       if (remote.findKey(text)) return check(text);
-      say('Panoda anahtar yok. AI Studio’da anahtar satırının sağındaki ilk simgeye (⧉) basıp tekrar deneyin.', 'bad');
+      say(wrongPaste(text), 'bad');
     } catch {
       input.focus();
+      showManualPaste(true);
       say('Pano okunamadı. Kutuya tıklayıp Ctrl+V’ye basın.', 'bad');
     }
   });
@@ -167,4 +185,5 @@
   const saved = remote.loadKey(localStorage);
   if (saved) showReady(saved);
   else setStep(1);
+  showManualPaste();
 })();

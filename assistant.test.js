@@ -509,7 +509,7 @@ test('popup: Google anahtarı reddederse kaydedilmez ve sebebi Türkçe yazılı
   form.children.find(node => node.tag === 'input').value = 'AIza' + 'q'.repeat(35);
   form.listeners.submit({ preventDefault() {} });
   await settle();
-  assert.equal(requests.length, 1);
+  assert.equal(requests.length, 2, 'başlıkla reddedilince adres parametresiyle bir kez daha denenir');
   assert.equal(storage.has('otoPusula_aiKey'), false);
   assert.ok(walk(chat).some(node => /kabul etmedi/.test(node.textContent)));
   assert.equal(form.children.find(node => node.tag === 'button').disabled, false, 'tekrar denenebilir');
@@ -904,7 +904,7 @@ test('bulut oturumu: geçici sunucu hatası ve kopan bağlantıda bir kez daha d
     return { ok: false, status: 400 };
   });
   await assert.rejects(denied.prompt('soru'), /RemoteAIError|anahtar/);
-  assert.equal(calls, 1);
+  assert.equal(calls, 2, '4xx’te başlık ve ?key= biçimi birer kez denenir, sunucu hatası gibi tekrarlanmaz');
 });
 
 test('uzman talimatları: ekspertiz, tramer, mekanik, bakım ve alım süreci bilgisi sistem metninde', () => {

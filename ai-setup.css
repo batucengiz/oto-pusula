@@ -514,15 +514,45 @@ input:focus-visible {
   gap: 9px;
   color: #c4c8ce;
 }
-.mock-copy {
+.mock-key {
   position: relative;
   padding: 1px 4px;
   border-radius: 5px;
-  color: #fff;
-  font-size: 14px;
+  font-weight: 700;
   outline: 2px solid #f5b84b;
   outline-offset: 2px;
   animation: pin-pulse 1.6s ease-in-out infinite;
+}
+.mock-icons {
+  opacity: 0.45;
+}
+.mock-dialog {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin: 14px 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid #3a3e45;
+  border-radius: 10px;
+  background: #1d1f23;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.mock-secret {
+  flex: 1 1 160px;
+  color: #b8bcc3;
+  font-family: ui-monospace, Consolas, monospace;
+}
+.mock-copykey {
+  position: relative;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: #8ab4f8;
+  color: #0b1d3a;
+  font-weight: 700;
+  white-space: nowrap;
+  outline: 2px solid #f5b84b;
+  outline-offset: 3px;
 }
 @keyframes pin-pulse {
   50% {
@@ -602,20 +632,55 @@ input:focus-visible {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .mock-copy {
+  .mock-key {
     animation: none;
   }
 }
-/* B işareti simgenin üstünü kapatmasın: simgenin soluna alınır */
-.mock-copy .pin {
-  top: 50%;
-  right: auto;
-  left: -30px;
-  transform: translateY(-50%);
+.warn-note {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--warn-soft, rgba(245, 184, 75, 0.14));
+  color: var(--ink-2);
+  font-size: 14px;
 }
-.mock-copy {
-  margin-left: 26px;
-  font-size: 16px;
+/* Pano izni yokken en görünür yol: kutuya tıkla, Ctrl+V */
+.manual-paste {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 12px;
+  padding: 14px 16px;
+  border: 1.5px dashed var(--brand);
+  border-radius: 14px;
+  background: var(--brand-soft);
+  font-size: 18px;
+  font-weight: 700;
+}
+.manual-paste small {
+  flex-basis: 100%;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 400;
+}
+.manual-paste.quiet {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.manual-paste.flash {
+  animation: pin-pulse 1.6s ease-in-out 3;
+  outline: 2px solid var(--brand);
+}
+.kbd.big {
+  min-width: 40px;
+  padding: 2px 10px;
+  font-size: 17px;
+  line-height: 28px;
 }
 @media (max-width: 560px) {
   .key-form {
@@ -625,4 +690,18 @@ input:focus-visible {
   .key-form .button {
     flex: 1 1 100%;
   }
+}
+.manual-paste .kbd {
+  flex: 0 0 auto;
+  display: inline-block;
+  width: auto;
+}
+.manual-paste small {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.mock-key .pin {
+  top: -12px;
+  right: -22px;
 }

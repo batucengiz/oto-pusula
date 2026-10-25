@@ -503,7 +503,7 @@
     const input = element('input');
     input.type = 'password';
     input.autocomplete = 'off';
-    input.placeholder = 'AIza…';
+    input.placeholder = 'AQ.… ya da AIza…';
     input.setAttribute('aria-label', 'Gemini API anahtarı');
     const save = element('button', 'ai-key-save', 'Kaydet');
     save.type = 'submit';
@@ -512,7 +512,7 @@
     const check = async raw => {
       const key = remote.findKey(raw);
       if (!key) {
-        note.textContent = 'Bu bir Gemini anahtarına benzemiyor. Anahtar “AIza” ile başlar.';
+        note.textContent = `Bu bir Gemini anahtarına benzemiyor. ${remote.KEY_HINT}`;
         note.className = 'ai-setup-note bad';
         return;
       }

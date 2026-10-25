@@ -12,16 +12,36 @@
   const RETRY_MS = 1200;
   const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-  // Google AI Studio anahtarları "AIza" ile başlar; boşluk ve görünmez karakterler atılır.
+  // Bilinen biçimler: eski "AIza…" ve 28 Mayıs 2026'dan beri AI Studio'nun verdiği "AQ.…" anahtarları. Google yeni
+  // bir biçim çıkarırsa kurulum bozulmasın diye, proje adına benzemeyen uzun tek parça yazı da denenir; kabul edip
+  // etmediğine Google karar verir. Boşluk, görünmez karakterler ve cümle sonundan gelen nokta atılır.
+  const KEY_SOURCE = 'AIza[0-9A-Za-z_-]{30,}|AQ\\.[0-9A-Za-z_.-]{20,}';
+  const KEY_HINT = 'Anahtar genelde “AQ.” ya da “AIza” ile başlar.';
+  const NOT_A_KEY = /^(gen-lang-client|projects\/|\d+$)|project|proje/i;
+  const TOKEN = /^[0-9A-Za-z][0-9A-Za-z_.-]{34,}$/;
   function normalizeKey(value) {
-    const key = String(value ?? '').replace(/\s+/g, '');
-    return /^AIza[0-9A-Za-z_-]{30,}$/.test(key) ? key : '';
+    const key = String(value ?? '')
+      .replace(/\s+/g, '')
+      .replace(/\.+$/, '');
+    if (new RegExp(`^(?:${KEY_SOURCE})$`).test(key)) return key;
+    return TOKEN.test(key) && !NOT_A_KEY.test(key) && /\d/.test(key) && /[A-Za-z]/.test(key) ? key : '';
   }
 
   // Yapıştırılan metnin içinden anahtarı bulur (tırnak, "API key:" gibi ekler ya da satır sonları olsa da).
   function findKey(text) {
-    const match = String(text ?? '').match(/AIza[0-9A-Za-z_-]{30,}/);
-    return match ? normalizeKey(match[0]) : '';
+    const raw = String(text ?? '');
+    const known = raw.match(new RegExp(KEY_SOURCE));
+    if (known) return normalizeKey(known[0]);
+    const trimmed = raw.replace(/^[\s"'`]+|[\s"'`]+$/g, '');
+    return /\s/.test(trimmed) ? '' : normalizeKey(trimmed);
+  }
+
+  // Anahtar önce başlıkta (x-goog-api-key) gönderilir; Google bunu reddederse adres parametresiyle (?key=) bir kez
+  // daha denenir. Hangisi çalıştıysa oturum boyunca o kullanılır.
+  const REJECTED = new Set([400, 401, 403]);
+  function keyed(url, init, key, inQuery) {
+    if (!inQuery) return [url, { ...init, headers: { ...init.headers, 'x-goog-api-key': key } }];
+    return [`${url}?key=${encodeURIComponent(key)}`, init];
   }
 
   function loadKey(storage) {
@@ -34,7 +54,7 @@
 
   function saveKey(storage, value) {
     const key = normalizeKey(value);
-    if (!key) throw new Error('Bu bir Gemini anahtarına benzemiyor. Anahtar “AIza” ile başlar.');
+    if (!key) throw new Error(`Bu bir Gemini anahtarına benzemiyor. ${KEY_HINT}`);
     storage.setItem(KEY_STORAGE, key);
     return key;
   }
@@ -63,10 +83,11 @@
   // Anahtarı soru sormadan dener: model bilgisini ister (cevap üretmez, kota harcamaz).
   async function testKey(key, fetcher = root.fetch?.bind(root)) {
     const clean = normalizeKey(key);
-    if (!clean) throw remoteError('Bu bir Gemini anahtarına benzemiyor. Anahtar “AIza” ile başlar.');
+    if (!clean) throw remoteError(`Bu bir Gemini anahtarına benzemiyor. ${KEY_HINT}`);
     let response;
     try {
-      response = await fetcher(MODEL_URL, { method: 'GET', headers: { 'x-goog-api-key': clean } });
+      response = await fetcher(...keyed(MODEL_URL, { method: 'GET' }, clean, false));
+      if (REJECTED.has(response.status)) response = await fetcher(...keyed(MODEL_URL, { method: 'GET' }, clean, true));
     } catch {
       throw remoteError('Google’a bağlanılamadı. İnternet bağlantınızı kontrol edin.');
     }
@@ -80,22 +101,29 @@
   function createSession(key, systemText, fetcher = root.fetch?.bind(root)) {
     const history = [];
     let closed = false;
+    let inQuery = false;
     return {
       remote: true,
       async prompt(text, { signal } = {}) {
         if (closed) throw new Error('Oturum kapalı.');
         const contents = [...history, { role: 'user', parts: [{ text }] }];
-        const send = () =>
-          fetcher(ENDPOINT, {
-            method: 'POST',
-            signal,
-            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-            body: JSON.stringify({
-              systemInstruction: { parts: [{ text: systemText }] },
-              contents,
-              generationConfig: { temperature: 0.3, maxOutputTokens: 1200 }
-            })
-          });
+        const init = {
+          method: 'POST',
+          signal,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemText }] },
+            contents,
+            generationConfig: { temperature: 0.3, maxOutputTokens: 1200 }
+          })
+        };
+        const send = async () => {
+          const first = await fetcher(...keyed(ENDPOINT, init, key, inQuery));
+          if (inQuery || !REJECTED.has(first.status)) return first;
+          const second = await fetcher(...keyed(ENDPOINT, init, key, true));
+          if (second.ok) inQuery = true;
+          return second.ok ? second : first;
+        };
         let response;
         // Google'ın geçici yoğunluk hatası (5xx) ya da kopan bağlantıda bir kez daha denenir.
         for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -137,6 +165,7 @@
     MODEL,
     MODEL_URL,
     ENDPOINT,
+    KEY_HINT,
     normalizeKey,
     findKey,
     loadKey,
