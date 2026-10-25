@@ -2,6 +2,12 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.11.1 — 2026-10-25
+
+- Kurulum sayfası gerçek AI Studio ekranına göre yeniden yazıldı: doğrudan bağlantı (aistudio.google.com/api-keys), "API Anahtarları" ekranının işaretli çizimi (A: "API anahtarı oluşturun", B: satırın sağındaki kopyala simgesi), "listede anahtar yoksa / varsa" yolları ve 7 maddelik "Takıldıysanız" bölümü (kısaltılmış "…7VNA" yazısı, "Set up billing", görünmeyen düğme, reddedilen anahtar, pano, kullanım sınırı, gizlilik).
+- Ctrl+V sayfanın her yerinde çalışır; kutuya tıklamak gerekmez.
+- "Panodan yapıştır" ilk kullanımda Chrome'dan pano iznini ister (isteğe bağlı `clipboardRead`; kurulumda zorunlu izin eklenmedi). İzin verildiyse AI Studio'dan sekmeye dönünce panodaki anahtar en üstte gösterilir, "Bu anahtarı kullan" ile tek tıkla kaydedilir.
+
 ## 7.11.0 — 2026-10-25
 
 - Yapay zeka kurulumu baştan: popup'ta tek büyük "Kurulumu başlat" düğmesi, eklentinin kendi sayfasında (ai-setup.html) üç adımlı sihirbaz açar: Google AI Studio'yu aç, anahtarı yapıştır, hazır. Yapıştırınca Kaydet'e basmak gerekmez; anahtar önce denenir (model bilgisi istenir, cevap üretilmez, kota harcanmaz), çalışıyorsa kaydedilir. Yapıştırılan metindeki tırnak, boşluk ve "API key:" gibi ekler atılır. "Yapıştır" düğmesi panodan okur, izin yoksa Ctrl+V'yi tarif eder.

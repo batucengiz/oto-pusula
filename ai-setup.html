@@ -15,37 +15,113 @@
         <img src="icons/icon48.png" alt="" width="40" height="40" />
         <div>
           <h1>Yapay zeka asistanını aç</h1>
-          <p class="lead">Ücretsiz · yaklaşık 1 dakika · kart bilgisi gerekmez</p>
+          <p class="lead">Ücretsiz · yaklaşık 2 dakika · kart bilgisi gerekmez</p>
         </div>
       </header>
+
+      <!-- Panoda anahtar bulununca en üstte çıkar; tek tıkla kaydeder. -->
+      <div id="found" class="found" hidden>
+        <div>
+          <strong>Panoda bir anahtar var</strong>
+          <span id="found-key" class="mono"></span>
+        </div>
+        <button id="use-found" class="button primary" type="button">Bu anahtarı kullan</button>
+      </div>
 
       <section id="wizard" class="card">
         <ol class="steps">
           <li class="step active" data-step="1">
             <span class="dot" aria-hidden="true">1</span>
             <div class="step-body">
-              <h2>Google’dan ücretsiz anahtar alın</h2>
+              <h2>Google AI Studio’yu açın</h2>
               <a
                 id="open-studio"
                 class="button primary big"
-                href="https://aistudio.google.com/app/apikey"
+                href="https://aistudio.google.com/api-keys"
                 target="_blank"
                 rel="noopener noreferrer"
                 >Google AI Studio’yu aç ↗</a
               >
-              <ul class="how">
-                <li>Google hesabınızla girin. İlk seferde çıkan koşulları onaylayın.</li>
-                <li>
-                  <span class="fake-button">Create API key</span> düğmesine basın. Proje sorulursa önerileni seçin.
-                </li>
-                <li>Çıkan anahtarın yanındaki <strong>kopyala</strong> simgesine basın ve bu sekmeye dönün.</li>
-              </ul>
+              <p class="hint">
+                Gmail hesabınızla girin. İlk girişte çıkan koşulları onaylayın. Adres:
+                <span class="mono">aistudio.google.com/api-keys</span>
+              </p>
             </div>
           </li>
+
           <li class="step" data-step="2">
             <span class="dot" aria-hidden="true">2</span>
             <div class="step-body">
-              <h2>Anahtarı buraya yapıştırın</h2>
+              <h2>Anahtarı kopyalayın</h2>
+              <p class="hint">Açılan sayfa aşağıdakine benzer. İşaretli yerlere bakın.</p>
+
+              <!-- AI Studio "API Anahtarları" ekranının sade çizimi: A = oluştur düğmesi, B = kopyala simgesi -->
+              <figure class="mock" aria-label="AI Studio API Anahtarları ekranının çizimi">
+                <div class="mock-bar"><span></span><span></span><span></span><em>aistudio.google.com/api-keys</em></div>
+                <div class="mock-body">
+                  <div class="mock-side">
+                    <b>Google AI Studio</b>
+                    <i class="on">API Anahtarları</i>
+                    <i>Projeler</i>
+                    <i>Kullanım</i>
+                  </div>
+                  <div class="mock-main">
+                    <div class="mock-top">
+                      <strong>API Anahtarları</strong>
+                      <span class="mock-create">API anahtarı oluşturun<b class="pin">A</b></span>
+                    </div>
+                    <div class="mock-table">
+                      <div class="mock-head">
+                        <span>Key</span><span>Project</span><span>Billing Tier</span><span></span>
+                      </div>
+                      <div class="mock-row">
+                        <span><u>…7VNA</u><small>Default Gemini API Key</small></span>
+                        <span><u>Default Gemini Project</u></span>
+                        <span>Free tier</span>
+                        <span class="mock-icons"
+                          ><span class="mock-copy" title="Kopyala">⧉<b class="pin">B</b></span
+                          ><span>$</span><span>▮</span><span>⋮</span></span
+                        >
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </figure>
+
+              <div class="paths">
+                <div class="path">
+                  <b class="pin static">A</b>
+                  <div>
+                    <strong>Listede anahtar yoksa</strong>
+                    <p>
+                      Sağ üstteki <span class="ui">API anahtarı oluşturun</span> düğmesine basın. Açılan pencerede
+                      hiçbir şeyi değiştirmeden oluştur düğmesine basın. Anahtar listeye eklenir.
+                    </p>
+                  </div>
+                </div>
+                <div class="path">
+                  <b class="pin static">B</b>
+                  <div>
+                    <strong>Listede anahtar varsa</strong>
+                    <p>
+                      Satırın sağındaki <strong>ilk simgeye</strong> (<span class="ui icon">⧉</span> kopyala) basın.
+                      Listede görünen <span class="mono">…7VNA</span> gibi yazı anahtarın yalnızca sonudur; onu elle
+                      kopyalamayın.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </li>
+
+          <li class="step" data-step="3">
+            <span class="dot" aria-hidden="true">3</span>
+            <div class="step-body">
+              <h2>Bu sekmeye dönüp yapıştırın</h2>
+              <p class="hint">
+                Kutuya tıklamanıza gerek yok: bu sayfada <span class="kbd">Ctrl</span> + <span class="kbd">V</span>’ye
+                basmanız yeterli.
+              </p>
               <form id="key-form" class="key-form" autocomplete="off">
                 <input
                   id="key-input"
@@ -54,16 +130,9 @@
                   placeholder="AIza ile başlayan anahtar"
                   aria-label="Gemini API anahtarı"
                 />
-                <button id="paste" class="button secondary" type="button">Yapıştır</button>
+                <button id="paste" class="button primary" type="button">Panodan yapıştır</button>
               </form>
               <p id="key-status" class="status" role="status"></p>
-            </div>
-          </li>
-          <li class="step" data-step="3">
-            <span class="dot" aria-hidden="true">3</span>
-            <div class="step-body">
-              <h2>Hazır</h2>
-              <p class="muted">Anahtar denenip kaydedilince asistan açılır.</p>
             </div>
           </li>
         </ol>
@@ -84,14 +153,56 @@
         </div>
       </section>
 
-      <details class="privacy">
-        <summary>Neler gönderilir?</summary>
-        <p>
-          Yalnızca asistana sorduğunuz soru ve o ilanın bilgileri Google Gemini’ye gider. Ücretsiz anahtarlarda Google
-          bu içerikleri ürünlerini geliştirmek için kullanabilir; kişisel bilgi yazmayın. Anahtar yalnızca bu
-          bilgisayarda saklanır ve buradan istediğiniz an silinir.
-        </p>
-      </details>
+      <section class="faq" aria-labelledby="faq-title">
+        <h2 id="faq-title">Takıldıysanız</h2>
+        <details>
+          <summary>Listede yalnızca “…7VNA” gibi kısa bir yazı var</summary>
+          <p>
+            O yazı anahtarın son dört harfidir, tamamı gizlidir. Satırın sağındaki ilk simgeye (⧉) basınca anahtarın
+            tamamı kopyalanır. Sonra bu sekmeye dönüp Ctrl+V’ye basın.
+          </p>
+        </details>
+        <details>
+          <summary>“Set up billing” ya da kart bilgisi istiyor</summary>
+          <p>
+            Gerek yok, dokunmayın. “Free tier” yazıyorsa ücretsiz kullanıyorsunuz. Oto Pusula ücretsiz sınırlar içinde
+            çalışır.
+          </p>
+        </details>
+        <details>
+          <summary>“API anahtarı oluşturun” düğmesini göremiyorum</summary>
+          <p>
+            Sağ üstte olmalı. Görünmüyorsa sayfayı yenileyin ve doğru Gmail hesabıyla girdiğinizden emin olun. Okul ya
+            da şirket hesaplarında bu özellik kapalı olabilir; kişisel bir Gmail hesabı deneyin.
+          </p>
+        </details>
+        <details>
+          <summary>“Google bu anahtarı kabul etmedi” yazıyor</summary>
+          <p>
+            Anahtar eksik kopyalanmış olabilir. AI Studio’da kopyala simgesine yeniden basıp tekrar yapıştırın. Doğru
+            anahtar “AIza” ile başlar ve 39 karakterdir.
+          </p>
+        </details>
+        <details>
+          <summary>“Panodan yapıştır” çalışmıyor</summary>
+          <p>
+            Chrome panoyu okumak için izin ister; çıkan pencerede izin verin. İstemiyorsanız kutuya tıklayıp Ctrl+V’ye
+            basmanız da yeterli.
+          </p>
+        </details>
+        <details>
+          <summary>Asistan “kullanım sınırına ulaşıldı” diyor</summary>
+          <p>Ücretsiz anahtarda dakika başına soru sınırı var. Bir dakika bekleyip tekrar sorun.</p>
+        </details>
+        <details>
+          <summary>Neler gönderilir?</summary>
+          <p>
+            Yalnızca asistana sorduğunuz soru ve o ilanın bilgileri Google Gemini’ye gider. Ücretsiz anahtarlarda Google
+            bu içerikleri ürünlerini geliştirmek için kullanabilir; kişisel bilgi yazmayın. Anahtar yalnızca bu
+            bilgisayarda saklanır ve buradan istediğiniz an silinir.
+          </p>
+        </details>
+      </section>
       <p class="credit">Oto Pusula · Batuhan Cengiz</p>
     </main>
     <script src="remote-ai.js"></script>
