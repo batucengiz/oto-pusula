@@ -2,6 +2,11 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.11.2 — 2026-10-25
+
+- Panel: bütün ilanlar silinince "Fırsat arabalar" ve "Görüştüklerim (WhatsApp)" sayaçları sayfayı yenilemeden sıfırlanır (eskiden eski sayı yenilemeye kadar kalıyordu).
+- İlan karşılaştırma: seçim yalnızca kutucukla yapılır; ilan adına tıklamak sahibinden'deki ilanı yeni sekmede açar. Sonuç tablosundaki ilan adları da bağlantıdır.
+
 ## 7.11.1 — 2026-10-25
 
 - Kurulum sayfası gerçek AI Studio ekranına göre yeniden yazıldı: doğrudan bağlantı (aistudio.google.com/api-keys), "API Anahtarları" ekranının işaretli çizimi (A: "API anahtarı oluşturun", B: satırın sağındaki kopyala simgesi), "listede anahtar yoksa / varsa" yolları ve 7 maddelik "Takıldıysanız" bölümü (kısaltılmış "…7VNA" yazısı, "Set up billing", görünmeyen düğme, reddedilen anahtar, pano, kullanım sınırı, gizlilik).

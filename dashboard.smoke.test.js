@@ -319,6 +319,16 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
   nav[2].click();
   assert.equal(get('stock-view').hidden, false);
   assert.equal(get('overview-view').hidden, true);
+  // Tüm ilanlar silinince fırsat ve WhatsApp sayaçları yenilemeden sıfırlanır.
+  assert.notEqual(get('deal-shortcut').textContent, 'Fırsat arabalar (0)');
+  get('market-filter').value = 'all';
+  get('market-search').value = '';
+  get('market-filter').listeners.change();
+  get('delete-shown').click();
+  assert.equal(JSON.parse(storage.get('otoPusula_v1')).comparables.length, 0);
+  assert.equal(get('deal-shortcut').textContent, 'Fırsat arabalar (0)');
+  assert.equal(get('go-deals').textContent, 'Fırsat arabalar (0)');
+  assert.equal(get('go-phones').textContent, 'Görüştüklerim (WhatsApp) (0)');
 });
 
 test('ürün kodu örnek veya kurgusal veri içermez', () => {
