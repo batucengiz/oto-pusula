@@ -48,7 +48,7 @@ KULLANIM
 GÜNCELLEME
 - Yeni sürümün zip'ini aynı klasörün üzerine çıkarın, chrome://extensions sayfasında
   Oto Pusula'nın yenile (⟳) simgesine basın. Aynı klasörden yüklendiği sürece verileriniz
-  silinmez; farklı bir klasörden yüklerseniz eklenti yeni sayılır (önce panelden JSON yedek alın).
+  silinmez; farklı bir klasörden yüklerseniz eklenti yeni sayılır (önce panelden yedek indirin).
 
 GÜVENLİK
 - Eklenti yalnızca siz düğmeye bastığınızda açık sekmeyi okur; sahibinden'e istek atmaz,

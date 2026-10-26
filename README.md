@@ -87,7 +87,7 @@
 - **Kondisyon seçimi (isteğe bağlı):** Stok aracının detayında “Ortalama / Çok iyi / Bakım ister” seçilebilir. Seçilmezse hesap değişmez; “Çok iyi” hedefi benzer ilanların fiyat dağılımındaki üst dilime (yaklaşık %75–%90), “Bakım ister” alt dilime taşır.
 - **Aracımla karşılaştır:** Karşılaştırmalar sekmesi stokta araç varsa otomatik olarak onunla açılır; hesapta kullanılan her ilan, aracın yılına/km’sine göre düzeltilmiş fiyatı ve aracın fiyatıyla farkı ile listelenir. Satıra tıklayınca ilan sahibinden’de açılır.
 - **Galeri modu:** Stok CSV'si (alış maliyeti, stoğa giriş tarihi) yüklenir. Maliyet altı ilanlar, 60 günü geçen araçlar ve piyasaya göre pahalı kalan araçlar önceliklendirilir.
-- **Tek tıkla Excel:** Popup veya panelden “Excel’e aktar” gerçek bir .xlsx indirir: kalın başlıklar, sayı biçimli fiyatlar, filtre, fırsatlar üstte; ilk sütunda ve başlıkta her ilan için tıklanabilir sahibinden bağlantısı; numarası kayıtlı ilanlarda hazır mesajlı WhatsApp bağlantısı. Dosya bağımlılıksız üretilir (xlsx.js). Tüm veri JSON yedek olarak alınıp geri yüklenebilir.
+- **Tek tıkla Excel:** Popup veya panelden “Excel’e aktar” gerçek bir .xlsx indirir: kalın başlıklar, sayı biçimli fiyatlar, filtre, fırsatlar üstte; ilk sütunda ve başlıkta her ilan için tıklanabilir sahibinden bağlantısı; numarası kayıtlı ilanlarda hazır mesajlı WhatsApp bağlantısı. Dosya bağımlılıksız üretilir (xlsx.js). Tüm veri (kayıtlı ilanlar, takip listesi, aramalar, bildirimler, sohbet geçmişi, ayarlar) tek dosyaya yedeklenip başka bilgisayarda birleştirerek ya da yerine geçerek geri yüklenebilir.
 
 ## Kurulum
 
@@ -101,7 +101,7 @@ Projede örnek veya kurgusal veri yoktur: panel boş açılır ve yalnızca sizi
 
 1. GitHub’daki [Sürümler](https://github.com/batucengiz/oto-pusula/releases/latest) sayfasından en son **oto-pusula-<sürüm>.zip** dosyasını indirin.
 2. Zip’i bir klasöre çıkarın; içindeki **KURULUM.txt** adımlarını izleyin (chrome://extensions → Geliştirici modu → Paketlenmemiş öğe yükle).
-3. Her kullanıcının verisi kendi tarayıcısında ayrı tutulur. Paylaşmak için Excel’e aktar veya JSON yedek kullanılabilir.
+3. Her kullanıcının verisi kendi tarayıcısında ayrı tutulur. Paylaşmak için Excel’e aktar veya “Yedek indir” kullanılabilir.
 
 Chrome ile aynı altyapıyı kullanan **Edge, Brave ve Opera** masaüstü tarayıcılarında da çalışır. Telefon tarayıcıları eklenti desteklemediği için mobilde çalışmaz.
 

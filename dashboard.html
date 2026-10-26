@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="price-timeline.css" />
     <link rel="stylesheet" href="negotiation.css" />
     <link rel="stylesheet" href="flip.css" />
+    <link rel="stylesheet" href="backup.css" />
   </head>
   <body>
     <div class="app-shell">
@@ -529,8 +530,8 @@
             <div class="policy-actions">
               <button class="button button-secondary" id="stock-template" type="button">Stok CSV şablonu</button
               ><button class="button button-secondary" id="comparable-template" type="button">Fiyat CSV şablonu</button
-              ><button class="button button-secondary" id="export-json-method" type="button">JSON yedek indir</button
-              ><button class="button button-secondary" id="restore-backup" type="button">JSON yedeği yükle</button
+              ><button class="button button-secondary" id="export-json-method" type="button">Yedek indir</button
+              ><button class="button button-secondary" id="restore-backup" type="button">Yedeği yükle</button
               ><button class="button button-danger" id="clear-phones" type="button">
                 Kayıtlı satıcı numaralarını sil</button
               ><button class="button button-danger" id="clear-data" type="button">Yerel verileri temizle</button>
@@ -540,6 +541,62 @@
         </section>
       </main>
     </div>
+
+    <dialog id="backup-dialog" class="dialog backup-dialog">
+      <div class="dialog-head">
+        <h2>Yedek indir</h2>
+        <button class="icon-button" id="backup-close" aria-label="Kapat" type="button">×</button>
+      </div>
+      <p>
+        Tüm verileriniz tek bir dosyaya yazılır. Başka bir bilgisayarda panelde “Yöntem ve veri → Yedeği yükle” ile
+        açabilirsiniz. Dosya bu cihazda oluşur, hiçbir yere gönderilmez.
+      </p>
+      <ul class="backup-summary" id="backup-summary"></ul>
+      <label class="backup-option" id="backup-key-row" hidden
+        ><input type="checkbox" id="backup-include-key" /> Gemini anahtarımı da ekle
+        <small
+          >Dosyayı ele geçiren anahtarınızı kullanabilir; yalnızca kendi bilgisayarlarınız için seçin.</small
+        ></label
+      >
+      <div class="dialog-actions">
+        <button class="button button-secondary" id="backup-cancel" type="button">Vazgeç</button
+        ><button class="button button-primary" id="backup-download" type="button">Yedeği indir</button>
+      </div>
+    </dialog>
+
+    <dialog id="restore-dialog" class="dialog backup-dialog">
+      <div class="dialog-head">
+        <h2>Yedeği yükle</h2>
+        <button class="icon-button" id="restore-close" aria-label="Kapat" type="button">×</button>
+      </div>
+      <p id="restore-meta"></p>
+      <ul class="backup-summary" id="restore-summary"></ul>
+      <p class="table-note" id="restore-skipped" hidden></p>
+      <fieldset class="backup-modes">
+        <legend>Bu bilgisayardaki verilerle ne yapılsın?</legend>
+        <label class="backup-option"
+          ><input type="radio" name="restore-mode" value="merge" checked /> Birleştir (önerilen)
+          <small
+            >İki taraftaki ilanlar ve aramalar bir arada kalır; aynı ilan iki tarafta varsa son görülen kalır, takip
+            işareti korunur.</small
+          ></label
+        >
+        <label class="backup-option"
+          ><input type="radio" name="restore-mode" value="replace" /> Mevcut verilerin yerine geçsin
+          <small>Bu bilgisayardaki ilanlar, aramalar ve sohbetler silinir, yedektekiler yüklenir.</small></label
+        >
+      </fieldset>
+      <label class="backup-option" id="restore-safety-row" hidden
+        ><input type="checkbox" id="restore-safety" /> Önce bu bilgisayardaki verilerin yedeğini indir</label
+      >
+      <label class="backup-option" id="restore-key-row" hidden
+        ><input type="checkbox" id="restore-key" /> Yedekteki Gemini anahtarını da yükle</label
+      >
+      <div class="dialog-actions">
+        <button class="button button-secondary" id="restore-cancel" type="button">Vazgeç</button
+        ><button class="button button-primary" id="restore-apply" type="button">Birleştirerek yükle</button>
+      </div>
+    </dialog>
 
     <dialog id="import-dialog" class="dialog">
       <form method="dialog" id="import-form">
@@ -702,6 +759,8 @@
     <script src="report.js"></script>
     <script src="remote-ai.js"></script>
     <script src="chat-history.js"></script>
+    <script src="backup.js"></script>
+    <script src="backup-ui.js"></script>
     <script src="compare-ui.js"></script>
     <script src="brand-manage.js"></script>
     <script src="alerts-ui.js"></script>

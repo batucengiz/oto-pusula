@@ -2,6 +2,14 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.26.0 — 2026-10-26
+
+- **Yedekle ve başka bilgisayarda geri yükle.** Paneldeki "Yedek indir" artık tüm verini tek bir JSON dosyasına yazar: kayıtlı ilanlar (takip listesi, satıcı numaraları, fiyat geçmişi dahil), galeri stoğu, kayıtlı aramalar, bildirimler ve bildirim ayarları, ilan sohbet geçmişi, "yapay zekaya kaydet" listesi, galeri kâr hesabına girdiğin değerler, tema ve sohbet ayarları. İndirmeden önce yedeğe ne gireceği sayılarla gösterilir. Dosyada sürüm ve biçim bilgisi vardır.
+- **Gemini anahtarı yedeğe girmez.** Ancak "Gemini anahtarımı da ekle" kutusunu kendin işaretlersen eklenir (uyarıyla); geri yüklerken de ayrı bir kutuyla sorulur.
+- **Geri yüklemeden önce özet ve seçim.** "Yöntem ve veri → Yedeği yükle" dosyayı açınca ne zaman ve hangi sürümle alındığını ve içindekileri gösterir; hiçbir şey onaysız yazılmaz. **Birleştir** (önerilen): iki bilgisayardaki ilanlar ve aramalar bir arada kalır, aynı ilan iki tarafta varsa son görülen kalır, takip işareti, numara ve fiyat geçmişi korunur, ayarların değişmez. **Yerine geçsin**: bu bilgisayardaki veriler yedektekilerle değişir; öncesinde mevcut verilerin yedeği otomatik indirilir (kutu işaretli gelir). Her iki durumda da bildirimdeki "Geri al" ile işlem geri alınır.
+- **Anlaşılır hata.** Bozuk ya da yarım inmiş dosya, başka programın dosyası, daha yeni sürümle alınmış yedek için ne yapılacağını söyleyen Türkçe mesaj çıkar. Bozuk tek tek kayıtlar atlanır ve sayısı yazılır; bütün yedek çöpe gitmez. Eski sürümlerin "JSON yedek" dosyaları da açılır.
+- Dosya yalnızca bu bilgisayarda oluşturulur ve okunur; sunucu yok, sahibinden'e istek yok. Yeni dosyalar: backup.js, backup-ui.js, backup.css, backup.test.js.
+
 ## 7.25.0 — 2026-10-26
 
 - **Tek sayfalık PDF ilan raporu.** Popup'taki "PDF ilan raporu" düğmesi (ve panelde ilan detayındaki "PDF ilan raporu ↗") seçili ilanı müşteriye gösterilebilecek tek A4 sayfada açar: üstte ilan bilgileri ve tek cümlelik özet (fiyat piyasaya göre nerede, kaporta riski), altında fırsat puanı göstergesi (fiyat / kaporta / güven payları), piyasa farkı çubuğu (aralık, orta ve ilan fiyatı aynı ölçekte), renk kodlu kaporta şemalı ekspertiz özeti, pazarlık önerisi (açılış / hedef / en fazla), fiyat geçmişi grafiği ve en yakın 5 benzer ilanla karşılaştırma tablosu (bu araca göre düzeltilmiş fiyatlarla).

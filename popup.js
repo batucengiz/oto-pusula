@@ -352,7 +352,7 @@
         element(
           'p',
           'warning-line',
-          `⚠ Tarayıcı deposu dolduğu için en uzun süredir görülmeyen ${outcome.roomDropped} ilan silindi (takiptekiler ve numarası kayıtlılar korundu). Önemli verileriniz için panelden JSON yedek alın.`
+          `⚠ Tarayıcı deposu dolduğu için en uzun süredir görülmeyen ${outcome.roomDropped} ilan silindi (takiptekiler ve numarası kayıtlılar korundu). Önemli verileriniz için panelden yedek indirin.`
         )
       );
 
@@ -1658,7 +1658,7 @@
             'p',
             '',
             quota
-              ? 'Yerel depolama dolu. Panelden JSON yedek alıp eski kayıtları temizleyin.'
+              ? 'Yerel depolama dolu. Panelden yedek indirip eski kayıtları temizleyin.'
               : error.message || 'Sayfa okunamadı.'
           )
         ],

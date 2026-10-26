@@ -113,26 +113,30 @@
     !item.watched &&
     !item.sellerPhone;
 
+  // Kayıt biçimine uymayan değer için null döner. Yükleme ve yedekten geri yükleme (backup.js) aynı denetimden geçer.
+  function normalize(parsed) {
+    if (parsed?.schema !== 1 || !Array.isArray(parsed.stock) || !Array.isArray(parsed.comparables)) return null;
+    const comparables = parsed.comparables.filter(item => !misread(item)).slice(0, core.MAX_ROWS);
+    return {
+      schema: 1,
+      stock: parsed.stock.slice(0, core.MAX_ROWS),
+      comparables,
+      pages: core.prunePages(core.normalizePages(parsed.pages), comparables),
+      contacts: core.normalizeLog(parsed.contacts),
+      phoneSaves: core.normalizeLog(parsed.phoneSaves),
+      analyses: core.normalizeLog(parsed.analyses, 50),
+      // Kayıtlı aramalar ve panel bildirimleri (alerts.js). İlanı ya da araması silinmiş bildirim düşer.
+      searches: alerts.normalizeSearches(parsed.searches),
+      alerts: alerts.prune(parsed.alerts, parsed.searches, comparables),
+      alertPrefs: alerts.normalizePrefs(parsed.alertPrefs),
+      sample: !!parsed.sample
+    };
+  }
+
   function load(storage = root.localStorage) {
     try {
-      const parsed = JSON.parse(chromeMode ? chromeText : storage.getItem(KEY));
-      if (parsed?.schema === 1 && Array.isArray(parsed.stock) && Array.isArray(parsed.comparables)) {
-        const comparables = parsed.comparables.filter(item => !misread(item)).slice(0, core.MAX_ROWS);
-        return {
-          schema: 1,
-          stock: parsed.stock.slice(0, core.MAX_ROWS),
-          comparables,
-          pages: core.prunePages(core.normalizePages(parsed.pages), comparables),
-          contacts: core.normalizeLog(parsed.contacts),
-          phoneSaves: core.normalizeLog(parsed.phoneSaves),
-          analyses: core.normalizeLog(parsed.analyses, 50),
-          // Kayıtlı aramalar ve panel bildirimleri (alerts.js). İlanı ya da araması silinmiş bildirim düşer.
-          searches: alerts.normalizeSearches(parsed.searches),
-          alerts: alerts.prune(parsed.alerts, parsed.searches, comparables),
-          alertPrefs: alerts.normalizePrefs(parsed.alertPrefs),
-          sample: !!parsed.sample
-        };
-      }
+      const state = normalize(JSON.parse(chromeMode ? chromeText : storage.getItem(KEY)));
+      if (state) return state;
     } catch {
       /* Bozuk kayıt yerine boş durum döner. */
     }
@@ -191,6 +195,7 @@
     subscribe,
     onWriteError,
     flush,
+    normalize,
     load,
     save,
     saveMakingRoom,

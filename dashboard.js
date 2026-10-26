@@ -46,7 +46,10 @@
       render();
       return true;
     } catch {
-      notice('Yerel depolama dolu olabilir. Önce JSON yedek indirin; bu değişiklik kaydedilmedi.', true);
+      notice(
+        'Yerel depolama dolu olabilir. Önce yedek indirin (Yöntem ve veri → Yedek indir); bu değişiklik kaydedilmedi.',
+        true
+      );
       return false;
     }
   }
@@ -1146,10 +1149,21 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  function exportBackup() {
-    download(`oto-pusula-yedek-${core.localDate()}.json`, JSON.stringify(state, null, 2), 'application/json');
-    notice('JSON yedeği indirildi. Dosya bu cihazda kalır.');
+  // Yedek indirme ve geri yükleme pencereleri (backup-ui.js).
+  let backupUI = null;
+  try {
+    backupUI = globalThis.OtoBackupUI?.mount({
+      state: () => state,
+      save,
+      notice,
+      download,
+      element,
+      localDate: () => core.localDate()
+    });
+  } catch {
+    /* yedek penceresi açılamazsa panelin geri kalanı etkilenmez */
   }
+  const exportBackup = () => backupUI?.openExport();
 
   document
     .querySelectorAll('.nav-button')
@@ -1192,7 +1206,7 @@
       }
       const field = type === 'stock' ? 'stock' : 'comparables';
       const merged = core.merge(state[field], records);
-      if (merged.length > core.MAX_ROWS) throw new Error(`Toplam kayıt sınırı ${core.MAX_ROWS}. Önce JSON yedek alın.`);
+      if (merged.length > core.MAX_ROWS) throw new Error(`Toplam kayıt sınırı ${core.MAX_ROWS}. Önce yedek indirin.`);
       if (save({ ...state, [field]: merged, sample: false })) {
         $('import-dialog').close();
         $('import-file').value = '';
@@ -1423,9 +1437,7 @@
     state = store.load();
     render();
   });
-  store.onWriteError(() =>
-    notice('Değişiklik tarayıcı deposuna yazılamadı. Diskte yer açın ve JSON yedek indirin.', true)
-  );
+  store.onWriteError(() => notice('Değişiklik tarayıcı deposuna yazılamadı. Diskte yer açın ve yedek indirin.', true));
   $('print-report').addEventListener('click', () => {
     if (selectedVehicle) window.print();
   });
@@ -1446,57 +1458,9 @@
       'text/csv;charset=utf-8'
     )
   );
-  $('restore-backup').addEventListener('click', () => $('backup-file').click());
-  $('backup-file').addEventListener('change', async event => {
-    const input = event.currentTarget;
-    const file = input.files[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      notice('JSON yedeği 5 MB sınırını aşıyor.', true);
-      return;
-    }
-    try {
-      const backup = JSON.parse(await file.text());
-      if (backup.schema !== 1 || !Array.isArray(backup.stock) || !Array.isArray(backup.comparables))
-        throw new Error('Oto Pusula yedeği değil.');
-      if (backup.stock.length > core.MAX_ROWS || backup.comparables.length > core.MAX_ROWS)
-        throw new Error('Kayıt sınırı aşıldı.');
-      const normalized = {
-        schema: 1,
-        sample: !!backup.sample,
-        pages: core.normalizePages(backup.pages),
-        contacts: state.contacts,
-        phoneSaves: state.phoneSaves,
-        analyses: state.analyses,
-        // Eski yedekte kayıtlı arama yoksa mevcut aramalar korunur.
-        searches: Array.isArray(backup.searches)
-          ? globalThis.OtoAlerts.normalizeSearches(backup.searches)
-          : state.searches,
-        alerts: Array.isArray(backup.alerts) ? globalThis.OtoAlerts.normalizeAlerts(backup.alerts) : state.alerts,
-        alertPrefs: backup.alertPrefs ? globalThis.OtoAlerts.normalizePrefs(backup.alertPrefs) : state.alertPrefs,
-        stock: backup.stock.map((item, i) =>
-          core.normalizeRecord({ ...item, id: String(item.id).replace(/^stock-/, '') }, 'stock', i + 2)
-        ),
-        comparables: backup.comparables.map((item, i) =>
-          core.normalizeRecord({ ...item, id: String(item.id).replace(/^comparable-/, '') }, 'comparable', i + 2)
-        )
-      };
-      normalized.pages = core.prunePages(normalized.pages, normalized.comparables);
-      normalized.alerts = globalThis.OtoAlerts.prune(normalized.alerts, normalized.searches, normalized.comparables);
-      if (
-        (state.stock.length || state.comparables.length) &&
-        !confirm('Yedek mevcut verilerin yerine geçecek. Devam edilsin mi?')
-      )
-        return;
-      if (save(normalized)) notice('Yedek geri yüklendi.');
-    } catch (error) {
-      notice(`Yedek yüklenemedi: ${error.message}`, true);
-    } finally {
-      input.value = '';
-    }
-  });
+  $('restore-backup').addEventListener('click', () => backupUI?.openRestore());
   $('clear-data').addEventListener('click', () => {
-    if (!confirm('Bu cihazdaki stok ve karşılaştırma kayıtları silinecek. Önce JSON yedek indirdiniz mi?')) return;
+    if (!confirm('Bu cihazdaki stok ve karşılaştırma kayıtları silinecek. Önce yedek indirdiniz mi?')) return;
     try {
       // Kayıtlı aramalar ve bildirim ayarları kalır; ilanları silinen bildirimler gider.
       const kept = {

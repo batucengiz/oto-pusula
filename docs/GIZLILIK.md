@@ -34,7 +34,7 @@ Oto Pusula, sahibinden.com ilanlarını kullanıcının kendi bilgisayarında an
 - **Ekspertiz yorumu:** İlan yazısındaki ve sayfada görünen ekspertiz bilgisi bilgisayarınızda, yapay zeka kullanılmadan yorumlanır; hiçbir yere gönderilmez ve kaydedilmez (yorum yalnızca popup'ta ve açtığınız rapor sayfasının adresinde durur).
 - **Rapor fotoğrafını yorumla (isteğe bağlı):** Yalnızca Gemini anahtarı kayıtlıysa ve siz "Ekrandaki rapor fotoğrafını yorumla" düğmesine bastığınızda, o an görünen sekmenin bir ekran görüntüsü (`activeTab` izniyle, sahibinden'e istek atmadan) ve eklentinin bu ilan için bulduğu ekspertiz bulguları Google'a (`generativelanguage.googleapis.com`) gönderilir. Ekran görüntüsünde sayfada o an görünen her şey (ör. oturum açtıysanız sağ üstteki adınız) bulunabilir; düğmeye basmadan önce rapor fotoğrafını büyütün. Görüntü kaydedilmez ve sohbet geçmişine yazılmaz.
 - **Kayıtlı arama bildirimleri:** Eşleştirme bilgisayarınızda, yalnızca sizin analiz ettiğiniz ilanlarla yapılır. Eklenti sahibinden'i arka planda kontrol etmez, sayfa açmaz ya da yenilemez. Bildirimler panelde, eklenti simgesindeki sayıda ve isteğe bağlı olarak Chrome masaüstü bildiriminde görünür; SMS, e-posta veya anlık bildirim (push) gönderilmez, hiçbir sunucuya veri gitmez.
-- Excel ve JSON yedek dosyaları yalnızca siz indirdiğinizde bilgisayarınıza kaydedilir.
+- Excel ve yedek dosyaları yalnızca siz indirdiğinizde bilgisayarınıza kaydedilir. Gemini anahtarı yedeğe yalnızca siz işaretlerseniz girer.
 
 ## İzinler
 
