@@ -2,6 +2,11 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.29.0 — 2026-10-27
+
+- **Satıcıya sorulacakları işaretle, WhatsApp'tan tek mesajla sor.** Ekspertiz raporundaki ve popup'taki "Satıcıya sorulacaklar" listesinde istediğin soruları tikle; "Seçilen N soruyu WhatsApp'tan sor" düğmesi hepsini numaralı tek bir mesajda ("Merhaba, … ilanınız (ilan no: …) için birkaç sorum olacak: 1. … 2. …") WhatsApp'ta açar. Raporda "Tümünü seç" de var. Gönder tuşuna yine sen basarsın.
+- İlanda "Telefonu göster"e basılıp analiz edildiyse (ya da numarayı kaydettiysen) mesaj doğrudan satıcının numarasına açılır ve "WhatsApp'tan yaz" ile aynı spam sınırından geçer (yeni satıcılara dakikada 1, günde 20). Numara yoksa WhatsApp açılınca kişiyi sen seçersin. Numara yine kaydedilmez; rapora yalnızca açık sekmenin adresinde taşınır.
+
 ## 7.28.0 — 2026-10-27
 
 - **"Google zamanında cevap vermedi" düzeltildi.** Kök sebep: anahtar denemesinde ilk model (gemini-flash-latest) takılınca 20 saniyelik sürenin tamamını tek başına yiyor, yedek modellere sıra gelmiyordu; deneme zaman aşımına düşünce geçerli anahtar **kaydedilmiyordu**, bu yüzden popup tekrar tekrar kurulum sayfasına yönlendiriyordu. Artık bir model birkaç saniye içinde cevap vermezse beklemesi sürerken sıradaki model de aynı anda denenir; önce gelen cevap kullanılır, diğeri iptal edilir (anahtar denemesinde 4 sn, sohbette 15 sn sonra).

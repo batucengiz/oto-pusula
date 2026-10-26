@@ -91,9 +91,10 @@ test('rapor adresi: kimlik ve açıklama uyarıları güvenle taşınır, bozuk 
   assert.deepEqual(decoded, {
     id: 'sh-1',
     flags: [{ label: 'Kapora', level: 'bad', text: 'Kapora göndermeyin.', quote: 'kapora alınır' }],
-    reading: null
+    reading: null,
+    phone: ''
   });
-  assert.deepEqual(report.decodeHash('#%7Bbozuk'), { id: '', flags: [], reading: null });
+  assert.deepEqual(report.decodeHash('#%7Bbozuk'), { id: '', flags: [], reading: null, phone: '' });
   const reading = { risk: { level: 'high' }, rows: [] };
   assert.deepEqual(report.decodeHash(report.encodeHash('sh-1', [], reading)).reading, reading);
   assert.equal(report.decodeHash(report.encodeHash('sh-1', [], { big: 'x'.repeat(70000) })).reading, null);
@@ -172,8 +173,51 @@ test('rapor sayfası kayıttan çizilir; ilan yoksa açıklama gösterir', async
   assert.match(sent.querySelector('.ep-claim').textContent, /Hatasız iddiası tutmuyor/);
   assert.match(sent.querySelector('.ep-table').textContent, /Sol Ön Çamurluk.*Değişen/);
   assert.match(sent.getElementById('sections').textContent, /Sol Ön Çamurluk neden değişti/);
+  // Satıcıya sorulacaklar: işaretlenen sorular tek WhatsApp mesajında açılır.
+  const ask = sent.querySelector('.ask .whatsapp');
+  assert.ok(ask.disabled, 'soru seçilmeden düğme kapalı');
+  const [allButton] = [...sent.querySelectorAll('.ask button')].filter(button => button.textContent === 'Tümünü seç');
+  const opened = [];
+  sent.defaultView.open = url => opened.push(url);
+  allButton.click();
+  assert.match(ask.textContent, /^Seçilen \d+ soruyu WhatsApp’tan sor$/);
+  ask.click();
+  assert.equal(opened.length, 1);
+  assert.match(opened[0], /^https:\/\/wa\.me\/\?text=Merhaba/);
+  assert.match(decodeURIComponent(opened[0]), /1\. Sol Ön Çamurluk neden değişti/);
   const missing = await run('sh-0000000');
   assert.equal(missing.getElementById('title').textContent, 'İlan bulunamadı');
+});
+
+test('satıcıya sorular: seçilenler numaralı tek mesaj olur, numaraya açılan mesaj spam sınırından geçer', () => {
+  const message = report.questionsMessage(record, ['Tramer kaydı ne?', 'Bakım kayıtları var mı?']);
+  assert.match(
+    message,
+    /^Merhaba, sahibinden\.com'daki "TEMİZ CLIO" ilanınız \(ilan no: 1234567891\) için birkaç sorum/
+  );
+  assert.match(message, /\n1\. Tramer kaydı ne\?\n2\. Bakım kayıtları var mı\?\n/);
+  assert.match(report.questionsMessage(record, ['Tek soru?']), /bir sorum olacak/);
+  assert.equal(report.questionsLink('905321234567', record, []), '');
+  assert.match(report.questionsLink('905321234567', record, ['A?']), /^https:\/\/wa\.me\/905321234567\?text=/);
+  assert.match(report.questionsLink('02121234567', record, ['A?']), /^https:\/\/wa\.me\/\?text=/);
+
+  const now = Date.parse('2026-10-24T12:00:00Z');
+  const state = { contacts: [] };
+  const first = report.askSeller(state, record, '905321234567', ['A?'], now);
+  assert.ok(first.allowed);
+  assert.equal(first.state.contacts.length, 1, 'yazışma sayacına işlenir');
+  const again = report.askSeller(first.state, record, '905321234567', ['B?'], now + 1000);
+  assert.ok(again.allowed, 'aynı satıcıya tekrar yazmak serbest');
+  assert.equal(again.state, first.state);
+  const other = report.askSeller(first.state, { ...record, id: 'sh-2' }, '905329999999', ['A?'], now + 1000);
+  assert.equal(other.allowed, false, 'yeni satıcıya hemen ardından yazılamaz');
+  const noPhone = report.askSeller(state, record, '', ['A?'], now);
+  assert.ok(noPhone.allowed);
+  assert.equal(noPhone.state, state, 'numarasız mesaj sayacı değiştirmez');
+  assert.equal(report.askSeller(state, record, '905321234567', [], now).allowed, false);
+
+  assert.equal(report.decodeHash(report.encodeHash('sh-1', [], null, '905321234567')).phone, '905321234567');
+  assert.equal(report.decodeHash(report.encodeHash('sh-1', [], null, '12345')).phone, '');
 });
 
 test('rapor dosyaları uzak betik ve dinamik kod içermez', () => {

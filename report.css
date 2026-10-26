@@ -157,6 +157,34 @@ li.warn {
 li.good {
   color: var(--good);
 }
+/* Satıcıya sorulacaklar: işaretlenen sorular tek WhatsApp mesajında açılır. */
+.ask {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+.ask p {
+  flex-basis: 100%;
+  font-size: 13px;
+}
+.ask-note:empty {
+  display: none;
+}
+button.whatsapp {
+  background: #25d366;
+  border-color: #25d366;
+  color: #0b3d1f;
+  font-weight: 600;
+}
+button.whatsapp:hover:not(:disabled) {
+  background: #2ee774;
+}
+button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
 .lines {
   height: 120px;
   background: repeating-linear-gradient(transparent 0 27px, var(--line) 27px 28px);

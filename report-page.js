@@ -41,8 +41,57 @@
     return block;
   }
 
+  // Satıcıya sorulacaklar: işaretlenen sorular tek WhatsApp mesajında açılır (report.askSeller). Numara kaydedilmez.
+  function askBlock(list, items, record, phone) {
+    const block = element('div', 'ask no-print');
+    const send = element('button', 'whatsapp');
+    send.type = 'button';
+    const all = element('button', '', 'Tümünü seç');
+    all.type = 'button';
+    const note = element('p', 'muted ask-note');
+    const hint = element(
+      'p',
+      'muted',
+      phone
+        ? `Mesaj satıcının numarasına (${phone.replace(/^90(\d{3})(\d{3})(\d{2})(\d{2})$/, '0$1 $2 $3 $4')}) hazır açılır; gönder tuşuna siz basarsınız.`
+        : 'Satıcının numarası bu raporda yok; WhatsApp açılınca kişiyi siz seçersiniz. Numarayla açmak için ilanda “Telefonu göster”e basıp eklentiyle analiz edin ve raporu oradan açın.'
+    );
+    const boxes = () => [...list.querySelectorAll('input[type="checkbox"]')];
+    const chosen = () => boxes().flatMap((box, index) => (box.checked ? [items[index]] : []));
+    const refresh = () => {
+      const count = chosen().length;
+      send.textContent = count ? `Seçilen ${count} soruyu WhatsApp’tan sor` : 'Sormak istediklerinizi işaretleyin';
+      send.disabled = !count;
+      all.textContent = count === items.length ? 'Seçimi kaldır' : 'Tümünü seç';
+    };
+    list.addEventListener('change', refresh);
+    all.addEventListener('click', () => {
+      const check = chosen().length !== items.length;
+      for (const box of boxes()) box.checked = check;
+      refresh();
+    });
+    send.addEventListener('click', () => {
+      const state = store.load();
+      const result = report.askSeller(state, record, phone, chosen());
+      if (!result.allowed) {
+        note.textContent = `⏳ ${result.reason}`;
+        return;
+      }
+      try {
+        if (result.state !== state) store.save(result.state);
+      } catch {
+        /* sayaç yazılamasa da mesaj açılır */
+      }
+      note.textContent = '';
+      if (result.link.startsWith('https://wa.me/')) window.open(result.link, '_blank', 'noopener');
+    });
+    refresh();
+    block.append(send, all, note, hint);
+    return block;
+  }
+
   await store.ready();
-  const { id, flags, reading: sent } = report.decodeHash(location.hash);
+  const { id, flags, reading: sent, phone: sentPhone } = report.decodeHash(location.hash);
   const record = store.load().comparables.find(item => item.id === id);
   if (!record) {
     $('title').textContent = 'İlan bulunamadı';
@@ -52,6 +101,8 @@
     return;
   }
   const comparables = store.load().comparables;
+  // Popup'ta görülen numara ya da kullanıcının bu ilana kendisinin kaydettiği numara.
+  const phone = sentPhone || (/^905\d{9}$/.test(record.sellerPhone || '') ? record.sellerPhone : '');
   const result = core.estimate(record, comparables);
   const body = core.bodyReport(record);
   const pace = core.modelPace(record, comparables);
@@ -119,6 +170,7 @@
         list.append(li);
       });
       node.append(list);
+      if (section.id === 'questions') node.append(askBlock(list, section.items, record, phone));
       return node;
     })
   );
