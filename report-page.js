@@ -56,6 +56,8 @@
   const body = core.bodyReport(record);
   const advice = core.advise(record, result);
   const reading = readingFor(record, sent);
+  const pace = core.modelPace(record, comparables);
+  const timeline = globalThis.OtoTimeline?.summarize(record, { pace }) || null;
   const data = report.build({
     record,
     result,
@@ -70,7 +72,8 @@
     textFlags: flags,
     expertise: reading ? globalThis.OtoExpertise.lines(reading) : [],
     reading,
-    pace: core.paceLines(core.modelPace(record, comparables), record),
+    pace: core.paceLines(pace, record),
+    timeline: globalThis.OtoTimeline?.lines(timeline) || [],
     today: core.localDate()
   });
 
@@ -90,6 +93,11 @@
       const node = element('section');
       node.append(element('h2', '', section.heading));
       if (section.id === 'expertise') node.append(expertiseBlock(data.reading));
+      // Fiyat geçmişi bölümünde grafik ve ipucu kutusu listenin yerine geçer; metin "Metni kopyala"da kalır.
+      if (section.id === 'timeline') {
+        node.append(globalThis.OtoTimeline.block(document, timeline, { market: result?.center }));
+        return node;
+      }
       const list = element('ul', section.check ? 'check' : '');
       // Ekspertiz bölümünde şema ve tablolarda zaten görünen satırlar listede tekrarlanmaz.
       const shown =

@@ -2,6 +2,13 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.22.0 — 2026-10-26
+
+- **Fiyat geçmişi zaman çizgisi.** Panelde ilan ayrıntısında ve ekspertiz raporunda kayıtlı ilanın fiyatı tarih ekseninde basamaklı çizgiyle gösterilir: her indirim yeşil, her artış kırmızı nokta; tahmini piyasa ortası kesik çizgi; çizgi son görülme gününe kadar uzar. Üstte ilk fiyat, şimdiki fiyat, toplam değişim ve takip süresi kutuları durur. Açık ve koyu temada çalışır, rapor yazdırılınca da görünür.
+- **"X haftadır satılmıyor, pazarlığa açık olabilir" ipucu.** İlan en az 3 haftadır yayındaysa çıkar. Yanında nedeni yazar: benzer ilanlar ortalama kaç günde yayından kalkıyor, satıcı kaç kez indirim yaptı ya da fiyatı hiç düşürmedi, fiyatı artırdıysa "ısrarcı olabilir". 8 haftayı ya da benzer ilanların ortalama süresinin 1,5 katını geçen ilanda ipucu vurgulu gösterilir. Yeniden yayınlanan ilanda süre ve ilk fiyat önceki ilandan sayılır; ilan bir haftadan uzun süredir görülmediyse "hâlâ yayında mı kontrol edin" uyarısı eklenir.
+- Raporda bu bilgi "Dikkat edilecekler" listesinde ikinci kez yazılmaz; "Metni kopyala" çıktısına da eklenir.
+- Yalnızca bilgisayardaki kayıtlı geçmiş kullanılır; sahibinden'e ek istek yoktur. Yeni dosyalar: price-timeline.js, price-timeline.css, price-timeline.test.js.
+
 ## 7.21.0 — 2026-10-26
 
 - **Otomatik tamamlamada kasa seçenekleri.** "egea" yazınca artık yalnızca Fiat Egea ve Egea Cross değil, Egea Sedan, Egea Hatchback ve Egea Station Wagon da önerilir. Aynısı Corolla, Clio, Megane, Focus, Astra, Civic, i30, Golf, 3 Serisi, C Serisi, A4, Octavia, Leon ve 140'tan fazla modelde çalışır (gömülü liste). Listede olmayan modeller için kayıtlarında görülen kasalar önerilir (ör. Picanto Hatchback); böylece analiz ettiğin her araba için kasa seçeneği çıkar. sahibinden'in ayrı seri saydığı adlar (Egea Cross, Corolla Cross, Passat Variant) model olarak kalır.
