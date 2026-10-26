@@ -54,7 +54,8 @@
   const comparables = store.load().comparables;
   const result = core.estimate(record, comparables);
   const body = core.bodyReport(record);
-  const advice = core.advise(record, result);
+  const pace = core.modelPace(record, comparables);
+  const advice = core.advise(record, result, new Date(), pace);
   const reading = readingFor(record, sent);
   const data = report.build({
     record,
@@ -70,7 +71,7 @@
     textFlags: flags,
     expertise: reading ? globalThis.OtoExpertise.lines(reading) : [],
     reading,
-    pace: core.paceLines(core.modelPace(record, comparables), record),
+    pace: core.paceLines(pace, record),
     today: core.localDate()
   });
 
@@ -87,6 +88,9 @@
   );
   $('sections').replaceChildren(
     ...data.sections.map(section => {
+      // Pazarlık bölümü popup ve paneldeki kutuyla aynı görünür (kopyalanabilir teklif mesajı dahil).
+      if (section.id === 'negotiation' && globalThis.OtoNegotiation && advice.offer)
+        return globalThis.OtoNegotiation.render(document, advice.offer, { heading: 'h2' });
       const node = element('section');
       node.append(element('h2', '', section.heading));
       if (section.id === 'expertise') node.append(expertiseBlock(data.reading));

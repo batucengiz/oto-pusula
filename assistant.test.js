@@ -13,6 +13,7 @@ const CORE_FILES = [
   'core-csv.js',
   'core-price.js',
   'core-limits.js',
+  'negotiation.js',
   'core-deal.js',
   'core.js',
   'alerts.js'

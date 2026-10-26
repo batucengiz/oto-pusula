@@ -897,14 +897,17 @@
   }
 
   // Kullanıcının WhatsApp'ta düzenleyip kendisinin göndereceği hazır mesaj bağlantısı. Numara saklanmaz.
-  function whatsappLink(phone, record) {
+  // text verilirse (ör. pazarlık önerisinin teklif mesajı) varsayılan mesajın yerine o kullanılır.
+  function whatsappLink(phone, record, text = '') {
     if (!/^905\d{9}$/.test(phone)) return '';
     const name = record.title || [record.brand, record.model].filter(Boolean).join(' ');
     // Kaporta bilgisi yoksa, çelişkiliyse veya değişen parça varsa belge de istenir; mesajı kullanıcı düzenleyip gönderir.
     const body = core.bodyReport(record);
     const askReport = !body.known || core.bodyConflict(record) || body.changed.length || record.damageChanged;
+    // Belge istekleri teklif mesajına da eklenir.
     const message =
-      `Merhaba, sahibinden.com'daki "${name}" ilanınız (ilan no: ${record.listingId}) için yazıyorum. Araç hâlâ satılık mı?` +
+      (text ||
+        `Merhaba, sahibinden.com'daki "${name}" ilanınız (ilan no: ${record.listingId}) için yazıyorum. Araç hâlâ satılık mı?`) +
       (askReport ? ' Mümkünse ekspertiz raporunu ve tramer kaydını paylaşabilir misiniz?' : '') +
       // Km takip sırasında düştüyse kilometre kaydı da istenir (suçlamadan, belge olarak).
       (record.kmPrevious > record.km
@@ -941,8 +944,8 @@
 
   // WhatsApp'ı açmadan önce spam korumasını uygular; izin verilirse yazışma kaydını günceller.
   // Numara kayda geçmez; yalnızca hangi ilanın satıcısına ne zaman yazıldığı tutulur.
-  function contactWhatsApp(state, record, phone, now = Date.now()) {
-    const link = whatsappLink(phone, record);
+  function contactWhatsApp(state, record, phone, now = Date.now(), text = '') {
+    const link = whatsappLink(phone, record, text);
     if (!link) return { allowed: false, reason: 'Geçerli bir cep numarası yok.', state };
     const gate = core.contactGate(state.contacts, record.id, now);
     if (!gate.allowed) return { ...gate, state };

@@ -37,10 +37,13 @@
       : ['Piyasa tahmini yok: yeterli benzer ilan toplanmamış.'];
     market.push(...pace);
     if (deal) market.push(`Fırsat puanı ${deal.score}/100${deal.label ? ` (${deal.label})` : ''}`);
-    if (advice?.offer)
-      market.push(
-        `Pazarlık: açılış ${lira(advice.offer.open)}, hedef ${lira(advice.offer.target)}. ${advice.offer.note}`
-      );
+    // Pazarlık planı ve satıcıya yazılacak hazır teklif mesajı (negotiation.js).
+    const negotiation = advice?.offer
+      ? [
+          ...(root.OtoNegotiation || require('./negotiation.js')).lines(advice.offer),
+          `Satıcıya mesaj: «${advice.offer.message}»`
+        ]
+      : [];
     const bodyLines = body?.known
       ? [
           `${body.label} · kaporta puanı ${body.score}/100`,
@@ -67,6 +70,7 @@
       facts,
       sections: [
         { id: 'market', heading: 'Fiyat', items: market },
+        { id: 'negotiation', heading: 'Pazarlık önerisi', items: negotiation },
         { id: 'body', heading: 'Kaporta (satıcı beyanı)', items: bodyLines },
         {
           id: 'expertise',

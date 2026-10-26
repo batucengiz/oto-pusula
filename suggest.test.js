@@ -111,6 +111,7 @@ function openForm(records = []) {
     'core-csv.js',
     'core-price.js',
     'core-limits.js',
+    'negotiation.js',
     'core-deal.js',
     'core.js',
     'catalog.js',

@@ -1,0 +1,78 @@
+/* Pazarlık önerisi kutusu: popup, panel ilan detayı ve ekspertiz raporunda ortak (negotiation.js render). */
+.negotiation {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line, #d0d7de);
+  border-radius: var(--r-md, 8px);
+}
+
+.negotiation h2,
+.negotiation h3 {
+  margin: 0 0 8px;
+}
+
+.negotiation-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.negotiation-step {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: var(--r-sm, 6px);
+  background: var(--brand-soft, rgba(37, 99, 235, 0.08));
+}
+
+.negotiation-step span {
+  font-size: 11px;
+  color: var(--muted, #57606a);
+}
+
+.negotiation-step strong {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.negotiation-step:last-child {
+  background: var(--warn-bg, rgba(217, 119, 6, 0.1));
+}
+
+.negotiation-note,
+.negotiation-foot,
+.negotiation-levers {
+  font-size: 12px;
+  color: var(--muted, #57606a);
+}
+
+.negotiation-caution {
+  font-size: 12px;
+  color: var(--bad, #b42318);
+}
+
+.negotiation-levers {
+  margin: 6px 0;
+  padding-left: 18px;
+}
+
+.negotiation-message summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.negotiation-message p {
+  margin: 6px 0;
+  white-space: pre-wrap;
+}
+
+@media print {
+  .negotiation button {
+    display: none;
+  }
+
+  .negotiation-message {
+    display: block;
+  }
+}
