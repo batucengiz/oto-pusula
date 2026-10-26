@@ -217,6 +217,30 @@
   const ENGINE_WORDS =
     /^(HDI|E-HDI|BLUEHDI|THP|VTI|TDI|TSI|TFSI|FSI|BLUEMOTION|DCI|TCE|SCE|MPI|CRDI|CDTI|CDI|D|T|I|VTEC|I-VTEC|IVTEC|FIRE|MULTIJET|MULTIAIR|JTD|JTDM|PURETECH|ECOBOOST|TDCI|DURATEC|D-4D|D4D|VVT-I|VVTI|GDI|T-GDI|TGDI|CVVT|D-CVVT|SKYACTIV|SKYACTIV-G|SKYACTIV-D|HYBRID|HIBRIT|DIZEL|DIESEL|BENZIN|LPG|TURBO|ECOTEC|DUALJET|BOOSTERJET|EVO|16V|8V|4MOTION|QUATTRO|XDRIVE|AWD|RWD|FWD|4X4|4WD|TID|TTID|E-TORQ|ETORQ|FIREFLY|M\.?JET|T-?JET|E-?HYBRID|MHEV|PHEV|HEV|TGI|TCR|ECOBLUE|EBLUE|BLUEDCI|E-THP)$/;
 
+  const ENGINE_CASE = {
+    HDI: 'HDi',
+    'E-HDI': 'e-HDi',
+    BLUEHDI: 'BlueHDi',
+    DCI: 'dCi',
+    BLUEDCI: 'Blue dCi',
+    TCE: 'TCe',
+    SCE: 'SCe',
+    CRDI: 'CRDi',
+    VTI: 'VTi',
+    PURETECH: 'PureTech',
+    MULTIJET: 'Multijet',
+    MULTIAIR: 'MultiAir',
+    FIRE: 'Fire',
+    ECOBOOST: 'EcoBoost',
+    TDCI: 'TDCi',
+    BLUEMOTION: 'BlueMotion',
+    HYBRID: 'Hybrid',
+    HIBRIT: 'Hibrit',
+    DIZEL: 'Dizel',
+    BENZIN: 'Benzin',
+    TURBO: 'Turbo'
+  };
+
   // Teknik metinden ("1.4 HDi Trendy", "1.6 TDI BlueMotion Midline Plus") hacim+motor kodu ve paket ayrılır.
   // Katalogda motor ve paket adları olmayan bütün markalarda paket ayrımı böylece de çalışır.
   // Yalnızca model/teknik metne bakılır; başlıktaki "1.300.000" gibi fiyatlar motor sanılmaz.
@@ -224,23 +248,59 @@
     const raw = String(text ?? '')
       .replace(/\s+/g, ' ')
       .trim();
-    const match = raw.match(/(^|[^0-9.,])([0-6]\.[0-9])(?![0-9])(?![.,][0-9])/);
+    // "1.6", "1,6" (başlıklarda virgülle de yazılır) ve Toyota "1.33" gibi iki ondalıklı hacimler. Hemen ardından
+    // "milyon"/"bin"/"TL" geliyorsa fiyattır ("1,5 MİLYON"), motor sayılmaz. Bitişik kod ("1.6TDI") ayrılır.
+    const pattern = /(^|[^0-9.,])([0-6][.,][0-9]{1,2})(?![0-9])(?![.,][0-9])/g;
+    let match;
+    let after = [];
+    while ((match = pattern.exec(raw))) {
+      after = raw
+        .slice(match.index + match[0].length)
+        .replace(/^([A-Za-zİıŞşĞğÇçÖöÜü])/, ' $1')
+        .trim()
+        .split(' ')
+        .filter(Boolean);
+      if (!/^(MILYON|MLN|MILYAR|BIN|TL$|LIRA)/.test(norm(after[0]))) break;
+    }
     if (!match) return { engine: '', trim: '' };
-    const after = raw
-      .slice(match.index + match[0].length)
-      .trim()
-      .split(' ')
-      .filter(Boolean);
     const engineWords = [];
-    while (after.length && ENGINE_WORDS.test(norm(after[0]))) engineWords.push(after.shift());
+    // Büyük harfli başlıktaki kod ("HDİ", "MULTİJET") üreticinin yazımıyla kaydedilir: "HDi", "Multijet".
+    while (after.length && ENGINE_WORDS.test(norm(after[0]))) {
+      const word = after.shift();
+      const upper = norm(word);
+      engineWords.push(
+        word === word.toLocaleUpperCase('tr-TR') || /[İıŞşĞğÇçÖöÜü]/.test(word) ? ENGINE_CASE[upper] || upper : word
+      );
+    }
     const words = after.slice(0, 3);
     const trim = words.length && words.every(word => word.length <= 15 && !/\d{3,}/.test(word)) ? words.join(' ') : '';
-    return { engine: [match[2], ...engineWords].join(' '), trim };
+    return { engine: [match[2].replace(',', '.'), ...engineWords].join(' '), trim };
   }
 
-  function powerCode(text) {
-    const match = String(text ?? '').match(/(?:^|\s)([2-7][05])\s?(TDI|TFSI|TFSIe|e-tron)(?=\s|$)/i);
-    return match ? `${match[1]} ${match[2].toUpperCase().replace('TFSIE', 'TFSI e').replace('E-TRON', 'e-tron')}` : '';
+  // Hacim yerine kodla yazılan motorlar: Mercedes "C 200 d", BMW "520d" / "320i", Audi "40 TDI" / "35 TFSI".
+  // Versiyon sütununda serbestçe aranır; ilan başlığında ise ("2020 MODEL MERCEDES E 200 d") yalnızca markaya özgü
+  // kalıplarla (sınıf harfi, BMW d/i eki, Audi TDI/TFSI) — "68 BİNDE" gibi sayılar motor sanılmasın.
+  function codeEngine(brand, text, strict) {
+    const raw = String(text ?? '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const fix = code =>
+      code.replace(/\s(D|E|I|H)$/i, (_, letter) => ` ${letter.toLowerCase()}`).replace(/(\d)D$/, '$1d');
+    const audi = raw.match(/(?:^|\s)(\d{2})\s?(TDI|TFSI|TSI)(\s?e)?(?=\s|$)/i);
+    if (audi && (!strict || /AUDI/.test(brand))) return `${audi[1]} ${audi[2].toUpperCase()}${audi[3] ? ' e' : ''}`;
+    if (!strict) {
+      const match = raw.match(/(?:^|\s)(\d{3}[a-zA-Z]{0,2}(?:\s(?:d|e|i|h|CDI|BlueTEC|4MATIC))?)(?=\s|$)/i);
+      return match ? fix(match[1]) : '';
+    }
+    if (/BMW/.test(brand))
+      return raw.match(/(?:^|[^0-9A-Za-z])([1-8]\d{2}[dDiI])(?=[^0-9A-Za-z]|$)/)?.[1].toLowerCase() || '';
+    if (/MERCEDES/.test(brand)) {
+      const match = raw.match(
+        /(?:^|[^0-9A-Za-z])(?:A|B|C|E|S|G|CLA|CLS|CLK|GLA|GLB|GLC|GLE|GLS|ML|SLK|SL|V)\s?(\d{3})(?:\s?(d|CDI|e))?(?=[^0-9A-Za-z]|$)/i
+      );
+      return match ? fix([match[1], match[2]].filter(Boolean).join(' ')) : '';
+    }
+    return '';
   }
 
   function findBody(text) {
@@ -312,28 +372,22 @@
     const detailText = `${sources[0]} ${sources[1]}`;
     const engine = findEngine(brand, detailText);
     const technical = technicalParts(version || context);
-    // Hacim yerine kodla yazılan motorlar: Mercedes "C 200 d", BMW "520d" / "320i".
-    let codeEngine = '';
-    if (!engine && !technical.engine && version) {
-      const match = String(version).match(/(?:^|\s)(\d{3}[a-zA-Z]{0,2}(?:\s(?:d|e|i|h|CDI|BlueTEC|4MATIC))?)(?=\s|$)/);
-      if (match) codeEngine = match[1];
-    }
-    // Audi güç kodları: "40 TDI", "35 TFSI", "45 TFSI e"; satırda yalnızca "40" yazsa da başlıkta geçen kod alınır.
-    if (!engine && !technical.engine && !codeEngine) codeEngine = powerCode(version) || powerCode(title);
+    const versionCode = !engine && !technical.engine && version ? codeEngine(brand, version, false) : '';
     // Satırda motor yoksa sırasıyla: gezinme yolundaki motor basamağı, ilan başlığı, sayfa başlığı ("Fiat Egea Cross
     // 1.4 Fire Fiyatları"). Yalnızca hacim + motor kodu alınır; fiyatlar ("1.300.000") motor sanılmaz.
     const crumbParts = technicalParts(levels.join(' '));
     const fallbackEngine =
-      engine || technical.engine || codeEngine
+      engine || technical.engine || versionCode
         ? ''
         : crumbParts.engine ||
           technicalParts(title).engine ||
+          codeEngine(brand, title, true) ||
           technicalParts(String(pageTitle).replace(/\s*(Fiyatlar|sahibinden).*$/i, '')).engine;
     let trim = findTrim(sources[0] || sources[1]) || technical.trim || crumbParts.trim;
     // Hacim yazmayan versiyonlar (elektrikli: "Long Range AWD", "V2 RWD Uzun Menzil"): model, kasa ve motor/çekiş
     // kelimeleri çıkarıldıktan sonra kalan, versiyon/paket sayılır.
     if (!trim && !technical.engine && version) {
-      const skip = new Set([...modelText.split(' '), ...norm(engine).split(' '), ...norm(codeEngine).split(' ')]);
+      const skip = new Set([...modelText.split(' '), ...norm(engine).split(' '), ...norm(versionCode).split(' ')]);
       const rest = String(version)
         .replace(/\s+/g, ' ')
         .trim()
@@ -352,7 +406,7 @@
       // Sayfadaki seri adı gösterilir ("I20" değil "i20", "Tiggo 8 Pro").
       model: labels?.model || (modelText === model ? String(modelHint).trim().slice(0, 40) : titleCase(model)),
       // Katalogdaki motor adı (kodu ilanda yazıyorsa) önce gelir; yoksa teknik metinden hacim + motor kodu.
-      engine: engine || technical.engine || codeEngine || fallbackEngine,
+      engine: engine || technical.engine || versionCode || fallbackEngine,
       body: findBody(detailText),
       trim
     };
@@ -975,10 +1029,26 @@
     ['damage', 'kaporta şeması'],
     ['sellerType', 'satıcı tipi']
   ];
-  function missingInfo(record) {
-    const empty = DETAIL_ONLY.filter(([field]) => record[field] === undefined || record[field] === '').map(
-      ([, label]) => label
+  // Excel'deki motor hücresi. Eski sürümlerin kaydettiği ilanlarda motor boş kalmış olabilir; o zaman kayıttaki motor
+  // hacminden (1598 cc → "1.6") ya da başlıktan ("... 1.6 TDI ...", "C200d") yeniden çıkarılır. Elektrikli
+  // araçlarda motor hacmi olmaz; hücreye "Elektrikli" yazılır.
+  const ELECTRIC_BRANDS = /^(TOGG|TESLA)$/;
+  function engineLabel(record) {
+    if (record.engine) return record.engine;
+    if (/ELEKTRIK/.test(norm(record.fuel)) || ELECTRIC_BRANDS.test(norm(record.brand))) return 'Elektrikli';
+    const brand = findBrand(norm(record.brand)) || norm(record.brand);
+    return (
+      engineFromSize(record.engineSize) ||
+      technicalParts(record.title).engine ||
+      codeEngine(brand, record.title, true) ||
+      ''
     );
+  }
+
+  function missingInfo(record) {
+    const empty = DETAIL_ONLY.filter(([field]) =>
+      field === 'engine' ? !engineLabel(record) : record[field] === undefined || record[field] === ''
+    ).map(([, label]) => label);
     const notes = [];
     if (!record.detailRead) {
       if (empty.length) notes.push(`${empty.join(', ')}: ilan sayfasında yazar, ilanı açıp analiz edin`);
@@ -1075,7 +1145,7 @@
         deal?.label || '',
         record.brand,
         record.model,
-        record.engine,
+        engineLabel(record),
         record.trim,
         record.fuel,
         record.transmission,
