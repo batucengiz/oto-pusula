@@ -17,6 +17,7 @@
     expertise = [],
     reading = null,
     pace = [],
+    timeline = [],
     today
   }) {
     const name = [record.brand, record.model, record.engine, record.trim].filter(Boolean).join(' ');
@@ -51,8 +52,12 @@
       : [
           'Kaporta bilinmiyor, temiz sayılmamalı. Bu ilan sayfası henüz açılıp analiz edilmediyse ilanı bir kez açıp eklentiye basın; boya/değişen şeması ve açıklama uyarıları rapora eklenir (eklenti sahibinden’e kendisi istek atmaz).'
         ];
+    // Fiyat geçmişi bölümü süreyi ve indirimleri zaten anlatıyorsa aynı uyarılar tekrarlanmaz.
+    const covered = timeline.length > 1 ? ['Uzun süredir ilanda', 'Fiyat düştü'] : [];
     const warnings = [
-      ...(advice?.flags || []).map(flag => ({ level: flag.level, text: `${flag.label}: ${flag.text}` })),
+      ...(advice?.flags || [])
+        .filter(flag => !covered.includes(flag.label))
+        .map(flag => ({ level: flag.level, text: `${flag.label}: ${flag.text}` })),
       ...textFlags.map(flag => ({
         level: flag.level,
         text: `Açıklamada ${flag.label.toLocaleLowerCase('tr-TR')}: ${flag.text}${flag.quote ? ` («${flag.quote}»)` : ''}`
@@ -67,6 +72,7 @@
       facts,
       sections: [
         { id: 'market', heading: 'Fiyat', items: market },
+        { id: 'timeline', heading: 'Fiyat geçmişi', items: timeline },
         { id: 'body', heading: 'Kaporta (satıcı beyanı)', items: bodyLines },
         {
           id: 'expertise',
