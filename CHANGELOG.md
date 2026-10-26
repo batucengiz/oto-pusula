@@ -2,6 +2,13 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.31.0 — 2026-10-27
+
+- **Asistan cevaplarındaki bozuk yerleşim düzeltildi.** 7.30.0'da sohbet başlığı için eklenen bir stil, cevabın "Kısa cevap" paragrafını da esnek kutuya çeviriyordu: metin dar sütunlara bölünüyor, "İlan 2 ↗" bağlantıları harf harf alt alta kırılıyordu. Başlık grubu artık ayrı sınıf (`chat-head-lead`) kullanıyor; cevap metni normal akışta kalıyor.
+- **"İlan N" bağlantıları satır içi küçük rozet.** Kendi içinde kırılmaz, metnin satırına oturur; açılınca ↗ yerine ✓ gösterir.
+- **Daha düzenli cevap tipografisi.** Kısa cevap solunda yeşil çizgili özet kutusu, başlıklar ince ayraçla bölümlenir, paragraf/liste aralıkları eşit, numaralı listelerde vurgulu numaralar.
+- **İlan kartları dar popup'a uygun.** Başlık ve etiketler kartın tamamını kullanır; fiyat ve "Aç ↗" kartın altında tek satırda. Koyu ve açık temada, 300–340 px genişlikte denendi.
+
 ## 7.30.0 — 2026-10-27
 
 - **Gemini gibi sohbet geçmişi.** Asistanın başlığında solda **☰ Sohbetler**, sağda **✎ Yeni sohbet** var. Sohbetler paneli tüm sohbetlerini listeler: sabitlenenler üstte, gerisi **Bugün / Dün / Son 7 gün / Son 30 gün / Daha eski** gruplarında, en yeni önde. Her satırda sohbetin başlığı, ilan mı arama mı olduğu, araç adı ve soru sayısı yazar; açık olan sohbet yeşil çizgiyle, bu sayfanın diğer sohbetleri "Bu sayfa" etiketiyle işaretlenir.

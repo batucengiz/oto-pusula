@@ -308,3 +308,17 @@ test('sohbet anahtarı: ilan sayfasında kayıt kimliği, arama sayfasında sayf
   const cleaned = chatHistory.prune({ x: { at: Date.now(), turns: [{ q: 'q', a: 'a', refs: [1, 'ok', {}] }] } });
   assert.deepEqual(cleaned.x.turns[0].refs, ['ok']);
 });
+
+// 7.31.0: başlık grubunun esnek kutu stili cevabın "Kısa cevap" paragrafına (.chat-lead) bulaşıp metni harf harf kırıyordu.
+test('chat answer text stays in normal flow: no flex/grid rule targets answer classes', () => {
+  const css = fs.readFileSync(require.resolve('./chat.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const answerClass = /\.(chat-lead|chat-ref|chat-h|chat-rich)(?![\w-])/;
+  for (const [, selectors, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    if (!/display:\s*(inline-)?(flex|grid)/.test(body)) continue;
+    for (const selector of selectors.split(',')) assert.doesNotMatch(selector.trim(), answerClass, selector.trim());
+  }
+  assert.match(css, /\.chat \.chat-ref \{[^}]*white-space: nowrap/);
+  assert.match(css, /\.chat-ai \{[^}]*overflow-wrap: break-word/);
+  const popup = fs.readFileSync(require.resolve('./popup.js'), 'utf8');
+  assert.match(popup, /element\('div', 'chat-head-lead'\)/);
+});

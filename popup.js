@@ -1614,7 +1614,7 @@
     newButton.type = 'button';
     newButton.title = 'Yeni sohbet';
     newButton.setAttribute('aria-label', 'Yeni sohbet');
-    const lead = element('div', 'chat-lead');
+    const lead = element('div', 'chat-head-lead');
     lead.append(menuButton, title);
     const tools = element('div', 'chat-tools');
     tools.append(newButton, saveButton);
