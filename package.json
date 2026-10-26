@@ -1,6 +1,6 @@
 {
   "name": "oto-pusula",
-  "version": "7.29.0",
+  "version": "7.30.0",
   "private": true,
   "description": "sahibinden.com ilanları ve galeri stoğu için yerel fiyat analizi (Chrome eklentisi)",
   "author": "Batuhan Cengiz",
@@ -8,7 +8,7 @@
   "repository": "github:batucengiz/oto-pusula",
   "scripts": {
     "dev": "node dev-server.js",
-    "test": "node --test core.test.js listing.test.js xlsx.test.js robustness.test.js dashboard.smoke.test.js pages.test.js body.test.js deal.test.js signals.test.js report.test.js assistant.test.js storage.test.js chat.test.js ai-setup.test.js expertise.test.js suggest.test.js open-gate.test.js brand-manage.test.js alerts.test.js excel-fields.test.js ban-safety.test.js ai-eval.test.js ai-timeout.test.js price-timeline.test.js negotiation.test.js flip.test.js listing-report.test.js backup.test.js",
+    "test": "node --test core.test.js listing.test.js xlsx.test.js robustness.test.js dashboard.smoke.test.js pages.test.js body.test.js deal.test.js signals.test.js report.test.js assistant.test.js storage.test.js chat.test.js ai-setup.test.js expertise.test.js suggest.test.js open-gate.test.js brand-manage.test.js alerts.test.js excel-fields.test.js ban-safety.test.js ai-eval.test.js ai-timeout.test.js price-timeline.test.js negotiation.test.js flip.test.js listing-report.test.js backup.test.js chat-list.test.js",
     "lint": "eslint . && prettier --check \"**/*.{js,css,html,json}\"",
     "lint:fix": "eslint . --fix && prettier --write \"**/*.{js,css,html,json}\"",
     "format": "prettier --write \"**/*.{js,css,html,json}\"",

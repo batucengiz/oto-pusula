@@ -252,6 +252,7 @@ test('sahibinden ilanı açan her yol open-gate.js üzerinden geçer', () => {
     /chrome\.tabs\.create\(\{ url: result\.link \}\)/, // popup WhatsApp
     /openGate\.open\(core\.listingUrl\(record\), url => chrome\.tabs\.create\(/, // popup: sınırdan geçer
     /openGate\.open\(url, target => window\.open\(/, // dashboard: sınırdan geçer
+    /openGate\.open\(url, target => chrome\.tabs\.create\(/, // popup sohbetler paneli: sınırdan geçer
     /setup\.target = '_blank'/, // karşılaştırma penceresi: ai-setup.html (eklenti sayfası)
     /link\.target = '_blank'/, // sahibinden bağlantıları; guardLinks tıklamayı sınırdan geçirir
     /name\.target = '_blank'/ // aynı

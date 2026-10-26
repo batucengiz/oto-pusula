@@ -2,6 +2,16 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.30.0 — 2026-10-27
+
+- **Gemini gibi sohbet geçmişi.** Asistanın başlığında solda **☰ Sohbetler**, sağda **✎ Yeni sohbet** var. Sohbetler paneli tüm sohbetlerini listeler: sabitlenenler üstte, gerisi **Bugün / Dün / Son 7 gün / Son 30 gün / Daha eski** gruplarında, en yeni önde. Her satırda sohbetin başlığı, ilan mı arama mı olduğu, araç adı ve soru sayısı yazar; açık olan sohbet yeşil çizgiyle, bu sayfanın diğer sohbetleri "Bu sayfa" etiketiyle işaretlenir.
+- **Yeni sohbet.** Aynı ilanda ya da aramada sıfırdan başlar: önceki sorular ekrandan kalkar ve yapay zekaya verilmez, eski sohbet silinmez, panelde kalır. Sohbet ilk soruda kaydedilir.
+- **Otomatik başlık, yeniden adlandır, sabitle, sil.** Başlık ilk sorudan çıkar (uzunsa kısaltılır). ⋮ menüsünden **Sabitle** (sabitlenen sohbet 90 günlük temizlikte silinmez), **Yeniden adlandır** (boş bırakılırsa otomatik başlığa döner), **Sil** (onay ister). Altta **Tümünü sil** de onaylıdır.
+- **Sohbetlerde ara.** Başlıkta, araç/arama adında ve soru-cevapların içinde arar (Türkçe İ/ı duyarsız); içerikten bulunan sohbette eşleşen cümle gösterilir.
+- **Eski sohbete dön ve devam et.** Bu sayfanın sohbetine tıklayınca o sohbet açılır ve oradan sürer (önceki konuşma yapay zekaya verilir). Başka bir ilanın ya da aramanın sohbeti önce okunur; **Sayfayı aç** o sayfayı açar (ortak açılış sınırından geçer), "Analiz et"e basınca seçtiğin sohbet kaldığı yerden sürer.
+- **Popup'ta "Sohbet geçmişi →"** düğmesi analiz etmeden de paneli açar.
+- Sohbet başına 30 soru, toplam 200 sohbet saklanır (önceden 10 ve 100). Eski sohbetler korunur ve listede görünür. Başlık, sabitleme ve sayfa bilgisi yedekle/geri yükle dosyasına da girer. Her şey yalnızca bu bilgisayarda; sunucu yok, sahibinden'e ek istek yok. Yeni dosyalar: chat-list-ui.js, chat-list.test.js.
+
 ## 7.29.0 — 2026-10-27
 
 - **Satıcıya sorulacakları işaretle, WhatsApp'tan tek mesajla sor.** Ekspertiz raporundaki ve popup'taki "Satıcıya sorulacaklar" listesinde istediğin soruları tikle; "Seçilen N soruyu WhatsApp'tan sor" düğmesi hepsini numaralı tek bir mesajda ("Merhaba, … ilanınız (ilan no: …) için birkaç sorum olacak: 1. … 2. …") WhatsApp'ta açar. Raporda "Tümünü seç" de var. Gönder tuşuna yine sen basarsın.
