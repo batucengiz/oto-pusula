@@ -1,5 +1,5 @@
 .claude/
 node_modules/
 *.log
-fixtures/
+fixtures
 dist/

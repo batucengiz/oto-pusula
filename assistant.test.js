@@ -1586,12 +1586,38 @@ test('popup: bulut hatasında tek satır Türkçe mesaj ve “Yeniden sor” dü
     .find(node => node.className === 'chat-chip')
     .click();
   await settle();
-  const error = walk(chat).find(node => node.className === 'chat-ai chat-error');
-  assert.match(error.textContent, /anahtarı kabul edilmedi/);
+  // Hata nedeni notta yazar; soru cevapsız kalmaz, eklentinin kendi hesaplarıyla yedek cevap gösterilir.
+  const note = walk(chat).find(node => node.className === 'chat-note');
+  assert.match(note.textContent, /anahtarı kabul edilmedi/);
+  assert.match(note.textContent, /kendi hesaplarıyla/);
+  assert.ok(walk(chat).some(node => /yapay zeka olmadan/.test(node.textContent)));
   const again = walk(chat).find(node => node.textContent === 'Yeniden sor');
   assert.ok(again, 'hatada tekrar sorma düğmesi var');
   fail = false;
   await again.click();
   await settle();
   assert.ok(walk(chat).some(node => node.textContent === 'Şimdi oldu.'));
+});
+
+test('popup: yerleşik model düşerse yedek cevap, uydurma tutar yazarsa cevabın altında uyarı çıkar', async () => {
+  let reply = null;
+  const api = {
+    availability: async () => 'available',
+    create: async () => ({
+      prompt: async () => {
+        if (reply === null) throw new Error('boom');
+        return reply;
+      }
+    })
+  };
+  const chat = await popupWithModel(api);
+  const chip = walk(chat).find(node => node.className === 'chat-chip');
+  await chip.click();
+  assert.ok(walk(chat).some(node => node.className === 'chat-note' && /kendi hesaplarıyla/.test(node.textContent)));
+  assert.ok(walk(chat).some(node => /yapay zeka olmadan/.test(node.textContent)));
+  assert.ok(!walk(chat).some(node => node.className === 'chat-ai chat-error'), 'yedek cevap varken hata balonu yok');
+  reply = '**Kısa cevap:** Bu araca en fazla 123.456 TL verin, fazlası boşa para.';
+  await chip.click();
+  const warn = walk(chat).find(node => node.className === 'chat-note warn');
+  assert.match(warn.textContent, /Verilerde olmayan tutar: 123\.456 TL/);
 });
