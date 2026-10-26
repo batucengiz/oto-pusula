@@ -1,0 +1,118 @@
+/* Fiyat geçmişi zaman çizgisi (price-timeline.js). Panel (theme.css) ve rapor (report.css) değişkenlerini okur;
+   açık ve koyu temada aynı değişken adlarıyla çalışır. */
+.pt-block {
+  --pt-ink: var(--ink, var(--fg, #17222b));
+  --pt-line: var(--brand-strong, var(--accent, #0f766e));
+  --pt-good: var(--good, #047857);
+  --pt-bad: var(--bad, #b91c1c);
+  --pt-muted: var(--muted, #64748b);
+  --pt-rule: var(--line, #e6e8ec);
+  --pt-surface: var(--surface, var(--paper, #ffffff));
+  display: grid;
+  gap: 10px;
+  margin: 6px 0 12px;
+  max-width: 600px;
+}
+.pt-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+.pt-stat {
+  border: 1px solid var(--pt-rule);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+.pt-stat dt {
+  color: var(--pt-muted);
+  font-size: 12px;
+}
+.pt-stat dd {
+  margin: 0;
+  color: var(--pt-ink);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.pt-stat.pt-good dd {
+  color: var(--pt-good);
+}
+.pt-stat.pt-bad dd {
+  color: var(--pt-bad);
+}
+.pt-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.pt-chart .pt-grid {
+  stroke: var(--pt-rule);
+  stroke-width: 1;
+}
+.pt-chart .pt-axis {
+  stroke: var(--pt-muted);
+  stroke-opacity: 0.5;
+  stroke-width: 1;
+}
+.pt-chart .pt-tick,
+.pt-chart .pt-note {
+  fill: var(--pt-muted);
+  font-size: 11px;
+}
+.pt-chart .pt-strong {
+  fill: var(--pt-ink);
+  font-weight: 700;
+}
+.pt-chart .pt-market {
+  stroke: var(--pt-muted);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+.pt-chart .pt-line {
+  fill: none;
+  stroke: var(--pt-line);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.pt-chart .pt-relist {
+  stroke-dasharray: 5 4;
+  opacity: 0.7;
+}
+.pt-chart .pt-dot,
+.pt-chart .pt-end {
+  fill: var(--pt-line);
+  stroke: var(--pt-surface);
+  stroke-width: 2;
+}
+.pt-chart .pt-dot.pt-down {
+  fill: var(--pt-good);
+}
+.pt-chart .pt-dot.pt-up {
+  fill: var(--pt-bad);
+}
+.pt-tip {
+  border-left: 3px solid var(--pt-muted);
+  border-radius: 6px;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--pt-muted) 8%, transparent);
+  color: var(--pt-ink);
+}
+.pt-tip.pt-tip-strong {
+  border-left-color: var(--pt-good);
+  background: color-mix(in srgb, var(--pt-good) 10%, transparent);
+}
+.pt-tip strong {
+  display: block;
+}
+.pt-tip p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--pt-muted);
+}
+@media print {
+  .pt-block {
+    break-inside: avoid;
+  }
+}

@@ -90,6 +90,7 @@ test('sayfalar uzak betik yüklemez ve dinamik kod çalıştırmaz', () => {
     ...CORE_FILES,
     'listing.js',
     'charts.js',
+    'price-timeline.js',
     'xlsx.js',
     'store.js',
     'assistant.js',

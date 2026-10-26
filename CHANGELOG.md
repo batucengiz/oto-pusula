@@ -2,12 +2,19 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
-## 7.22.0 — 2026-10-26
+## 7.23.0 — 2026-10-26
 
 - **Pazarlık önerisi: açılış, hedef ve en fazla.** İlan için üç rakam verilir: açılış teklifi, hedef ve "en fazla şuna kadar çık" tavanı. Piyasanın üstündeki ilanda tavan piyasa ortasıdır; altındaki ilanda ilan fiyatıdır (iyi bir araç küçük farkla kaçırılmasın). Satıcılar çoğunlukla teklifle ilan fiyatının ortasında buluştuğu için açılış buna göre, ama hedefin en fazla %8 altında seçilir.
 - **Pazarlık payı eklentinin kendi verisinden.** Kaydınızda aynı modelin yayından kalkan ilanları varsa onların ilk fiyattan ortalama indirimi temel alınır, yoksa genel %3 kullanılır (bu açıkça yazılır). Uzun süredir ilanda / yeniden yayınlanmış (+%2), ani fiyat düşüşü (+%2), fiyatı düşmüş (+%1), değişen parça (+%2) ya da çok boyalı (+%1), yoğun kullanım ve yüksek tramer (+%1,5), modelde fiyatların düşmesi payı büyütür; fiyatları artan ya da hızlı satılan modelde pay küçülür. Her etken gerekçesiyle listelenir. Piyasanın %20+ altındaki ilanda kapora uyarısı çıkar. Güvenilir piyasa tahmini yoksa ya da ağır hasar varsa rakam verilmez.
 - **Satıcıya hazır teklif mesajı.** İlan adı, ilan numarası, en fazla iki kibar gerekçe (piyasanın üstünde, değişen parça, yüksek km/tramer) ve açılış teklifiyle; tavan ve "acil satıyor" gibi iç bilgiler mesaja yazılmaz. "Mesajı kopyala" düğmesi ve ilan sayfasında WhatsApp'ta "Teklifle yaz" düğmesi vardır (aynı spam korumasından geçer, ekspertiz/tramer ve km belge istekleri mesaja eklenir; gönder tuşuna siz basarsınız).
 - Popup'ta, panelin ilan detayında ve ekspertiz raporunda (yazdırma ve kopyalanan metin dahil) aynı kutu görünür; asistanın teklif cevabı da tavanı ve gerekçeleri söyler. Kod: `negotiation.js`, testler `negotiation.test.js`. Ağ isteği yoktur.
+
+## 7.22.0 — 2026-10-26
+
+- **Fiyat geçmişi zaman çizgisi.** Panelde ilan ayrıntısında ve ekspertiz raporunda kayıtlı ilanın fiyatı tarih ekseninde basamaklı çizgiyle gösterilir: her indirim yeşil, her artış kırmızı nokta; tahmini piyasa ortası kesik çizgi; çizgi son görülme gününe kadar uzar. Üstte ilk fiyat, şimdiki fiyat, toplam değişim ve takip süresi kutuları durur. Açık ve koyu temada çalışır, rapor yazdırılınca da görünür.
+- **"X haftadır satılmıyor, pazarlığa açık olabilir" ipucu.** İlan en az 3 haftadır yayındaysa çıkar. Yanında nedeni yazar: benzer ilanlar ortalama kaç günde yayından kalkıyor, satıcı kaç kez indirim yaptı ya da fiyatı hiç düşürmedi, fiyatı artırdıysa "ısrarcı olabilir". 8 haftayı ya da benzer ilanların ortalama süresinin 1,5 katını geçen ilanda ipucu vurgulu gösterilir. Yeniden yayınlanan ilanda süre ve ilk fiyat önceki ilandan sayılır; ilan bir haftadan uzun süredir görülmediyse "hâlâ yayında mı kontrol edin" uyarısı eklenir.
+- Raporda bu bilgi "Dikkat edilecekler" listesinde ikinci kez yazılmaz; "Metni kopyala" çıktısına da eklenir.
+- Yalnızca bilgisayardaki kayıtlı geçmiş kullanılır; sahibinden'e ek istek yoktur. Yeni dosyalar: price-timeline.js, price-timeline.css, price-timeline.test.js.
 
 ## 7.21.0 — 2026-10-26
 

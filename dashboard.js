@@ -1087,10 +1087,19 @@
         vehicle.date && `Son görülme: ${vehicle.date}`
       ];
       content.append(element('p', 'detail-text', facts.filter(Boolean).join(' · ')));
-      if (vehicle.priceHistory?.length > 1) {
+      // Fiyat geçmişi zaman çizgisi ve "X haftadır satılmıyor" ipucu (price-timeline.js, yalnızca kayıtlı veri).
+      const timeline = globalThis.OtoTimeline?.summarize(vehicle, {
+        pace: core.modelPace(vehicle, state.comparables)
+      });
+      if (globalThis.OtoTimeline?.worth(timeline)) {
+        content.append(element('h3', '', 'Fiyat geçmişi'));
+        content.append(globalThis.OtoTimeline.block(document, timeline, { market: result?.center }));
+      } else if (vehicle.priceHistory?.length > 1) {
         content.append(element('h3', '', 'Fiyat geçmişi'));
         const historyChart = charts.priceHistoryChart(vehicle.priceHistory);
         if (historyChart) content.append(historyChart);
+      }
+      if (vehicle.priceHistory?.length > 1) {
         const history = element('ul', 'detail-list');
         vehicle.priceHistory.forEach(point =>
           history.append(element('li', '', `${point.date} · ${lira(point.price)}`))
