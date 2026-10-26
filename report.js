@@ -151,11 +151,47 @@
     };
   }
 
-  // Popup'tan rapor sayfasına ilan kimliği, açıklama uyarıları ve ekspertiz yorumu (kaydedilmez) adres parçasıyla
-  // taşınır. Yorum rapor sayfasında OtoExpertise.sanitize ile yeniden doğrulanır.
-  function encodeHash(id, textFlags = [], reading = null) {
+  const MOBILE = /^905\d{9}$/;
+
+  // Satıcıya sorulacaklardan işaretlenenler tek, numaralı bir WhatsApp mesajında toplanır.
+  function questionsMessage(record, questions = []) {
+    const name = record.title || [record.brand, record.model].filter(Boolean).join(' ');
+    const id = record.listingId ? ` (ilan no: ${record.listingId})` : '';
+    return [
+      `Merhaba, sahibinden.com'daki "${name}" ilanınız${id} için ${questions.length > 1 ? 'birkaç sorum' : 'bir sorum'} olacak:`,
+      '',
+      ...questions.map((question, index) => `${index + 1}. ${question}`),
+      '',
+      'Şimdiden teşekkürler.'
+    ].join('\n');
+  }
+
+  // Numara bilinmiyorsa WhatsApp mesajı hazır açar, kişiyi kullanıcı seçer. Gönder tuşuna her zaman kullanıcı basar.
+  function questionsLink(phone, record, questions = []) {
+    if (!questions.length) return '';
+    const text = encodeURIComponent(questionsMessage(record, questions));
+    return MOBILE.test(phone || '') ? `https://wa.me/${phone}?text=${text}` : `https://wa.me/?text=${text}`;
+  }
+
+  // Numaraya açılan soru mesajı "WhatsApp'tan yaz" ile aynı spam sınırından geçer ve yazışma sayacına işlenir.
+  // Numara yoksa kişiyi kullanıcı WhatsApp'ta seçer; sayaç değişmez.
+  function askSeller(state, record, phone, questions, now = Date.now()) {
+    const link = questionsLink(phone, record, questions);
+    if (!link) return { allowed: false, reason: 'Önce sormak istediğiniz soruları işaretleyin.', state };
+    if (!MOBILE.test(phone || '')) return { allowed: true, link, state };
+    const core = root.OtoCore || require('./core.js');
+    const gate = core.contactGate(state.contacts, record.id, now);
+    if (!gate.allowed) return { ...gate, state };
+    if (gate.repeat) return { allowed: true, link, state };
+    return { allowed: true, link, state: { ...state, contacts: core.recordEvent(state.contacts, record.id, now) } };
+  }
+
+  // Popup'tan rapor sayfasına ilan kimliği, açıklama uyarıları, ekspertiz yorumu ve sayfadaki cep numarası
+  // (hiçbiri kaydedilmez) adres parçasıyla taşınır. Yorum rapor sayfasında OtoExpertise.sanitize ile yeniden doğrulanır.
+  function encodeHash(id, textFlags = [], reading = null, phone = '') {
     const flags = textFlags.slice(0, 8).map(({ label, level, text, quote }) => ({ label, level, text, quote }));
-    return `#${encodeURIComponent(JSON.stringify({ id, flags, ...(reading ? { reading } : {}) }))}`;
+    const extra = { ...(reading ? { reading } : {}), ...(MOBILE.test(phone || '') ? { phone } : {}) };
+    return `#${encodeURIComponent(JSON.stringify({ id, flags, ...extra }))}`;
   }
 
   function decodeHash(hash) {
@@ -177,14 +213,15 @@
         reading:
           value?.reading && typeof value.reading === 'object' && JSON.stringify(value.reading).length < 60000
             ? value.reading
-            : null
+            : null,
+        phone: MOBILE.test(value?.phone) ? value.phone : ''
       };
     } catch {
-      return { id: '', flags: [], reading: null };
+      return { id: '', flags: [], reading: null, phone: '' };
     }
   }
 
-  const api = { build, toText, encodeHash, decodeHash, withExpertise };
+  const api = { build, toText, encodeHash, decodeHash, withExpertise, questionsMessage, questionsLink, askSeller };
   root.OtoReport = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);

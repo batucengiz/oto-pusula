@@ -179,6 +179,20 @@ small {
 .inspection-list li {
   margin-bottom: 3px;
 }
+.seller-questions ul.check {
+  list-style: none;
+  padding-left: 0;
+}
+.seller-questions ul.check label {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  cursor: pointer;
+}
+.seller-questions ul.check input {
+  margin: 2px 0 0;
+  flex: none;
+}
 
 .text-flags {
   margin-top: 8px;

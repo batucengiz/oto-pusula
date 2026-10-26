@@ -2,6 +2,11 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.28.0 — 2026-10-27
+
+- **Satıcıya sorulacakları işaretle, WhatsApp'tan tek mesajla sor.** Ekspertiz raporundaki ve popup'taki "Satıcıya sorulacaklar" listesinde istediğin soruları tikle; "Seçilen N soruyu WhatsApp'tan sor" düğmesi hepsini numaralı tek bir mesajda ("Merhaba, … ilanınız (ilan no: …) için birkaç sorum olacak: 1. … 2. …") WhatsApp'ta açar. Raporda "Tümünü seç" de var. Gönder tuşuna yine sen basarsın.
+- İlanda "Telefonu göster"e basılıp analiz edildiyse (ya da numarayı kaydettiysen) mesaj doğrudan satıcının numarasına açılır ve "WhatsApp'tan yaz" ile aynı spam sınırından geçer (yeni satıcılara dakikada 1, günde 20). Numara yoksa WhatsApp açılınca kişiyi sen seçersin. Numara yine kaydedilmez; rapora yalnızca açık sekmenin adresinde taşınır.
+
 ## 7.27.0 — 2026-10-26
 
 - **Arama sayfası sohbeti artık kaybolmuyor.** Önceden yalnızca tek ilan sohbeti kaydediliyordu; arama sayfasındaki sohbet popup kapanınca (cevaptaki ilana gidince) siliniyordu. Artık aramanın adresine göre bu bilgisayarda saklanır (sayfa numarası ve sıralama sayılmaz). Aynı aramaya dönüp popup'ı açınca "önceki sohbetiniz kayıtlı" yazar, düğme "Analiz et ve sohbete devam et" olur; analizden sonra önceki sorular, cevaplar, "İlan N" bağlantıları ve ilan kartları geri gelir, yeni soruda önceki konuşma yapay zekaya da verilir. "Geçmişi sil" ile silinir. Sayfa yine kendiliğinden okunmaz.
