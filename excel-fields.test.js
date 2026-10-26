@@ -219,3 +219,35 @@ test('Yeni arama formu: arama adına yazınca marka+model önerilir', () => {
   );
   assert.equal(catalog.CITIES.length, 81);
 });
+
+test('arama listesi: Audi güç kodu ("40 TDI") motor olarak okunur; satırda yalnızca "40" yazsa da başlıktan alınır', () => {
+  const [record] = listing.parseSearchPage({
+    kind: 'search',
+    pageTitle: 'Otomobil Fiyatları',
+    crumbs: ['Anasayfa', 'Vasıta', 'Otomobil'],
+    headers: ['', 'Marka', 'Seri', 'Model', 'İlan Başlığı', 'Yıl', 'KM', 'Fiyat', 'İl / İlçe'],
+    rows: [
+      {
+        id: '1344000020',
+        title: 'A7 Sportback 40 TDI Quattro S-Tronic',
+        titleIndex: 4,
+        href: 'https://www.sahibinden.com/ilan/vasita-otomobil-audi-1344000020/detay',
+        cells: [
+          '',
+          'Audi',
+          'A7',
+          '40',
+          'A7 Sportback 40 TDI Quattro S-Tronic',
+          '2021',
+          '60.000',
+          '4.150.000 TL',
+          'İstanbul\nŞişli'
+        ],
+        price: '4.150.000 TL',
+        location: 'İstanbul\nŞişli'
+      }
+    ]
+  }).records;
+  assert.equal(record.brand, 'Audi');
+  assert.equal(record.engine, '40 TDI');
+});

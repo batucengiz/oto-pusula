@@ -931,3 +931,13 @@
     transition: none;
   }
 }
+
+/* Yedek cevap ve cevap denetimi notları */
+.chat-note {
+  margin: 4px 0 6px !important;
+  color: var(--ai-muted);
+  font-size: 11.5px;
+}
+.chat-note.warn {
+  color: var(--ai-warn);
+}

@@ -1129,6 +1129,8 @@
 
     // compact: model bağlamı kaldıramadığında kısaltılmış bilgiyle açılan oturum.
     let compact = false;
+    // Son oturuma verilen metin: cevaptaki rakamlar bununla denetlenir.
+    let lastSystem = '';
     async function session(question) {
       let system;
       if (listMode) {
@@ -1147,6 +1149,7 @@
         system = compact
           ? assistant.systemPrompt(assistant.compactFacts(lines))
           : assistant.withContext(assistant.systemPrompt(lines), { history: pastTurns, saved: savedFacts() });
+      lastSystem = system;
       if (mode.kind === 'remote') {
         // Google yoğunken istek katmanı yedek modele geçer ve bekleyip yeniden dener; kullanıcı bunu kısa bir notla görür.
         const onRetry = ({ reason }) => {
@@ -1265,6 +1268,16 @@
       );
     }
 
+    function fallbackFor(question) {
+      try {
+        if (!listMode) return assistant.fallbackAnswer(question, chat.context);
+        if (!listView) listView = assistant.listContext(question, chat.context.entries);
+        return assistant.listFallbackAnswer(question, listView);
+      } catch {
+        return '';
+      }
+    }
+
     async function submit(text) {
       const question = assistant.question(text);
       if (!question || busy) return;
@@ -1322,15 +1335,40 @@
           }
           history?.add(recordId, question, answer).catch?.(() => {});
         }
+        // Uydurma tutar/yüzde ya da listede olmayan ilan numarası varsa cevabın altında kısa bir uyarı çıkar.
+        const note = answer
+          ? assistant.checkNote(
+              assistant.checkAnswer(answer, {
+                source: lastSystem,
+                count: listMode ? take().view?.shown?.length : take().saved.length
+              })
+            )
+          : '';
+        if (note) holder.append(element('p', 'chat-note warn', note));
         if (mode.kind === 'builtin' && assistant.weakAnswer(answer)) upgrade(upgradeHint);
       } catch (error) {
         // Oturum kapatılır; bir sonraki soru temiz (tam bilgili) bir oturumla başlar.
         closeChat();
         compact = false;
         reply.replaceChildren();
-        reply.textContent = assistant.errorText(error, mode.kind);
-        reply.className = 'chat-ai chat-error';
         status.textContent = '';
+        // Yapay zeka düştüyse soru cevapsız kalmaz: eklentinin kendi hesaplarıyla kurulan yedek cevap gösterilir.
+        const backup = fallbackFor(question);
+        if (backup) {
+          reply.className = 'chat-ai chat-rich';
+          reply.replaceChildren(...richNodes(backup, take().link));
+          holder.replaceChildren(
+            element(
+              'p',
+              'chat-note',
+              `${assistant.errorText(error, mode.kind)} Eklentinin kendi hesaplarıyla cevap verildi.`
+            ),
+            reply
+          );
+        } else {
+          reply.textContent = assistant.errorText(error, mode.kind);
+          reply.className = 'chat-ai chat-error';
+        }
         // Geçici hatalarda kullanıcı soruyu yeniden yazmadan tek tıkla tekrar sorabilir.
         const again = element('button', 'chat-action', 'Yeniden sor');
         again.type = 'button';
