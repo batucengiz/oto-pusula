@@ -2,6 +2,13 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.24.0 — 2026-10-26
+
+- **Galeri için alım-satım kâr hesabı.** Panelde ilan detayında katlanır küçük bir araç: alış fiyatı (pazarlık hedefiyle, yoksa ilan fiyatıyla önerilir), ekspertiz, boya/onarım, noter, vergi/harç ve diğer masraflar, hedef satış fiyatı (boşsa piyasa ortası). Toplam maliyet, satış, kâr, kâr oranı, başa baş satış fiyatı ve tahmini satış süresi anında hesaplanır; kâr yeşil, zarar kırmızı gösterilir.
+- **Satış süresi kayıttan.** Kayıtta aynı modelin yayından kalkan en az 3 ilanı varsa onların ortalama yayında kalma süresi verilir; hedef satış piyasa ortasının %3'ünden fazla üstündeyse "süre uzayabilir", altındaysa "daha hızlı satılabilir" notu eklenir. Yeterli veri yoksa süre uydurulmaz.
+- İsteğe bağlı **kâr üzerinden KDV** (ikinci el araçta özel matrah, %20, alış-satış farkı KDV dahil sayılır); başa baş fiyat KDV ile birlikte hesaplanır. Vergi için muhasebeciye danışılması notu yazılır.
+- Girilen değerler ilan başına yalnızca bu bilgisayarda saklanır (`otoPusula_flip`, en fazla 500 ilan), "Temizle" ile silinir. Sunucu yok, sahibinden'e ek istek yok. Yeni dosyalar: flip.js, flip.css, flip.test.js.
+
 ## 7.23.0 — 2026-10-26
 
 - **Pazarlık önerisi: açılış, hedef ve en fazla.** İlan için üç rakam verilir: açılış teklifi, hedef ve "en fazla şuna kadar çık" tavanı. Piyasanın üstündeki ilanda tavan piyasa ortasıdır; altındaki ilanda ilan fiyatıdır (iyi bir araç küçük farkla kaçırılmasın). Satıcılar çoğunlukla teklifle ilan fiyatının ortasında buluştuğu için açılış buna göre, ama hedefin en fazla %8 altında seçilir.

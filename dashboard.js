@@ -1044,6 +1044,16 @@
     }
     if (isListing && advice.offer && globalThis.OtoNegotiation)
       content.append(globalThis.OtoNegotiation.render(document, advice.offer));
+    // Galeri için alım-satım kâr hesabı (flip.js); girilen değerler ilan başına bu cihazda kalır.
+    if (isListing && globalThis.OtoFlip)
+      content.append(
+        globalThis.OtoFlip.render(document, {
+          id: vehicle.id,
+          buy: advice.offer?.target || vehicle.price,
+          market: result?.center || null,
+          pace
+        })
+      );
     content.append(element('h3', '', 'Fiyat nasıl hesaplandı?'));
     content.append(element('p', 'detail-text', result.reason));
     core.paceLines(pace, vehicle).forEach(line => content.append(element('p', 'detail-text', line)));

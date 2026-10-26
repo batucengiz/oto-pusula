@@ -1,0 +1,72 @@
+/* Alım-satım kâr hesabı (flip.js): panel ilan detayında katlanır küçük araç. theme.css değişkenlerini okur. */
+.flip {
+  margin: 10px 0;
+  padding: 8px 12px;
+  border: 1px solid var(--line, #d0d7de);
+  border-radius: var(--r-md, 8px);
+  max-width: 600px;
+}
+.flip summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.flip-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin: 10px 0 6px;
+}
+.flip-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--muted, #57606a);
+}
+.flip-field input {
+  font: inherit;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.flip-vat {
+  display: block;
+  font-size: 13px;
+  margin: 4px 0 8px;
+}
+.flip-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 6px;
+}
+.flip-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: var(--r-sm, 6px);
+  background: var(--brand-soft, rgba(37, 99, 235, 0.08));
+}
+.flip-stat span {
+  font-size: 11px;
+  color: var(--muted, #57606a);
+}
+.flip-stat strong {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.flip-stat.good strong {
+  color: var(--good, #047857);
+}
+.flip-stat.bad strong {
+  color: var(--bad, #b91c1c);
+}
+.flip-note,
+.flip-empty,
+.flip-foot {
+  font-size: 12px;
+  color: var(--muted, #57606a);
+  margin: 6px 0;
+}
+.flip .secondary {
+  margin-top: 4px;
+}
