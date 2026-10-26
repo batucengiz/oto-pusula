@@ -137,6 +137,76 @@ test('Excel: motor ve teknik sütunlar dolu, sayılar sayı; boş hücrenin sebe
   );
 });
 
+test('motor: virgüllü/iki ondalıklı hacim, Audi/Mercedes/BMW kodları; fiyat motor sanılmaz', () => {
+  const page = (title, version, extra = {}) =>
+    listing.parseSearchPage({
+      kind: 'search',
+      pageTitle: 'İkinci El Otomobil Fiyatları',
+      crumbs: ['Anasayfa', 'Vasıta', 'Otomobil'],
+      headers: ['', 'Marka', 'Seri', 'Model', 'İlan Başlığı', 'Yıl', 'KM', 'Fiyat', 'İl / İlçe'],
+      rows: [
+        {
+          id: '1344000050',
+          title,
+          titleIndex: 4,
+          href: 'https://www.sahibinden.com/ilan/vasita-otomobil-x-1344000050/detay',
+          cells: [
+            '',
+            extra.brand || 'Audi',
+            extra.series || 'A7',
+            version,
+            title,
+            '2020',
+            '90.000',
+            '2.000.000 TL',
+            'İzmir\nBuca'
+          ],
+          price: '2.000.000 TL',
+          location: 'İzmir\nBuca'
+        }
+      ]
+    }).records[0];
+  const audi = page('A7 SPORTBACK QUATTRO', '40 TDI');
+  assert.equal(audi.engine, '40 TDI');
+  assert.equal(audi.trim, '', '"40" paket sanılmaz');
+  assert.equal(page('YARİS', '1.33 Style', { brand: 'Toyota', series: 'Yaris' }).engine, '1.33');
+  assert.equal(page('C 200 D AMG', 'C 200 D AMG', { brand: 'Mercedes-Benz', series: 'C Serisi' }).engine, '200 d');
+  assert.equal(page('HATASIZ 1,6 TDİ COMFORTLINE', '', { brand: 'Volkswagen', series: 'Golf' }).engine, '1.6 TDI');
+  assert.equal(page('SAHİBİNDEN 1.5dCi JOY', '', { brand: 'Dacia', series: 'Sandero' }).engine, '1.5 dCi');
+  assert.equal(
+    page('2016 MODEL MERCEDES C200d AMG', '', { brand: 'Mercedes-Benz', series: 'C Serisi' }).engine,
+    '200 d'
+  );
+  assert.equal(page('BMW 320i M SPORT 68 BİNDE', '', { brand: 'BMW', series: '3 Serisi' }).engine, '320i');
+  assert.equal(page('1,5 MİLYONA ACİL 1.6 HDİ', '', { brand: 'Peugeot', series: '301' }).engine, '1.6 HDi');
+  assert.equal(page('ACİL 1,5 MİLYON 68 BİNDE', '', { brand: 'Peugeot', series: '301' }).engine, '');
+});
+
+test('Excel: eski kayıtta boş motor başlıktan/hacimden tamamlanır, elektrikliye "Elektrikli" yazılır', () => {
+  const base = { model: 'Golf', year: 2019, km: 90000, price: 1300000, source: 'sahibinden' };
+  const make = (id, extra) =>
+    core.normalizeRecord({ ...base, brand: 'Volkswagen', id: `sh-${id}`, listingId: id, ...extra }, 'comparable');
+  const table = listing.marketTable(
+    {
+      comparables: [
+        make('1344000061', { title: 'HATASIZ GOLF 1.6 TDI COMFORTLINE' }),
+        make('1344000062', { title: 'GOLF', engineSize: 1395, detailRead: true }),
+        make('1344000063', { brand: 'Togg', model: 'T10X', title: 'TOGG V2 UZUN MENZİL' }),
+        make('1344000064', { title: 'GOLF TEMİZ' })
+      ]
+    },
+    new Date('2026-10-26')
+  );
+  const col = title => table.columns.findIndex(column => column.title === title);
+  const cell = (id, title) => table.rows.find(cells => cells[col('İlan no')] === id)[col(title)];
+  assert.equal(cell('1344000061', 'Motor'), '1.6 TDI');
+  assert.equal(cell('1344000062', 'Motor'), '1.4');
+  assert.equal(cell('1344000063', 'Motor'), 'Elektrikli');
+  assert.doesNotMatch(cell('1344000063', 'Eksik bilgi'), /motor,/);
+  assert.equal(cell('1344000064', 'Motor'), '');
+  assert.match(cell('1344000064', 'Eksik bilgi'), /^motor, .*ilan sayfasında yazar/);
+});
+
 test('Yeni arama formu: arama adına yazınca marka+model önerilir', () => {
   globalThis.OtoCore = core;
   const ui = require('./alerts-ui.js');
