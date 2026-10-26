@@ -665,6 +665,8 @@
   }
 
   const TIMEOUT_MS = 60000;
+  // Gemini isteği kendi süre bütçesiyle (yedek modeller dahil) yönetilir; bu sınır yalnızca son emniyettir.
+  const REMOTE_TIMEOUT_MS = 80000;
   const MAX_ANSWER = 3000;
 
   function timeoutError() {
@@ -1097,6 +1099,7 @@
     MAX_QUESTION,
     MAX_ANSWER,
     TIMEOUT_MS,
+    REMOTE_TIMEOUT_MS,
     weakAnswer,
     errorText,
     SUGGESTIONS,

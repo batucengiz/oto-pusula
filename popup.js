@@ -273,9 +273,9 @@
     return [box];
   }
 
-  function openReport(record, textFlags = [], reading = null) {
+  function openReport(record, textFlags = [], reading = null, phone = '') {
     chrome.tabs.create({
-      url: chrome.runtime.getURL('report.html') + globalThis.OtoReport.encodeHash(record.id, textFlags, reading)
+      url: chrome.runtime.getURL('report.html') + globalThis.OtoReport.encodeHash(record.id, textFlags, reading, phone)
     });
   }
 
@@ -295,13 +295,24 @@
   }
 
   // "Ekspertize götür" raporu: yazdırılabilir sayfa (yeni sekmede) veya WhatsApp'a yapıştırılacak düz metin.
-  function reportNodes({ record, result, body, deal, advice, textFlags, paceLines, expertise = [], reading = null }) {
+  function reportNodes({
+    record,
+    result,
+    body,
+    deal,
+    advice,
+    textFlags,
+    paceLines,
+    expertise = [],
+    reading = null,
+    phone = ''
+  }) {
     const report = globalThis.OtoReport;
     const box = element('div', 'report-actions');
     const open = element('button', 'secondary', 'Ekspertiz raporunu aç');
     open.type = 'button';
     open.title = 'Fiyat, uyarılar, satıcı soruları ve ekspertiz listesi tek sayfada; yazdırılabilir.';
-    open.addEventListener('click', () => openReport(record, textFlags, reading));
+    open.addEventListener('click', () => openReport(record, textFlags, reading, phone));
     const copy = element('button', 'secondary', 'Raporu kopyala');
     copy.type = 'button';
     copy.addEventListener('click', async () => {
@@ -472,7 +483,7 @@
           const checklist = assistant.inspectionChecklist({ record, body, advice, textFlags });
           const lists = globalThis.OtoReport?.withExpertise(questions, checklist, reading) || { questions, checklist };
           nodes.push(
-            sellerQuestionNodes(lists.questions),
+            sellerQuestionNodes(lists.questions, record, listing.findMobile(raw.phoneText, raw.description)),
             listNodes('inspection-list', 'Ekspertiz kontrol listesi', lists.checklist)
           );
         }
@@ -481,7 +492,20 @@
       }
       try {
         if (raw?.kind === 'detail' && assistant && globalThis.OtoReport)
-          nodes.push(reportNodes({ record, result, body, deal, advice, textFlags, paceLines, expertise, reading }));
+          nodes.push(
+            reportNodes({
+              record,
+              result,
+              body,
+              deal,
+              advice,
+              textFlags,
+              paceLines,
+              expertise,
+              reading,
+              phone: listing.findMobile(raw.phoneText, raw.description)
+            })
+          );
       } catch {
         /* rapor düğmeleri gösterilemedi */
       }
@@ -758,11 +782,47 @@
   }
 
   // Satıcıya sorulacaklar yapay zeka olmadan da gösterilir; varsayılan kapalı, tıklayınca açılır.
-  function sellerQuestionNodes(questions) {
+  // İşaretlenen sorular tek WhatsApp mesajında açılır; numaraya açılan mesaj "WhatsApp'tan yaz" ile aynı sınırdan geçer.
+  function sellerQuestionNodes(questions, record, phone = '') {
     const details = element('details', 'seller-questions');
-    const list = element('ul');
-    questions.forEach(text => list.append(element('li', '', text)));
-    details.append(element('summary', '', `Satıcıya sorulacaklar (${questions.length})`), list);
+    const list = element('ul', 'check');
+    const boxes = questions.map(text => {
+      const label = element('label');
+      const box = element('input');
+      box.type = 'checkbox';
+      label.append(box, element('span', '', text));
+      const item = element('li');
+      item.append(label);
+      list.append(item);
+      return box;
+    });
+    const chosen = () => questions.filter((_, index) => boxes[index].checked);
+    const send = element('button', 'whatsapp');
+    send.type = 'button';
+    const note = element('p', 'muted', '');
+    const refresh = () => {
+      const count = chosen().length;
+      send.textContent = count ? `Seçilen ${count} soruyu WhatsApp’tan sor` : 'Soruları işaretleyip WhatsApp’tan sorun';
+      send.disabled = !count;
+    };
+    list.addEventListener('change', refresh);
+    send.addEventListener('click', () => {
+      const state = store.load();
+      const result = globalThis.OtoReport.askSeller(state, record, phone, chosen());
+      if (!result.allowed) {
+        note.textContent = `⏳ ${result.reason}`;
+        return;
+      }
+      try {
+        if (result.state !== state) store.save(result.state);
+      } catch {
+        /* sayaç yazılamasa da mesaj açılır */
+      }
+      note.textContent = phone ? '' : 'Numara görünmediği için WhatsApp’ta kişiyi siz seçin.';
+      if (result.link.startsWith('https://wa.me/')) chrome.tabs.create({ url: result.link });
+    });
+    refresh();
+    details.append(element('summary', '', `Satıcıya sorulacaklar (${questions.length})`), list, send, note);
     return details;
   }
 
@@ -880,11 +940,14 @@
       note.textContent = 'Anahtar deneniyor…';
       note.className = 'ai-setup-note';
       try {
-        remote.saveKey(localStorage, await remote.testKey(key));
+        // Google yavaşsa da anahtar geçerliyse kaydedilir; kullanıcı kurulumda takılı kalmaz.
+        const checked = await remote.checkKey(key);
+        remote.saveKey(localStorage, checked.key);
         closeChat();
         showChat(chat);
       } catch (error) {
-        note.textContent = error.message || 'Anahtar kaydedilemedi.';
+        const diag = remote.diagnosis?.(error);
+        note.textContent = `${error.message || 'Anahtar kaydedilemedi.'}${diag ? ` ${diag}` : ''}`;
         note.className = 'ai-setup-note bad';
         save.disabled = false;
       }
@@ -1241,7 +1304,9 @@
               ? 'Kullanım sınırına takıldı; başka modelle deneniyor…'
               : reason === 'network'
                 ? 'Bağlantı koptu; yeniden deneniyor…'
-                : 'Google yoğun; yedek modelle yeniden deneniyor…';
+                : reason === 'slow'
+                  ? 'Google yavaş; aynı anda yedek modele de soruluyor…'
+                  : 'Google yoğun; yedek modelle yeniden deneniyor…';
         };
         chatSession = globalThis.OtoRemoteAI.createSession(mode.key, system, undefined, { onRetry });
         return chatSession;
@@ -1360,6 +1425,15 @@
       }
     }
 
+    // Gemini'de dayanıklı katman yedek modellerle ~55 sn uğraşır; genel süre sınırı onu yarıda kesmesin.
+    const askOptions = () => (mode.kind === 'remote' ? { timeoutMs: assistant.REMOTE_TIMEOUT_MS } : undefined);
+
+    // Hata kutusunun altındaki küçük tanı satırı: hangi model, ne kadar sürdü, ne döndü (anahtar ya da soru içermez).
+    function diagnosisNode(error) {
+      const line = globalThis.OtoRemoteAI?.diagnosis?.(error) || (error?.name ? `Tanı: ${error.name}` : '');
+      return line ? element('p', 'chat-diag', line) : null;
+    }
+
     async function submit(text) {
       const question = assistant.question(text);
       if (!question || busy) return;
@@ -1393,7 +1467,7 @@
       try {
         let answer;
         try {
-          answer = await assistant.ask(await session(question), question, show);
+          answer = await assistant.ask(await session(question), question, show, askOptions());
         } catch (error) {
           // Karmaşık soruda tıkanmasın: bağlam küçültülüp bir kez daha denenir.
           if (compact || !assistant.retryable(error)) throw error;
@@ -1401,7 +1475,7 @@
           compact = true;
           status.textContent = 'Soru karmaşık; kısaltılmış bilgiyle tekrar deneniyor…';
           snap = null;
-          answer = await assistant.ask(await session(question), question, show);
+          answer = await assistant.ask(await session(question), question, show, askOptions());
           status.textContent = '';
         }
         status.textContent = '';
@@ -1460,6 +1534,8 @@
         const row = element('div', 'chat-actions');
         row.append(again);
         holder.append(row);
+        const diag = diagnosisNode(error);
+        if (diag) holder.append(diag);
         if (mode.kind === 'builtin') upgrade(upgradeHint);
       } finally {
         setBusy(false);

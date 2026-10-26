@@ -168,12 +168,22 @@
           Sorularınızı alttaki asistana yazın.
         </p>
         <p id="saved-key" class="muted"></p>
+        <p id="ready-note" class="status busy-note" hidden></p>
         <div class="ready-actions">
           <button id="close-tab" class="button primary" type="button">Tamam, sekmeyi kapat</button>
           <button id="change-key" class="button secondary" type="button">Anahtarı değiştir</button>
           <button id="remove-key" class="button ghost" type="button">Anahtarı sil</button>
         </div>
       </section>
+
+      <details id="ai-log" class="ai-log" hidden>
+        <summary>Son yapay zeka denemeleri (tanılama)</summary>
+        <p class="muted">
+          Asistan cevap vermezse buradaki satırları kopyalayıp gönderin. Anahtarınız ve sorularınız yazılmaz.
+        </p>
+        <ol id="ai-log-list"></ol>
+        <button id="ai-log-copy" class="button ghost" type="button">Kopyala</button>
+      </details>
 
       <section class="faq" aria-labelledby="faq-title">
         <h2 id="faq-title">Takıldıysanız</h2>

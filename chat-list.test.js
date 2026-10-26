@@ -1,4 +1,4 @@
-// Gemini gibi sohbet geçmişi (7.29): bir sayfada birden çok sohbet, otomatik başlık, yeniden adlandır, sabitle, ara,
+// Gemini gibi sohbet geçmişi (7.30): bir sayfada birden çok sohbet, otomatik başlık, yeniden adlandır, sabitle, ara,
 // tarih grupları ve Sohbetler paneli. Hepsi yalnızca yerel kayıt; yedeğe de girer.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');

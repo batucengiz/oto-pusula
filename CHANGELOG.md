@@ -2,7 +2,7 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
-## 7.29.0 — 2026-10-27
+## 7.30.0 — 2026-10-27
 
 - **Gemini gibi sohbet geçmişi.** Asistanın başlığında solda **☰ Sohbetler**, sağda **✎ Yeni sohbet** var. Sohbetler paneli tüm sohbetlerini listeler: sabitlenenler üstte, gerisi **Bugün / Dün / Son 7 gün / Son 30 gün / Daha eski** gruplarında, en yeni önde. Her satırda sohbetin başlığı, ilan mı arama mı olduğu, araç adı ve soru sayısı yazar; açık olan sohbet yeşil çizgiyle, bu sayfanın diğer sohbetleri "Bu sayfa" etiketiyle işaretlenir.
 - **Yeni sohbet.** Aynı ilanda ya da aramada sıfırdan başlar: önceki sorular ekrandan kalkar ve yapay zekaya verilmez, eski sohbet silinmez, panelde kalır. Sohbet ilk soruda kaydedilir.
@@ -11,6 +11,19 @@ Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-p
 - **Eski sohbete dön ve devam et.** Bu sayfanın sohbetine tıklayınca o sohbet açılır ve oradan sürer (önceki konuşma yapay zekaya verilir). Başka bir ilanın ya da aramanın sohbeti önce okunur; **Sayfayı aç** o sayfayı açar (ortak açılış sınırından geçer), "Analiz et"e basınca seçtiğin sohbet kaldığı yerden sürer.
 - **Popup'ta "Sohbet geçmişi →"** düğmesi analiz etmeden de paneli açar.
 - Sohbet başına 30 soru, toplam 200 sohbet saklanır (önceden 10 ve 100). Eski sohbetler korunur ve listede görünür. Başlık, sabitleme ve sayfa bilgisi yedekle/geri yükle dosyasına da girer. Her şey yalnızca bu bilgisayarda; sunucu yok, sahibinden'e ek istek yok. Yeni dosyalar: chat-list-ui.js, chat-list.test.js.
+
+## 7.29.0 — 2026-10-27
+
+- **Satıcıya sorulacakları işaretle, WhatsApp'tan tek mesajla sor.** Ekspertiz raporundaki ve popup'taki "Satıcıya sorulacaklar" listesinde istediğin soruları tikle; "Seçilen N soruyu WhatsApp'tan sor" düğmesi hepsini numaralı tek bir mesajda ("Merhaba, … ilanınız (ilan no: …) için birkaç sorum olacak: 1. … 2. …") WhatsApp'ta açar. Raporda "Tümünü seç" de var. Gönder tuşuna yine sen basarsın.
+- İlanda "Telefonu göster"e basılıp analiz edildiyse (ya da numarayı kaydettiysen) mesaj doğrudan satıcının numarasına açılır ve "WhatsApp'tan yaz" ile aynı spam sınırından geçer (yeni satıcılara dakikada 1, günde 20). Numara yoksa WhatsApp açılınca kişiyi sen seçersin. Numara yine kaydedilmez; rapora yalnızca açık sekmenin adresinde taşınır.
+
+## 7.28.0 — 2026-10-27
+
+- **"Google zamanında cevap vermedi" düzeltildi.** Kök sebep: anahtar denemesinde ilk model (gemini-flash-latest) takılınca 20 saniyelik sürenin tamamını tek başına yiyor, yedek modellere sıra gelmiyordu; deneme zaman aşımına düşünce geçerli anahtar **kaydedilmiyordu**, bu yüzden popup tekrar tekrar kurulum sayfasına yönlendiriyordu. Artık bir model birkaç saniye içinde cevap vermezse beklemesi sürerken sıradaki model de aynı anda denenir; önce gelen cevap kullanılır, diğeri iptal edilir (anahtar denemesinde 4 sn, sohbette 15 sn sonra).
+- **Yavaşlık anahtarı reddettirmez.** Google cevap üretmekte yavaşsa ya da yoğunsa anahtar ayrıca çok hızlı bir istekle (model bilgisi) denetlenir; geçerliyse kaydedilir ve "Google şu an yavaş" notu gösterilir. Yanlış anahtar yine reddedilir. Google hiç cevap vermiyorsa anahtar yine kaydedilir, ilk soruda denenir. Hiçbir hata anahtarı kendiliğinden silmez.
+- **Çalışan model hatırlanır.** Popup her açılışta sıfırdan başladığı için takılan model her soruda yeniden deneniyordu. En son çalışan model, bir süre sona alınan (yoğun/takılan) modeller ve anahtarın gönderilme biçimi bu bilgisayarda hatırlanır; anahtarın kendisi bu kayda yazılmaz.
+- **Tanı satırı.** Yapay zeka cevap veremeyince yedek cevabın altında küçük bir satır çıkar: hangi model, ne kadar sürdü, ne döndü (ör. "Tanı: flash-latest zaman aşımı 15 sn → 2.5-flash HTTP 503 (01:33)"). Kurulum sayfasında "Son yapay zeka denemeleri" listesi ve Kopyala düğmesi var. Anahtar ve sorular günlüğe yazılmaz.
+- Sohbette genel süre sınırı Gemini için 80 sn'ye çıktı (yedek modeller yarıda kesilmesin); boş cevap, ilk deneme uzun sürdüyse yeniden istenmez. Sahibinden'e ek istek yok.
 
 ## 7.27.0 — 2026-10-26
 
