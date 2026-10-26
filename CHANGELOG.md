@@ -2,6 +2,13 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.21.0 — 2026-10-26
+
+- **Otomatik tamamlamada kasa seçenekleri.** "egea" yazınca artık yalnızca Fiat Egea ve Egea Cross değil, Egea Sedan, Egea Hatchback ve Egea Station Wagon da önerilir. Aynısı Corolla, Clio, Megane, Focus, Astra, Civic, i30, Golf, 3 Serisi, C Serisi, A4, Octavia, Leon ve 140'tan fazla modelde çalışır (gömülü liste). Listede olmayan modeller için kayıtlarında görülen kasalar önerilir (ör. Picanto Hatchback); böylece analiz ettiğin her araba için kasa seçeneği çıkar. sahibinden'in ayrı seri saydığı adlar (Egea Cross, Corolla Cross, Passat Variant) model olarak kalır.
+- **Seçilince doğru alanlar dolar.** Yeni arama formunda "Fiat Egea Sedan" seçilince marka Fiat, model Egea, yeni **Kasa tipi** alanı Sedan olur. Stok aracı formunda model alanında "Egea Sedan" seçmek ya da yazmak da model ve kasayı ayırır; "Egea Sedan" hiçbir zaman model adı olarak kaydedilmez, böylece fiyat hesabı ve model ailesi eşleştirmesi bozulmaz. Elle yazdığın kasaya dokunulmaz.
+- **Kayıtlı arama kasaya göre süzer.** "Hatchback" araması sahibinden'deki "Hatchback 5 kapı" ilanına, "Station Wagon" araması başlıktan okunan "Station" ilanına uyar; kasası bilinmeyen ilan elenmez.
+- Yeni testler (suggest.test.js, alerts.test.js). Ağ isteği yoktur.
+
 ## 7.20.0 — 2026-10-26
 
 - **Yapay zeka düşse de soru cevapsız kalmaz.** Gemini ya da Chrome'un yerleşik modeli hata verirse (yoğunluk, kota, bağlantı, süre aşımı) hata yazısı yerine eklentinin kendi hesaplarıyla kurulan cevap gösterilir; üstünde hatanın nedeni ve "Eklentinin kendi hesaplarıyla cevap verildi" notu, altında "Yeniden sor" düğmesi durur. Sorunun konusu kurallarla anlaşılır: teklif/pazarlık (açılış ve hedef rakamı, gerekçeler), satıcıya sorulacaklar, ekspertiz listesi, açıklamadaki şüpheli ifadeler, km yorumu, kaporta ve tramer sorgulama, benzer ilanlarla kıyas, fiyat değerlendirmesi. Arama listesinde en mantıklı 3 ilan, düşük km'liler ve uyarılı (uzak durulacak) ilanlar "İlan N" bağlantılarıyla verilir. Bu cevaptaki her rakam eklentinin hesabından gelir; modele özgü kronik sorun gibi bilmediği şeyi uydurmaz, "yapay zeka gerekiyor" der.

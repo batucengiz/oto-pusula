@@ -1248,6 +1248,7 @@
     for (const name of [
       'brand',
       'model',
+      'body',
       'trim',
       'engine',
       'year',

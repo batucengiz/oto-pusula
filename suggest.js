@@ -1,7 +1,7 @@
 (function (root) {
   'use strict';
 
-  // Araç formundaki otomatik tamamlama: marka, model, paket, motor, yakıt ve vites yazdıkça öneri çıkar, yazım
+  // Araç formundaki otomatik tamamlama: marka, model, kasa, paket, motor, yakıt ve vites yazdıkça öneri çıkar, yazım
   // hatasında "bunu mu demek istediniz" der. Fiyat hesabı marka ve modeli yazıya göre eşleştirdiği için ("Corola" ile
   // "Corolla" farklı sayılır), yanlış yazım "veri yok" sonucu verirdi. Öneriler önce kullanıcının kendi kayıtlarından,
   // sonra gömülü bilinen listeden (catalog.js) gelir; liste kapalı değildir, listede olmayan ad yine kaydedilir.
@@ -10,7 +10,7 @@
   const catalog = root.OtoCatalog || require('./catalog.js');
   const { key, brandKey, similar } = core;
 
-  const FIELDS = ['brand', 'model', 'trim', 'engine', 'fuel', 'transmission'];
+  const FIELDS = ['brand', 'model', 'body', 'trim', 'engine', 'fuel', 'transmission'];
   const MAX_SUGGESTIONS = 8;
 
   const text = value => String(value ?? '').trim();
@@ -42,6 +42,48 @@
     return name ? { name, ...catalog.BRANDS[name] } : null;
   }
 
+  // Kasa adı tek biçime çevrilir: ilan sayfası "Hatchback 5 kapı", başlık "Station" yazabilir; öneride "Hatchback" ve
+  // "Station Wagon" görünür. Bilinmeyen ad olduğu gibi kalır.
+  function bodyName(value) {
+    const raw = text(value);
+    const first = key(raw.split(/\s+/)[0]);
+    if (!first) return '';
+    return catalog.BODY_TYPES.find(item => key(item.split(/\s+/)[0]) === first) || raw;
+  }
+
+  // Bir model için kasa seçenekleri: önce kullanıcının kayıtlarında görülenler (sık olan önce), sonra gömülü liste.
+  // Modelin adında zaten geçen kasa ("Egea Cross" için "Cross") önerilmez.
+  function bodyVariants(brand, model, records = []) {
+    const modelKey = key(model);
+    if (!modelKey) return [];
+    const modelWords = text(model)
+      .split(/[^\p{L}\p{N}]+/u)
+      .map(key);
+    const counts = new Map();
+    for (const item of records) {
+      if (brandKey(item?.brand) !== brandKey(brand) || key(item?.model) !== modelKey) continue;
+      const name = bodyName(item.body);
+      if (name) counts.set(name, (counts.get(name) || 0) + 1);
+    }
+    const known = catalogBrand(brand);
+    const fromCatalog = Object.entries(known?.bodies || {}).find(([name]) => key(name) === modelKey)?.[1] || [];
+    const seen = new Set();
+    return [...[...counts].sort((a, b) => b[1] - a[1]).map(([name]) => name), ...fromCatalog].filter(name => {
+      const id = key(name);
+      if (!id || seen.has(id) || modelWords.includes(key(name.split(/\s+/)[0]))) return false;
+      seen.add(id);
+      return true;
+    });
+  }
+
+  // Model alanında "Egea Sedan" gibi kasa seçenekleri: seçilince model "Egea", kasa "Sedan" olur.
+  function modelVariants(brand, models, records) {
+    const out = [];
+    for (const model of models)
+      for (const body of bodyVariants(brand, model, records)) out.push({ text: `${model} ${body}`, model, body });
+    return out;
+  }
+
   // Bir alan için aday listesi: kullanıcının kayıtları (sık olan önce), sonra gömülü liste. Aynı ad bir kez.
   function candidates(field, ctx = {}) {
     const records = ctx.records || [];
@@ -51,18 +93,19 @@
     const keyOf = field === 'brand' ? brandKey : key;
     let mine = records;
     if (field !== 'brand' && brand) mine = mine.filter(item => brandKey(item.brand) === brandKey(brand));
-    if ((field === 'trim' || field === 'engine') && model) {
+    if ((field === 'trim' || field === 'engine' || field === 'body') && model) {
       const sameModel = mine.filter(item => key(item.model) === key(model));
       if (sameModel.length) mine = sameModel;
     }
     const own = tally(
-      mine.map(item => item[field]),
+      mine.map(item => (field === 'body' ? bodyName(item.body) : item[field])),
       keyOf
     );
     const fromCatalog = [];
     if (field === 'brand') fromCatalog.push(...Object.keys(catalog.BRANDS));
     else if (field === 'fuel') fromCatalog.push(...catalog.FUELS);
     else if (field === 'transmission') fromCatalog.push(...catalog.TRANSMISSIONS);
+    else if (field === 'body') fromCatalog.push(...bodyVariants(brand, model), ...catalog.BODY_TYPES);
     else if (known) fromCatalog.push(...known[`${field}s`]);
     else if (!brand) {
       for (const data of Object.values(catalog.BRANDS)) fromCatalog.push(...data[`${field}s`]);
@@ -76,7 +119,32 @@
         list.push({ text: item, count: 0, user: false });
       }
     }
+    // Kasa seçenekleri en sona eklenir: "egea" yazınca önce Egea, Egea Cross, sonra Egea Sedan, Egea Hatchback…
+    if (field === 'model' && !ctx.plain) {
+      const brands = brand ? [known?.name || brand] : Object.keys(catalog.BRANDS);
+      for (const name of brands) {
+        const models = brand
+          ? list.map(item => item.text)
+          : catalog.BRANDS[name].models.filter(item => catalog.BRANDS[name].bodies[item]);
+        for (const variant of modelVariants(name, models, records)) {
+          const id = key(variant.text);
+          if (seen.has(id)) continue;
+          seen.add(id);
+          list.push({ ...variant, brand: brand ? '' : name, count: 0, user: false, variant: true });
+        }
+      }
+    }
     return list;
+  }
+
+  // Model alanına yazılan "Egea Sedan" bir kasa seçeneğiyse model ve kasa olarak ayrılır.
+  function splitVariant(values, records = []) {
+    const model = text(values.model);
+    if (!model) return null;
+    const found = candidates('model', { brand: values.brand, records }).find(
+      item => item.variant && key(item.text) === key(model)
+    );
+    return found ? { brand: found.brand, model: found.model, body: found.body } : null;
   }
 
   // 0: aynen aynı, 1: baştan eşleşir ("u" → Urban), 2: bir kelimesi baştan eşleşir ("pl" → Urban Plus),
@@ -112,7 +180,7 @@
   function resolve(field, value, ctx = {}) {
     const typed = text(value);
     if (!key(typed)) return { typed, exact: false, canonical: '', close: [] };
-    const list = candidates(field, ctx);
+    const list = candidates(field, { ...ctx, plain: true });
     const keyOf = field === 'brand' ? brandKey : key;
     const match = list.find(item => keyOf(item.text) === keyOf(typed));
     if (match) return { typed, exact: true, canonical: match.text, close: [] };
@@ -170,9 +238,20 @@
   // Kayıttan önce: listede aynen bulunan alanlar bilinen yazılışa çevrilir ("corolla " → "Corolla").
   function canonicalize(values, records = []) {
     const out = { ...values };
+    const variant = splitVariant(out, records);
+    if (variant) {
+      out.model = variant.model;
+      if (!text(out.brand) && variant.brand) out.brand = variant.brand;
+      if (!text(out.body)) out.body = variant.body;
+    }
     for (const field of FIELDS) {
       if (!text(out[field])) continue;
       const ctx = { brand: out.brand, model: out.model, records };
+      if (field === 'body') {
+        const found = resolve(field, out[field], ctx);
+        out[field] = found.exact ? found.canonical : bodyName(found.typed);
+        continue;
+      }
       const found = resolve(field, out[field], ctx);
       out[field] = found.exact ? found.canonical : found.typed;
     }
@@ -192,6 +271,16 @@
     note.setAttribute('role', 'status');
     form.querySelector('.form-grid')?.after(note);
     let uid = 0;
+
+    // "Egea Sedan" seçilince model "Egea", kasa "Sedan" olur; marka boşsa o da dolar.
+    function applyVariant(value) {
+      const found = splitVariant({ ...values(), model: value }, getRecords());
+      if (!found) return false;
+      inputs.model.value = found.model;
+      if (found.brand && inputs.brand && !text(inputs.brand.value)) inputs.brand.value = found.brand;
+      if (inputs.body) inputs.body.value = found.body;
+      return true;
+    }
 
     function refreshNote() {
       const result = marketNote(values(), getRecords());
@@ -229,7 +318,7 @@
         input.removeAttribute('aria-activedescendant');
       };
       const choose = value => {
-        input.value = value;
+        if (name !== 'model' || !applyVariant(value)) input.value = value;
         hint.hidden = true;
         close();
         choosing = true;
@@ -269,6 +358,7 @@
       };
       // Yanlış yazımda "bunu mu demek istediniz" ve bilinen yazılışa çevirme (alandan çıkınca).
       const check = () => {
+        if (name === 'model' && applyVariant(input.value)) return refreshNote();
         const found = resolve(name, input.value, context());
         hint.replaceChildren();
         hint.hidden = true;
@@ -332,7 +422,18 @@
     };
   }
 
-  const api = { FIELDS, candidates, suggest, resolve, marketNote, canonicalize, attach };
+  const api = {
+    FIELDS,
+    bodyName,
+    bodyVariants,
+    candidates,
+    suggest,
+    resolve,
+    splitVariant,
+    marketNote,
+    canonicalize,
+    attach
+  };
   root.OtoSuggest = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);
