@@ -47,6 +47,34 @@
     return openGate.open(core.listingUrl(record), url => chrome.tabs.create({ url, active: false }), openNote);
   }
 
+  // Sohbetler panelinden başka bir ilanın ya da aramanın sayfası: aynı açılış sınırından geçer.
+  function openChatPage(url) {
+    return openGate.open(url, target => chrome.tabs.create({ url: target }), openNote);
+  }
+  // Kayıtlı adresi olmayan eski sohbetler için: arama anahtarından ya da ilanın yerel kaydından.
+  function chatRecordUrl(page) {
+    if (page.startsWith('list:')) return `https://www.sahibinden.com${page.slice(5)}`;
+    try {
+      const record = store.load().comparables.find(item => item.id === page);
+      return record ? core.listingUrl(record) : '';
+    } catch {
+      return '';
+    }
+  }
+  // Arama sohbetinin listedeki adı: adresteki yol ("/otomobil-fiat-egea" → "Otomobil Fiat Egea").
+  function searchLabel(url) {
+    try {
+      const words = new URL(url).pathname.split('/').filter(Boolean).join(' ').replace(/-/g, ' ').trim();
+      return (words || 'Tüm ilanlar')
+        .split(/\s+/)
+        .map(word => word.charAt(0).toLocaleUpperCase('tr-TR') + word.slice(1))
+        .join(' ')
+        .slice(0, 80);
+    } catch {
+      return '';
+    }
+  }
+
   function refTitle(record) {
     return [
       [record.brand, record.model, record.engine].filter(Boolean).join(' '),
@@ -514,8 +542,9 @@
           deal: core.dealScore(record, result),
           advice: core.advise(record, result)
         }));
-        const chatKey = globalThis.OtoChatHistory?.pageKey(activeTab?.url || raw?.url) || '';
-        nodes.push(chatSection({ kind: 'list', entries, chatKey }));
+        const chatUrl = activeTab?.url || raw?.url || '';
+        const chatKey = globalThis.OtoChatHistory?.pageKey(chatUrl) || '';
+        nodes.push(chatSection({ kind: 'list', entries, chatKey, chatUrl }));
       }
     } catch {
       /* sohbet açılamasa da sonuç gösterilir */
@@ -1044,7 +1073,7 @@
   function renderChat(chat, mode) {
     const { lines } = chat;
     chatView += 1;
-    const view = chatView;
+    let view = chatView;
     const log = element('div', 'chat-log');
     log.setAttribute('aria-live', 'polite');
     const status = element('p', 'muted chat-status', '');
@@ -1077,6 +1106,19 @@
     // cevaptaki ilana gidip dönünce ya da popup kapanıp açılınca sohbet kaldığı yerden sürer.
     const chatKey = listMode ? chat.context.chatKey : recordId;
     const history = chatKey ? globalThis.OtoChatHistory : null;
+    // Açık sohbet: sayfanın en son sohbeti ya da "Yeni sohbet" ile başlayan boş bir sohbet (ilk soruda kaydedilir).
+    // Kimlik sayfa anahtarıdır; aynı sayfadaki ikinci ve sonraki sohbetler "sayfa#zaman" olur.
+    let chatId = chatKey;
+    const chatMeta = () =>
+      listMode
+        ? { page: chatKey, label: searchLabel(chat.context.chatUrl), url: chat.context.chatUrl }
+        : {
+            page: chatKey,
+            label: [chat.context.record.brand, chat.context.record.model, chat.context.record.year]
+              .filter(Boolean)
+              .join(' '),
+            url: core.listingUrl(chat.context.record)
+          };
     // Liste sohbeti: her soruda ilanlar soruya göre süzülür; modele son iki soru-cevap da verilir.
     let listView = null;
     const listTurns = [];
@@ -1375,7 +1417,7 @@
           }
           // "İlan N" bağlantıları geri yüklenince de aynı ilanı açsın diye o cevabın ilan sırası da saklanır.
           const refs = (listMode ? view?.shown || [] : saved).map(entry => entry.record.id);
-          history?.add(chatKey, question, answer, undefined, refs).catch?.(() => {});
+          history?.add(chatId, question, answer, undefined, refs, chatMeta()).catch?.(() => {});
         }
         // Uydurma tutar/yüzde ya da listede olmayan ilan numarası varsa cevabın altında kısa bir uyarı çıkar.
         const note = answer
@@ -1487,7 +1529,21 @@
     const title = element('div', 'chat-title');
     title.append(element('span', 'ai-orb', '✦'), element('div', '', ''));
     title.children[1].append(element('h2', '', 'Asistan'), element('small', `chat-mode ${mode.kind}`, ''));
-    head.append(title, saveButton);
+    // Gemini'deki gibi: solda sohbetler menüsü, sağda yeni sohbet.
+    const menuButton = element('button', 'chat-icon-button', '☰');
+    menuButton.type = 'button';
+    menuButton.title = 'Sohbetler: geçmiş, arama, sabitleme';
+    menuButton.setAttribute('aria-label', 'Sohbetler');
+    const newButton = element('button', 'chat-icon-button', '✎');
+    newButton.type = 'button';
+    newButton.title = 'Yeni sohbet';
+    newButton.setAttribute('aria-label', 'Yeni sohbet');
+    const lead = element('div', 'chat-lead');
+    lead.append(menuButton, title);
+    const tools = element('div', 'chat-tools');
+    tools.append(newButton, saveButton);
+    head.append(lead, tools);
+    if (!history) menuButton.hidden = newButton.hidden = true;
     const modeLabel = title.children[1].children[1];
     const paintMode = () => {
       const count = !listMode ? 0 : effectiveMode() === 'all' ? savedListings().length : chat.context.entries.length;
@@ -1571,27 +1627,39 @@
       return node;
     }
 
+    // Paneldeki salt okunur cevap (başka sayfanın sohbeti): "İlan N" bağlantıları o cevabın ilan sırasıyla açılır.
+    function storedAnswer(turn) {
+      const entries = entriesFor(turn.refs);
+      const rich = element('div', 'chat-ai chat-rich');
+      rich.append(...richNodes(turn.a, number => entries[number - 1]?.record));
+      return rich;
+    }
+
     // Önceki sohbet: aynı ilana ya da aynı aramaya dönünce görünür, tek tuşla silinir.
-    async function restore() {
+    async function restore(id = null) {
       try {
-        [pastTurns, savedList] = await Promise.all([history.load(chatKey), listMode ? [] : history.savedIds()]);
+        const [found, saved] = await Promise.all([
+          id || history.latestFor(chatKey),
+          listMode ? [] : history.savedIds()
+        ]);
+        chatId = found || chatKey;
+        pastTurns = found ? await history.load(found) : [];
+        savedList = saved;
       } catch {
         pastTurns = [];
         savedList = [];
       }
       if (!listMode) paintSaved();
-      if (view !== chatView || !pastTurns.length) return;
+      if (view !== chatView) return;
+      if (id) history.markOpened(id).catch?.(() => {});
+      if (!pastTurns.length) return;
       if (listMode) listTurns.push(...pastTurns.slice(-2).map(turn => ({ q: turn.q, a: turn.a })));
       const divider = element('div', 'chat-divider');
-      const wipe = element('button', 'chat-wipe', 'Geçmişi sil');
+      const wipe = element('button', 'chat-wipe', 'Bu sohbeti sil');
       wipe.type = 'button';
       wipe.addEventListener('click', async () => {
-        await history.clear(chatKey);
-        pastTurns = [];
-        listTurns.length = 0;
-        closeChat();
-        log.replaceChildren();
-        chat.section.classList?.remove('started');
+        await history.clear(chatId);
+        startNew();
       });
       divider.append(
         element(
@@ -1606,6 +1674,67 @@
       // Kaldığı yer görünsün: son cevaba kaydırılır.
       log.lastElementChild?.scrollIntoView?.({ block: 'start' });
     }
+
+    // Sohbeti boşaltır: model oturumu kapanır, önceki sorular modele verilmez. Kayıt ilk soruda oluşur.
+    function resetLog() {
+      closeChat();
+      compact = false;
+      pastTurns = [];
+      listTurns.length = 0;
+      log.replaceChildren();
+      status.textContent = '';
+      chat.section.classList?.remove('started');
+    }
+    function startNew() {
+      if (busy) return;
+      resetLog();
+      chatId = history ? history.newId(chatKey) : chatKey;
+      closeDrawer();
+      input.focus?.();
+    }
+    // Aynı sayfanın başka bir sohbetine geçer ve oradan devam eder.
+    function switchTo(id) {
+      if (busy) return;
+      resetLog();
+      closeDrawer();
+      chatView += 1;
+      view = chatView;
+      restore(id);
+    }
+
+    // Gemini'deki gibi sohbetler paneli: sohbetin üstünü kaplar, ← ile geri dönülür.
+    let drawer = null;
+    const drawerSlot = element('div', 'chat-drawer-slot');
+    function closeDrawer() {
+      drawerSlot.replaceChildren();
+      drawer = null;
+      chat.section.classList?.remove('drawer-on');
+    }
+    function openDrawer() {
+      if (busy || !history || !globalThis.OtoChatListUI) return;
+      closeDrawer();
+      drawer = globalThis.OtoChatListUI.create({
+        element,
+        history,
+        current: { page: chatKey, id: chatId },
+        renderAnswer: turn => storedAnswer(turn),
+        onOpen: switchTo,
+        onNew: startNew,
+        onClose: closeDrawer,
+        onDeleted: id => {
+          if (id !== null && id !== chatId) return;
+          resetLog();
+          chatId = history.newId(chatKey);
+        },
+        openPage: url => openChatPage(url),
+        recordUrl: chatRecordUrl
+      });
+      chat.section.classList?.add('drawer-on');
+      drawerSlot.replaceChildren(drawer.node);
+      drawer.focus();
+    }
+    menuButton.addEventListener('click', openDrawer);
+    newButton.addEventListener('click', startNew);
     if (history) restore();
     if (!history || listMode) saveButton.hidden = true;
     if (listMode) savedStrip.hidden = true;
@@ -1705,7 +1834,7 @@
     });
     scopeBar.append(element('span', 'chat-scope-label', 'Kapsam'), pageButton, allButton, brandSelect);
     if (scopeChoosable()) paintScope();
-    chat.section.replaceChildren(head, scopeBar, savedStrip, ...notices, empty, log, status, composer);
+    chat.section.replaceChildren(head, scopeBar, savedStrip, ...notices, empty, log, status, composer, drawerSlot);
   }
 
   // Bu sayfada (ya da aynı aramada) kayıtlı bir sohbet varsa popup açılır açılmaz söylenir; analiz edince sohbet
@@ -1714,7 +1843,8 @@
     const history = globalThis.OtoChatHistory;
     const key = history?.pageKey(url);
     if (!key) return;
-    const turns = await history.load(key).catch(() => []);
+    const id = await history.latestFor(key).catch(() => null);
+    const turns = id ? await history.load(id).catch(() => []) : [];
     if (!turns.length) return;
     $('analyze').textContent = 'Analiz et ve sohbete devam et';
     $('page-hint').textContent =
@@ -1851,6 +1981,33 @@
   $('open-alerts').addEventListener('click', () => {
     openAlertsPage();
     window.close();
+  });
+  // Sohbet geçmişi analiz etmeden de açılır. Açık sayfanın sohbeti seçilirse sayfa analiz edilir ve sohbet sürer;
+  // başka sayfanın sohbeti okunur, "Sayfayı aç" ile o sayfaya gidilir.
+  $('open-chats').addEventListener('click', () => {
+    const history = globalThis.OtoChatHistory;
+    if (!history || !globalThis.OtoChatListUI) return;
+    const page = activeTab ? history.pageKey(activeTab.url) : '';
+    const section = element('section', 'chat chat-standalone');
+    const panel = globalThis.OtoChatListUI.create({
+      element,
+      history,
+      current: page ? { page, id: null } : null,
+      onClose: () => {
+        $('result').hidden = true;
+      },
+      onContinueHere: activeTab ? () => analyze() : null,
+      renderAnswer: turn => {
+        const rich = element('div', 'chat-ai chat-rich');
+        rich.append(...richNodes(turn.a, () => null));
+        return rich;
+      },
+      openPage: openChatPage,
+      recordUrl: chatRecordUrl
+    });
+    section.append(panel.node);
+    showResult([section]);
+    panel.focus();
   });
   $('open-dashboard').addEventListener('click', () => {
     chrome.tabs.create({ url: chrome.runtime.getURL('dashboard.html') });

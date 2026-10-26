@@ -207,7 +207,8 @@ test('panel ve popup yeni dosyaları yükler; sahibinden’e istek yok', () => {
     assert.match(dashboard, new RegExp(`src="${file}"`));
   assert.ok(dashboard.indexOf('compare-ui.js') < dashboard.indexOf('dashboard.js'));
   assert.match(fs.readFileSync(require.resolve('./popup.html'), 'utf8'), /src="chat-history.js"/);
-  for (const file of ['chat-history.js', 'compare-ui.js']) {
+  assert.match(fs.readFileSync(require.resolve('./popup.html'), 'utf8'), /src="chat-list-ui.js"/);
+  for (const file of ['chat-history.js', 'compare-ui.js', 'chat-list-ui.js']) {
     const source = fs.readFileSync(require.resolve(`./${file}`), 'utf8');
     assert.doesNotMatch(source, /fetch\(|XMLHttpRequest|WebSocket|sendBeacon|https?:\/\/|innerHTML/, file);
   }

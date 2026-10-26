@@ -37,6 +37,7 @@ const files = new Map([
   ['/flip.js', ['flip.js', 'text/javascript; charset=utf-8']],
   ['/flip.css', ['flip.css', 'text/css; charset=utf-8']],
   ['/chat-history.js', ['chat-history.js', 'text/javascript; charset=utf-8']],
+  ['/chat-list-ui.js', ['chat-list-ui.js', 'text/javascript; charset=utf-8']],
   ['/backup.js', ['backup.js', 'text/javascript; charset=utf-8']],
   ['/backup-ui.js', ['backup-ui.js', 'text/javascript; charset=utf-8']],
   ['/backup.css', ['backup.css', 'text/css; charset=utf-8']],

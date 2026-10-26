@@ -347,7 +347,7 @@ async function popupWithModel(
     'assistant.js',
     ...(expertise ? ['expertise.js'] : []),
     ...(remote ? ['remote-ai.js'] : []),
-    ...(history ? ['chat-history.js'] : []),
+    ...(history ? ['chat-history.js', 'chat-list-ui.js'] : []),
     'popup.js'
   ])
     vm.runInContext(fs.readFileSync(require.resolve(`./${file}`), 'utf8'), context);
@@ -1693,6 +1693,67 @@ test('arama sayfası sohbeti: ilana gidip dönünce (popup yeniden açılınca) 
     .find(node => node.className === 'chat-wipe')
     .click();
   assert.doesNotMatch(storage.get('otoPusula_chat'), /list:\/fiat-egea/);
+});
+
+test('popup: Gemini gibi Yeni sohbet ve Sohbetler paneli; eski sohbete geçince oradan sürer', async () => {
+  const storage = new Map();
+  const systems = [];
+  let n = 0;
+  const api = {
+    availability: async () => 'available',
+    create: async options => {
+      systems.push(options.initialPrompts[0].content);
+      return { prompt: async () => `Cevap ${(n += 1)}`, destroy() {} };
+    }
+  };
+  const settle = async () => {
+    for (let i = 0; i < 6; i += 1) await new Promise(resolve => setImmediate(resolve));
+  };
+  const ask = async (chat, text) => {
+    const form = walk(chat).find(node => node.tag === 'form' && node.className === 'chat-form');
+    form.children.find(node => node.tag === 'input').value = text;
+    await form.listeners.submit({ preventDefault() {} });
+    await settle();
+  };
+  const chat = await popupWithModel(api, { storage, history: true });
+  await settle();
+  await ask(chat, 'Bu fiyata değer mi?');
+  const byTitle = title => walk(chat).find(node => node.className === 'chat-icon-button' && node.title === title);
+  byTitle('Yeni sohbet').click();
+  const log = () => walk(chat).find(node => node.className === 'chat-log');
+  assert.equal(log().children.length, 0, 'yeni sohbet boş başlar');
+  await ask(chat, 'Kronik arızaları neler?');
+  assert.doesNotMatch(systems.at(-1), /ÖNCEKİ SOHBET/, 'yeni sohbette eski sorular modele gitmez');
+  const saved = JSON.parse(storage.get('otoPusula_chat'));
+  const ids = Object.keys(saved);
+  assert.equal(ids.length, 2);
+  assert.ok(ids.every(id => id.startsWith('comparable-sh-1234567893')));
+  assert.deepEqual(
+    Object.values(saved)
+      .map(item => item.title)
+      .sort(),
+    ['Bu fiyata değer mi?', 'Kronik arızaları neler?']
+  );
+  assert.ok(Object.values(saved).every(item => item.label === 'Fiat Egea 2021'));
+
+  // ☰ Sohbetler: iki sohbet listelenir; ilkine tıklayınca o sohbet geri gelir ve sürer.
+  byTitle('Sohbetler: geçmiş, arama, sabitleme').click();
+  await settle();
+  const rows = walk(chat).filter(node => /^drawer-row/.test(node.className || ''));
+  assert.equal(rows.length, 2);
+  rows
+    .find(row => walk(row).some(node => node.textContent === 'Bu fiyata değer mi?'))
+    .children.find(node => node.className === 'drawer-open')
+    .click();
+  await settle();
+  assert.ok(walk(log()).some(node => node.textContent === 'Bu fiyata değer mi?'));
+  assert.ok(!walk(log()).some(node => node.textContent === 'Kronik arızaları neler?'));
+  assert.equal(walk(chat).filter(node => node.className === 'chat-drawer').length, 0, 'panel kapanır');
+  await ask(chat, 'Ne kadar teklif vermeliyim?');
+  assert.match(systems.at(-1), /ÖNCEKİ SOHBET[\s\S]*Bu fiyata değer mi/);
+  const after = JSON.parse(storage.get('otoPusula_chat'));
+  assert.equal(Object.keys(after).length, 2, 'devam eden sohbete eklenir, yeni kayıt açılmaz');
+  assert.ok(Object.values(after).some(item => item.turns.length === 2));
 });
 
 test('en mantıklı ilan: ekspertiz riski ve hatasız iddiası fiyatla birlikte tartılır; bilgiler modele ve yedek cevaba girer', () => {
