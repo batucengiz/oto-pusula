@@ -359,7 +359,8 @@
         )
       );
       // Aynı modelin yerel kayıtlardaki satış süresi ve fiyat eğilimi (veri azsa hiç gösterilmez).
-      const paceLines = core.paceLines(core.modelPace(record, outcome.state?.comparables || []), record);
+      const pace = core.modelPace(record, outcome.state?.comparables || []);
+      const paceLines = core.paceLines(pace, record);
       paceLines.forEach(line => nodes.push(element('p', 'muted', line)));
       if (record.condition)
         nodes.push(
@@ -405,12 +406,14 @@
             `Fırsat puanı: ${deal.score}/100${deal.label ? ` · ${deal.label}` : ''} (fiyat ${deal.parts.price}/60, kaporta ${deal.parts.body}/25, güven ${deal.parts.trust}/15)`
           )
         );
-      const advice = core.advise(record, result);
+      const advice = core.advise(record, result, new Date(), pace);
       advice.flags.forEach(flag => nodes.push(element('p', 'muted', `⚠ ${flag.label}: ${flag.text}`)));
-      if (advice.offer)
-        nodes.push(
-          element('p', 'muted', `Pazarlık: açılış ${lira(advice.offer.open)}, hedef ${lira(advice.offer.target)}.`)
-        );
+      try {
+        if (advice.offer && globalThis.OtoNegotiation)
+          nodes.push(globalThis.OtoNegotiation.render(document, advice.offer, { heading: 'h2' }));
+      } catch {
+        /* pazarlık kutusu gösterilemedi */
+      }
       // Ek bilgiler analiz sonucunu asla bozmaz: bir hata olursa yalnızca bu satırlar atlanır.
       let textFlags = [];
       try {
@@ -443,7 +446,7 @@
       } catch {
         /* rapor düğmeleri gösterilemedi */
       }
-      if (raw?.kind === 'detail') nodes.push(...whatsappNodes(raw, record));
+      if (raw?.kind === 'detail') nodes.push(...whatsappNodes(raw, record, advice.offer));
       if (raw?.kind === 'detail')
         nodes.push(
           chatSection({ record, result, body, deal, advice, textFlags, expertise, description: raw.description })
@@ -509,7 +512,7 @@
   }
 
   // Numara yalnızca bu pencerede kullanılır, kaydedilmez. Mesajı kullanıcı WhatsApp'ta kendisi gönderir.
-  function whatsappNodes(raw, record) {
+  function whatsappNodes(raw, record, offer = null) {
     const phone = listing.findMobile(raw.phoneText, raw.description);
     const link = listing.whatsappLink(phone, record);
     if (!link) {
@@ -521,23 +524,29 @@
         )
       ];
     }
-    const button = element('button', 'whatsapp', 'WhatsApp’tan yaz');
-    button.type = 'button';
     const note = element('p', 'muted', '');
-    button.addEventListener('click', () => {
-      const result = listing.contactWhatsApp(store.load(), record, phone);
-      if (!result.allowed) {
-        note.textContent = `⏳ ${result.reason}`;
-        note.className = 'warning-line';
-        return;
-      }
-      try {
-        store.save(result.state);
-      } catch {
-        /* sayaç yazılamasa da mesaj açılır */
-      }
-      if (result.link.startsWith('https://wa.me/')) chrome.tabs.create({ url: result.link });
-    });
+    // İki düğme de aynı spam korumasından geçer; teklifli olan pazarlık önerisinin hazır mesajını açar.
+    const whatsappButton = (label, message) => {
+      const button = element('button', 'whatsapp', label);
+      button.type = 'button';
+      button.addEventListener('click', () => {
+        const result = listing.contactWhatsApp(store.load(), record, phone, Date.now(), message);
+        if (!result.allowed) {
+          note.textContent = `⏳ ${result.reason}`;
+          note.className = 'warning-line';
+          return;
+        }
+        try {
+          store.save(result.state);
+        } catch {
+          /* sayaç yazılamasa da mesaj açılır */
+        }
+        if (result.link.startsWith('https://wa.me/')) chrome.tabs.create({ url: result.link });
+      });
+      return button;
+    };
+    const buttons = [whatsappButton('WhatsApp’tan yaz')];
+    if (offer?.message) buttons.push(whatsappButton(`Teklifle yaz (${lira(offer.open)})`, offer.message));
     // Numara yalnızca bu düğmeye basılırsa, yalnızca bu ilana ve bu cihaza kaydedilir.
     const saved = store.load().comparables.some(item => item.id === record.id && item.sellerPhone === phone);
     const save = element(
@@ -557,7 +566,7 @@
       }
     });
     return [
-      button,
+      ...buttons,
       save,
       note,
       element(

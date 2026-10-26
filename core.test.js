@@ -275,8 +275,10 @@ test('uyarılar: yoğun kullanım, şüpheli ucuz ilan, fiyat düşüşü ve paz
     advice.flags.map(f => f.label),
     ['Fiyat düştü', 'Uzun süredir ilanda']
   );
-  assert.equal(advice.offer.target, 800000);
-  assert.equal(advice.offer.open, 760000);
+  // Genel %3 + uzun süredir ilanda %2 + fiyatı düşmüş %1 = %6 pay, piyasa ortasından; tavan piyasa ortası.
+  assert.equal(advice.offer.target, 750000);
+  assert.equal(advice.offer.ceiling, 800000);
+  assert.equal(advice.offer.open, 690000);
 
   assert.equal(core.advise(dropped, { center: 800000, gap: 0.06, confidence: 'düşük' }, today).offer, null);
 });
@@ -541,7 +543,7 @@ test('kondisyon: seçilmezse hesap aynı; "çok iyi" hedefi üst dilime, "bakım
 test('OtoCore: bölünmüş dosyalardan gelen bütün API alanları tanımlı; sayfalar parçaları core.js’den önce yükler', () => {
   for (const [name, value] of Object.entries(core)) assert.notEqual(value, undefined, name);
   const fs = require('node:fs');
-  const parts = ['core-records.js', 'core-csv.js', 'core-price.js', 'core-limits.js', 'core-deal.js'];
+  const parts = ['core-records.js', 'core-csv.js', 'core-price.js', 'core-limits.js', 'negotiation.js', 'core-deal.js'];
   for (const page of ['popup.html', 'dashboard.html']) {
     const html = fs.readFileSync(require.resolve(`./${page}`), 'utf8');
     const at = file => html.indexOf(`<script src="${file}">`);

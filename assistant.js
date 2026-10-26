@@ -231,7 +231,7 @@
     const reasons = offerReasons({ record, result, body, advice });
     if (advice?.offer)
       lines.push(
-        `Eklentinin pazarlık önerisi: açılış teklifi ${lira(advice.offer.open)}, hedef ${lira(advice.offer.target)}. ${advice.offer.note}${reasons.length ? ` Gerekçeler: ${reasons.join(' ')}` : ''}`
+        `Eklentinin pazarlık önerisi: açılış teklifi ${lira(advice.offer.open)}, hedef ${lira(advice.offer.target)}, en fazla ${lira(advice.offer.ceiling)} (tavanı satıcıya söyleme). ${advice.offer.note}${reasons.length ? ` Gerekçeler: ${reasons.join(' ')}` : ''}`
       );
     else
       lines.push(
@@ -312,7 +312,9 @@
         deal ? `fırsat puanı ${deal.score}/100` : 'fırsat puanı yok',
         record.sellerType ? `satıcı: ${record.sellerType}` : '',
         record.city || '',
-        advice?.offer ? `pazarlık önerisi: açılış ${lira(advice.offer.open)}, hedef ${lira(advice.offer.target)}` : '',
+        advice?.offer
+          ? `pazarlık önerisi: açılış ${lira(advice.offer.open)}, hedef ${lira(advice.offer.target)}, en fazla ${lira(advice.offer.ceiling)}`
+          : '',
         (advice?.flags || []).length ? `uyarılar: ${advice.flags.map(flag => flag.label).join(', ')}` : 'uyarı yok'
       ].filter(Boolean);
       return `${parts.join('; ')}.`;
@@ -771,10 +773,14 @@
       const reasons = offerReasons({ record, result, body, advice });
       if (advice?.offer) {
         out.push(
-          `**Kısa cevap:** Açılış teklifi **${lira(advice.offer.open)}**, hedef **${lira(advice.offer.target)}**.`,
+          `**Kısa cevap:** Açılış teklifi **${lira(advice.offer.open)}**, hedef **${lira(advice.offer.target)}**, en fazla **${lira(advice.offer.ceiling)}**.`,
           '',
           advice.offer.note
         );
+        // Pazarlık planındaki gerekçeler (ilanda kalma süresi, ani düşüş, model temposu) zaten eklentinin hesabıdır.
+        const levers = (advice.offer.levers || []).map(lever => `${lever.label}: ${lever.text}`);
+        if (levers.length) out.push('', '## Pazarlık payını etkileyenler', ...bullets(levers));
+        if (advice.offer.message) out.push('', '## Satıcıya hazır mesaj', advice.offer.message);
         if (reasons.length) out.push('', '## Pazarlık gerekçeleri', ...bullets(reasons));
       } else
         out.push(

@@ -1027,7 +1027,8 @@
         )
       );
     }
-    const advice = core.advise(vehicle, result);
+    const pace = core.modelPace(vehicle, state.comparables);
+    const advice = core.advise(vehicle, result, new Date(), pace);
     if (isListing && advice.flags.length) {
       content.append(element('h3', '', 'Dikkat edilmesi gerekenler'));
       const flagList = element('ul', 'detail-list flag-list');
@@ -1041,21 +1042,11 @@
       });
       content.append(flagList);
     }
-    if (isListing && advice.offer) {
-      content.append(element('h3', '', 'Pazarlık önerisi'));
-      content.append(
-        element(
-          'p',
-          'detail-text',
-          `Açılış teklifi ${lira(advice.offer.open)}, hedef ${lira(advice.offer.target)}. ${advice.offer.note} Kondisyon ve ekspertiz sonucuna göre değişir.`
-        )
-      );
-    }
+    if (isListing && advice.offer && globalThis.OtoNegotiation)
+      content.append(globalThis.OtoNegotiation.render(document, advice.offer));
     content.append(element('h3', '', 'Fiyat nasıl hesaplandı?'));
     content.append(element('p', 'detail-text', result.reason));
-    core
-      .paceLines(core.modelPace(vehicle, state.comparables), vehicle)
-      .forEach(line => content.append(element('p', 'detail-text', line)));
+    core.paceLines(pace, vehicle).forEach(line => content.append(element('p', 'detail-text', line)));
     if (Number.isFinite(result.position)) {
       const rank =
         result.position === 0

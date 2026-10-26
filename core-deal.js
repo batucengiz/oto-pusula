@@ -4,9 +4,9 @@
   // Fırsat puanı ve alıcı uyarıları.
   const { bodyDamage, bodyReport, dealEligible, bodyConflict, clamp, daysSince, priceChange } =
     root.OtoCoreRecords || require('./core-records.js');
+  const negotiation = root.OtoNegotiation || require('./negotiation.js');
 
   const tl = value => `₺${Math.round(value).toLocaleString('tr-TR')}`;
-  const round5k = value => Math.round(value / 5000) * 5000;
 
   // Yılda ortalama km; 60 bin km üstü ve yılda 35 bin km+ ise yoğun kullanım (taksi/kiralık olabilir).
   function annualKm(record, today = new Date()) {
@@ -126,7 +126,8 @@
   }
 
   // Alıcı için uyarılar ve pazarlık önerisi. Tümü ilan verisinden türetilir; ekspertiz yerine geçmez.
-  function advise(record, result, today = new Date()) {
+  // pace (core.modelPace) verilirse pazarlık payı kayıttaki benzer ilanların gerçek indirimine göre ayarlanır.
+  function advise(record, result, today = new Date(), pace = null) {
     const flags = [];
     if (heavyUse(record, today)) {
       flags.push({
@@ -260,18 +261,12 @@
         text: `En az ${days} gündür yayında; uzun süre satılamayan araçlarda pazarlık payı genelde daha yüksektir.`
       });
     }
-    let offer = null;
-    if (result?.center && result.confidence !== 'düşük' && record.condition !== 'riskli') {
-      const target = Math.min(record.price * 0.98, result.center);
-      offer = {
-        open: round5k(target * 0.95),
-        target: round5k(target),
-        note:
-          record.price > result.center
-            ? 'İlan fiyatı tahmini piyasa ortasının üzerinde; hedef olarak piyasa ortasını alın.'
-            : 'İlan zaten piyasa ortasının altında; küçük bir pazarlık payı makul.'
-      };
-    }
+    const offer = negotiation.plan({
+      record,
+      result,
+      pace,
+      signals: { drop, change, days, body, heavy: heavyUse(record, today), highTramer: highTramer(record) }
+    });
     return { flags, offer };
   }
 

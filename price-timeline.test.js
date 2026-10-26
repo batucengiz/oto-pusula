@@ -161,6 +161,7 @@ test('panel ve rapor fiyat geçmişini gösterir; dosya ağ isteği ve innerHTML
     'core-csv.js',
     'core-price.js',
     'core-limits.js',
+    'negotiation.js',
     'core-deal.js',
     'core.js',
     'alerts.js',

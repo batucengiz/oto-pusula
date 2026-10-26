@@ -62,16 +62,19 @@ test('rapor: fiyat, kaporta, uyarılar, satıcı soruları ve ekspertiz listesi 
   assert.equal(data.title, 'Renault Clio 1.0 TCe Joy');
   assert.deepEqual(
     data.sections.map(section => section.id),
-    ['market', 'body', 'warnings', 'questions', 'checklist']
+    ['market', 'negotiation', 'body', 'warnings', 'questions', 'checklist']
   );
   const facts = Object.fromEntries(data.facts);
   assert.equal(facts['İlan no'], '#1234567891');
   assert.equal(facts['Tramer (satıcı beyanı)'], '₺95.000');
   assert.match(data.sections[0].items[0], /₺920\.000 – ₺1\.080\.000/);
-  assert.ok(data.sections[1].items.some(item => /Değişen: Sol Ön Çamurluk/.test(item)));
-  assert.ok(data.sections[2].items.some(item => /^Tramer ₺95\.000/.test(item)));
-  assert.ok(data.sections[2].items.some(item => /Açıklamada acil satılık/.test(item)));
-  assert.ok(data.sections[3].check && data.sections[4].check);
+  const section = id => data.sections.find(item => item.id === id);
+  assert.match(section('negotiation').items[0], /^Açılış teklifi .* en fazla/);
+  assert.ok(section('negotiation').items.some(item => /^Satıcıya mesaj: «Merhaba/.test(item)));
+  assert.ok(section('body').items.some(item => /Değişen: Sol Ön Çamurluk/.test(item)));
+  assert.ok(section('warnings').items.some(item => /^Tramer ₺95\.000/.test(item)));
+  assert.ok(section('warnings').items.some(item => /Açıklamada acil satılık/.test(item)));
+  assert.ok(section('questions').check && section('checklist').check);
 });
 
 test('rapor metni WhatsApp için düz metindir ve uyarı satırı içerir', () => {
@@ -133,6 +136,7 @@ test('rapor sayfası kayıttan çizilir; ilan yoksa açıklama gösterir', async
       'core-csv.js',
       'core-price.js',
       'core-limits.js',
+      'negotiation.js',
       'core-deal.js',
       'core.js',
       'alerts.js',
