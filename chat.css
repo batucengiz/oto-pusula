@@ -941,6 +941,13 @@
 }
 
 /* Yedek cevap ve cevap denetimi notları */
+.chat-diag {
+  margin: 4px 0 0;
+  color: var(--ai-muted);
+  font-size: 11px;
+  font-family: ui-monospace, Consolas, monospace;
+  overflow-wrap: anywhere;
+}
 .chat-note {
   margin: 4px 0 6px !important;
   color: var(--ai-muted);

@@ -851,11 +851,14 @@
       note.textContent = 'Anahtar deneniyor…';
       note.className = 'ai-setup-note';
       try {
-        remote.saveKey(localStorage, await remote.testKey(key));
+        // Google yavaşsa da anahtar geçerliyse kaydedilir; kullanıcı kurulumda takılı kalmaz.
+        const checked = await remote.checkKey(key);
+        remote.saveKey(localStorage, checked.key);
         closeChat();
         showChat(chat);
       } catch (error) {
-        note.textContent = error.message || 'Anahtar kaydedilemedi.';
+        const diag = remote.diagnosis?.(error);
+        note.textContent = `${error.message || 'Anahtar kaydedilemedi.'}${diag ? ` ${diag}` : ''}`;
         note.className = 'ai-setup-note bad';
         save.disabled = false;
       }
@@ -1199,7 +1202,9 @@
               ? 'Kullanım sınırına takıldı; başka modelle deneniyor…'
               : reason === 'network'
                 ? 'Bağlantı koptu; yeniden deneniyor…'
-                : 'Google yoğun; yedek modelle yeniden deneniyor…';
+                : reason === 'slow'
+                  ? 'Google yavaş; aynı anda yedek modele de soruluyor…'
+                  : 'Google yoğun; yedek modelle yeniden deneniyor…';
         };
         chatSession = globalThis.OtoRemoteAI.createSession(mode.key, system, undefined, { onRetry });
         return chatSession;
@@ -1318,6 +1323,15 @@
       }
     }
 
+    // Gemini'de dayanıklı katman yedek modellerle ~55 sn uğraşır; genel süre sınırı onu yarıda kesmesin.
+    const askOptions = () => (mode.kind === 'remote' ? { timeoutMs: assistant.REMOTE_TIMEOUT_MS } : undefined);
+
+    // Hata kutusunun altındaki küçük tanı satırı: hangi model, ne kadar sürdü, ne döndü (anahtar ya da soru içermez).
+    function diagnosisNode(error) {
+      const line = globalThis.OtoRemoteAI?.diagnosis?.(error) || (error?.name ? `Tanı: ${error.name}` : '');
+      return line ? element('p', 'chat-diag', line) : null;
+    }
+
     async function submit(text) {
       const question = assistant.question(text);
       if (!question || busy) return;
@@ -1351,7 +1365,7 @@
       try {
         let answer;
         try {
-          answer = await assistant.ask(await session(question), question, show);
+          answer = await assistant.ask(await session(question), question, show, askOptions());
         } catch (error) {
           // Karmaşık soruda tıkanmasın: bağlam küçültülüp bir kez daha denenir.
           if (compact || !assistant.retryable(error)) throw error;
@@ -1359,7 +1373,7 @@
           compact = true;
           status.textContent = 'Soru karmaşık; kısaltılmış bilgiyle tekrar deneniyor…';
           snap = null;
-          answer = await assistant.ask(await session(question), question, show);
+          answer = await assistant.ask(await session(question), question, show, askOptions());
           status.textContent = '';
         }
         status.textContent = '';
@@ -1418,6 +1432,8 @@
         const row = element('div', 'chat-actions');
         row.append(again);
         holder.append(row);
+        const diag = diagnosisNode(error);
+        if (diag) holder.append(diag);
         if (mode.kind === 'builtin') upgrade(upgradeHint);
       } finally {
         setBusy(false);

@@ -257,6 +257,24 @@ input:focus-visible {
 }
 .status.bad {
   color: var(--bad);
+  white-space: pre-line;
+}
+.busy-note {
+  color: var(--muted);
+}
+.ai-log {
+  margin: 16px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.ai-log summary {
+  cursor: pointer;
+}
+.ai-log ol {
+  margin: 8px 0;
+  padding-left: 20px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
 }
 .status.good {
   color: var(--good);

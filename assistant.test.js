@@ -1777,3 +1777,21 @@ test('en mantıklı ilan: ekspertiz riski ve hatasız iddiası fiyatla birlikte 
   const avoid = assistant.listFallbackAnswer('Hangi ilanlardan uzak durmalıyım?', view);
   assert.match(avoid, /İlan 3 .*ekspertiz riski yüksek \(Hatasız iddiası tutmuyor\)/);
 });
+
+test('popup: Gemini hata verince yedek cevap ve altında tanı satırı görünür (sessiz kalmaz)', async () => {
+  const storage = new Map([['otoPusula_aiKey', 'AIza' + 'g'.repeat(35)]]);
+  const fetch = async () => ({ ok: false, status: 403 });
+  const chat = await popupWithModel(null, { remote: true, storage, fetch });
+  const chip = walk(chat).find(node => node.className === 'chat-chip');
+  await chip.click();
+  await settle();
+  assert.ok(
+    walk(chat).some(node => /kabul edilmedi/.test(node.textContent)),
+    'sebep yazılır'
+  );
+  const diag = walk(chat).find(node => node.className === 'chat-diag');
+  assert.ok(diag, 'tanı satırı var');
+  assert.match(diag.textContent, /^Tanı: flash-latest HTTP 403/);
+  assert.doesNotMatch(diag.textContent, /AIza/);
+  assert.ok(walk(chat).some(node => /Yeniden sor/.test(node.textContent)));
+});
