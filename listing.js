@@ -857,6 +857,8 @@
             ? fromDescription
             : fromTitle;
     const city = firstLine(String(raw.location ?? '').split('/')[0]);
+    const tramer = tramerAmount(title, raw.description) ?? undefined;
+    const price = priceFrom(raw.priceText);
     return toRecord({
       ...vehicle,
       listingId,
@@ -864,7 +866,7 @@
       body: vehicle.body || titleCase(norm(get('KASA TIPI'))),
       year: digits(get('YIL')),
       km: digits(get('KM')),
-      price: priceFrom(raw.priceText),
+      price,
       fuel: get('YAKIT / MOTOR TIPI', 'YAKIT TIPI', 'YAKIT'),
       transmission: get('VITES TIPI', 'VITES'),
       // Motor adı hiçbir yerde yazmıyorsa (ör. "Model: Urban") motor hacminden: 1368 cc → "1.4".
@@ -880,9 +882,30 @@
       condition: condition.condition,
       conditionNote: condition.note,
       damage: raw.damage,
-      tramer: tramerAmount(title, raw.description) ?? undefined,
-      sellerType: get('KIMDEN')
+      tramer,
+      sellerType: get('KIMDEN'),
+      expertise: expertiseOf({ raw, title, tramer, price })
     });
+  }
+
+  // Ekspertiz yorumunun kısa özeti kayda yazılır: arama sayfasındaki sohbet "en mantıklı ilan" sorusunda bu ilanın
+  // eksper riskini ve hatasız iddiası kontrolünü de tartabilsin. Yorum yapılamazsa kayıt yine okunur.
+  function expertiseOf({ raw, title, tramer, price }) {
+    const expertise = root.OtoExpertise || (typeof require === 'function' ? require('./expertise.js') : null);
+    try {
+      return expertise?.summary(
+        expertise.interpret({
+          description: raw.description,
+          pageReport: raw.expertiseText,
+          title,
+          damage: raw.damage,
+          tramer,
+          price
+        })
+      );
+    } catch {
+      return undefined;
+    }
   }
 
   // Türkiye cep numarası (WhatsApp yalnızca cep hattında çalışır). Maskeli "0 (5xx) xxx ** **" eşleşmez.

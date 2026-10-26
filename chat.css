@@ -638,6 +638,14 @@
   font-weight: 650;
   white-space: nowrap;
 }
+.chat-tag.strong {
+  color: var(--ai-ink);
+  font-weight: 750;
+}
+.chat-tag.muted {
+  opacity: 0.75;
+  font-weight: 550;
+}
 .chat-tag.good {
   color: var(--ai-accent-ink);
   background: color-mix(in srgb, var(--ai-accent) 14%, transparent);

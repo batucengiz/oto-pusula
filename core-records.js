@@ -272,6 +272,27 @@
     return { listingId, firstSeen: date(value.firstSeen), price: Math.round(price), lastId };
   }
 
+  const RISKS = ['low', 'medium', 'high', 'unknown'];
+  const CLAIMS = ['none', 'consistent', 'doubtful', 'contradicted'];
+  function expertiseSummary(value) {
+    if (!value || typeof value !== 'object' || !RISKS.includes(value.risk)) return null;
+    const share = input => {
+      const amount = Number(input);
+      return Number.isFinite(amount) ? Math.min(40, Math.max(0, Math.round(amount * 10) / 10)) : 0;
+    };
+    return {
+      risk: value.risk,
+      claim: CLAIMS.includes(value.claim) ? value.claim : 'none',
+      reasons: (Array.isArray(value.reasons) ? value.reasons : [])
+        .map(item => plain(item).slice(0, 160))
+        .filter(Boolean)
+        .slice(0, 3),
+      low: share(value.low),
+      high: share(value.high),
+      text: value.text === true
+    };
+  }
+
   // İlan kaynaklı kayıtların ek alanları; CSV kayıtlarında boş kalır.
   function listingFields(input) {
     const damage = bodyDamage(input.damage);
@@ -322,6 +343,8 @@
         : {}),
       ...(plain(input.drive) ? { drive: plain(input.drive).slice(0, 30) } : {}),
       ...(input.detailRead === true ? { detailRead: true } : {}),
+      // İlan sayfası okunurken çıkarılan ekspertiz yorumunun kısa özeti (expertise.js summary); açıklamanın kendisi saklanmaz.
+      ...(expertiseSummary(input.expertise) ? { expertise: expertiseSummary(input.expertise) } : {}),
       // Satıcı numarası yalnızca kullanıcı popup'ta "kaydet" dediğinde gelir; otomatik toplanmaz.
       ...(/^905\d{9}$/.test(plain(input.sellerPhone)) ? { sellerPhone: plain(input.sellerPhone) } : {})
     };

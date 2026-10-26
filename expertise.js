@@ -806,8 +806,37 @@
     };
   }
 
+  // Kayda yazılan kısa özet: arama sayfası sohbeti ve sıralama, ilan yazısı artık elde yokken de ekspertiz yorumunu
+  // kullanabilsin. Yalnızca hüküm, hatasız iddiası, ilk üç gerekçe ve kaba pazarlık etkisi (yüzde) saklanır.
+  function summary(reading) {
+    if (!reading?.risk) return null;
+    return {
+      risk: reading.risk.level,
+      claim: reading.claim?.status || 'none',
+      reasons: reading.risk.reasons.slice(0, 3).map(item => String(item).slice(0, 160)),
+      low: Math.round((reading.bargain?.low || 0) * 10) / 10,
+      high: Math.round((reading.bargain?.high || 0) * 10) / 10,
+      text: Boolean(reading.found)
+    };
+  }
+
+  // Kayıttaki özet; yoksa (eski kayıt) yalnızca satıcının şeması ve tramer beyanından aynı yorum yeniden kurulur.
+  // Arama listesinden gelen, ilan sayfası hiç açılmamış kayıtta ikisi de yoktur: null döner.
+  function forRecord(record) {
+    if (!record) return null;
+    if (record.expertise?.risk) return record.expertise;
+    if (!record.damage) return null;
+    try {
+      return summary(interpret({ damage: record.damage, tramer: record.tramer, price: record.price, textRead: false }));
+    } catch {
+      return null;
+    }
+  }
+
   const api = {
     interpret,
+    summary,
+    forRecord,
     lines,
     readText,
     imagePrompt,

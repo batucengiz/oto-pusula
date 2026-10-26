@@ -1,4 +1,4 @@
-// İlan sohbet geçmişi: aynı ilana dönünce önceki sorular ve cevaplar görünür. Yalnızca bu bilgisayarda
+// Sohbet geçmişi: aynı ilana ya da aynı arama sayfasına dönünce önceki sorular ve cevaplar görünür. Yalnızca bu bilgisayarda
 // (eklenti deposunda) tutulur, hiçbir yere gönderilmez; ilan başına ve toplamda sınırlıdır, eskiyenler silinir.
 (function (root) {
   'use strict';
@@ -6,7 +6,9 @@
   const KEY = 'otoPusula_chat';
   const MAX_LISTINGS = 100;
   const MAX_TURNS = 10;
-  const MAX_TEXT = 1500;
+  const MAX_TEXT = 3000;
+  // Cevaptaki "İlan N" bağlantıları için o cevabın ilan sırası (kayıt kimlikleri) saklanır.
+  const MAX_REFS = 20;
   const MAX_AGE_DAYS = 90;
 
   const area = () => root.chrome?.storage?.local || null;
@@ -22,6 +24,10 @@
           turns: (Array.isArray(item?.turns) ? item.turns : [])
             .filter(turn => typeof turn?.q === 'string' && typeof turn?.a === 'string')
             .slice(-MAX_TURNS)
+            .map(turn => {
+              const refs = cleanRefs(turn.refs);
+              return refs.length ? { q: turn.q, a: turn.a, refs } : { q: turn.q, a: turn.a };
+            })
         }
       ])
       .filter(([, item]) => item.at >= cutoff && item.turns.length)
@@ -30,11 +36,14 @@
     return Object.fromEntries(entries);
   }
 
-  function append(map, id, question, answer, now = Date.now()) {
+  const cleanRefs = refs =>
+    (Array.isArray(refs) ? refs : []).filter(ref => typeof ref === 'string' && ref.length <= 40).slice(0, MAX_REFS);
+
+  function append(map, id, question, answer, now = Date.now(), refs = []) {
     const current = prune(map, now);
     const turns = [
       ...(current[id]?.turns || []),
-      { q: String(question).slice(0, MAX_TEXT), a: String(answer).slice(0, MAX_TEXT) }
+      { q: String(question).slice(0, MAX_TEXT), a: String(answer).slice(0, MAX_TEXT), refs }
     ];
     return prune({ ...current, [id]: { at: now, turns } }, now);
   }
@@ -58,9 +67,9 @@
   }
 
   // Yazılamazsa (depo dolu vb.) sohbet yine çalışır; yalnızca geçmiş kaydedilmez.
-  async function add(id, question, answer, storage = root.localStorage) {
+  async function add(id, question, answer, storage = root.localStorage, refs = []) {
     try {
-      await writeAll(append(await readAll(storage), id, question, answer), storage);
+      await writeAll(append(await readAll(storage), id, question, answer, Date.now(), refs), storage);
       return true;
     } catch {
       return false;
@@ -75,6 +84,26 @@
       return true;
     } catch {
       return false;
+    }
+  }
+
+  // Sohbetin anahtarı: ilan sayfasında kayıt kimliği (comparable-sh-123…), arama sayfasında aramanın kendisi. Sayfa numarası,
+  // sıralama ve görünüm atılır; böylece ilana gidip aynı aramaya dönünce (2. sayfaya geçse de) sohbet bulunur.
+  function pageKey(url) {
+    try {
+      const parsed = new URL(url);
+      if (!/(^|\.)sahibinden\.com$/.test(parsed.hostname)) return '';
+      const listing = parsed.pathname.match(/^\/ilan\/.*?(\d{6,13})(?:\/detay)?\/?$/);
+      if (listing) return `comparable-sh-${listing[1]}`;
+      const query = [...parsed.searchParams]
+        .filter(([name]) => !/^(paging|sorting|viewType)/i.test(name))
+        .sort(([a, av], [b, bv]) => a.localeCompare(b) || av.localeCompare(bv))
+        .map(([name, value]) => `${name}=${value}`)
+        .join('&');
+      const path = parsed.pathname.replace(/\/+$/, '') || '/';
+      return `list:${path}${query ? `?${query}` : ''}`.slice(0, 300);
+    } catch {
+      return '';
     }
   }
 
@@ -120,6 +149,8 @@
     toggleSaved,
     MAX_LISTINGS,
     MAX_TURNS,
+    MAX_TEXT,
+    pageKey,
     MAX_AGE_DAYS,
     prune,
     append,
