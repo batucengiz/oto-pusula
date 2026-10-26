@@ -1,0 +1,51 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Testler (npm test)",
+      "type": "npm",
+      "script": "test",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Denetim (npm run lint)",
+      "type": "npm",
+      "script": "lint",
+      "group": "build",
+      "problemMatcher": ["$eslint-stylish"]
+    },
+    {
+      "label": "Biçimi düzelt (npm run format)",
+      "type": "npm",
+      "script": "format",
+      "problemMatcher": []
+    },
+    {
+      "label": "Hepsini kontrol et (npm run check)",
+      "type": "npm",
+      "script": "check",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": ["$eslint-stylish"]
+    },
+    {
+      "label": "Panel önizleme (npm run dev)",
+      "type": "npm",
+      "script": "dev",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Zip paketi (npm run package)",
+      "type": "npm",
+      "script": "package",
+      "problemMatcher": []
+    }
+  ]
+}

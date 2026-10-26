@@ -186,13 +186,28 @@ Ticari kullanımda (galeri) satıcı numaralarının saklanması kişisel veri i
 ## Geliştirme
 
 ```bash
-npm test        # 149 test: ilan sohbeti (sahte yerleşik ve bulut yapay zeka ile), fırsat puanı, gerçek sayfalarla uçtan uca yolculuk, performans (5.000 ilan) ve depo dolması, kaporta şeması okuma, puanlama ve beyan değişikliği, dayanıklılık (bozuk/rastgele girdi), fiyat motoru ve öğrenen model, ilan ayrıştırma, hasar beyanı, uyarılar, panel, popup/WhatsApp akışı, güvenlik ve ban kuralları
-npm run verify-page -- "fixtures/sayfa.html"   # kaydedilmiş gerçek sayfayı okuyucudan geçirir
-npm run lint    # kod denetimi (ESLint) ve biçim kontrolü (Prettier); npm run format biçimi düzeltir
+npm install     # ilk sefer: test ve denetim araçlarını kurar
+npm test        # tüm testler: fiyat motoru, ilan okuma, kaporta/eksper, panel, popup, sohbet ve yapay zeka, yedekleme, ban kuralları
+npm run lint    # kod denetimi (ESLint) ve biçim kontrolü (Prettier)
+npm run format  # biçimi düzeltir (lint:fix ESLint düzeltmelerini de yapar)
+npm run check   # lint + test, PR açmadan önce bunu çalıştırın (CI de aynısını yapar)
 npm run dev     # paneli http://127.0.0.1:4173 adresinde önizler (popup için eklenti olarak yükleyin)
+npm run package # dağıtım zip'i: dist/oto-pusula-<sürüm>.zip
+npm run verify-page -- "fixtures/sayfa.html"   # kaydedilmiş gerçek sayfayı okuyucudan geçirir
 ```
 
 Eklentinin çalışma zamanı bağımlılığı yoktur. Geliştirme için Node.js 20+ ve `npm install` (testler için jsdom, kod denetimi için ESLint ve Prettier) yeterlidir. Sürüm geçmişi [CHANGELOG.md](CHANGELOG.md) dosyasındadır.
+
+### VS Code
+
+Klasörü VS Code ile açınca önerilen eklentiler (ESLint, Prettier, EditorConfig) sorulur; kurun. Ayarlar depodadır (`.vscode/`):
+
+- Kaydedince dosya Prettier ile biçimlenir, ESLint düzeltmeleri uygulanır. Satır sonu her zaman LF'dir (`.gitattributes`, `.editorconfig`), böylece Windows'ta da `npm run lint` temiz geçer.
+- **Ctrl+Shift+B** "Hepsini kontrol et" (lint + test) görevini çalıştırır; diğer görevler **Terminal → Run Task** altında: testler, denetim, biçim düzeltme, panel önizleme, zip paketi.
+- **F5 / Çalıştır ve Hata Ayıkla**: açık test dosyasını tek başına çalıştırma, tüm testler, panel önizleme (tarayıcıyı açar) ve açık kayıtlı sayfayı `verify-page` ile doğrulama.
+- Gezginde test ve stil dosyaları ait oldukları dosyanın altında toplanır; `node_modules`, `dist` ve `fixtures` aramalarda görünmez.
+
+Depo `.gitattributes` gelmeden önce Windows'ta CRLF ile açıldıysa bir kez `git add --renormalize .` sonra `git status` ile kontrol edin; dosya içeriği değişmez, yalnızca satır sonları düzelir.
 
 ### Gerçek sayfa doğrulaması
 
