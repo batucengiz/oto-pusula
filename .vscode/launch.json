@@ -1,0 +1,38 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Açık test dosyasını çalıştır",
+      "type": "node",
+      "request": "launch",
+      "runtimeArgs": ["--test", "${file}"],
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Tüm testler",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["test"],
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Panel önizleme (dev-server)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/dev-server.js",
+      "console": "integratedTerminal",
+      "serverReadyAction": { "pattern": "(http://127\\.0\\.0\\.1:\\d+)", "uriFormat": "%s", "action": "openExternally" }
+    },
+    {
+      "name": "Kayıtlı sayfayı doğrula (verify-page)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/tools/verify-page.js",
+      "args": ["${file}"],
+      "console": "integratedTerminal"
+    }
+  ]
+}

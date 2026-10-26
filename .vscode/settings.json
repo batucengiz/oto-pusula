@@ -1,0 +1,40 @@
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.rulers": [120],
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "files.eol": "\n",
+  "files.encoding": "utf8",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  "[markdown]": {
+    "editor.formatOnSave": false,
+    "files.trimTrailingWhitespace": false
+  },
+  "prettier.requireConfig": true,
+  "eslint.useFlatConfig": true,
+  "eslint.validate": ["javascript"],
+  "search.exclude": {
+    "**/node_modules": true,
+    "dist": true,
+    "fixtures": true,
+    "package-lock.json": true
+  },
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "dist/**": true,
+    "fixtures/**": true
+  },
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.patterns": {
+    "*.js": "${capture}.test.js, ${capture}.smoke.test.js",
+    "*.html": "${capture}.css, ${capture}-theme.css",
+    "package.json": "package-lock.json, .prettierrc.json, .prettierignore, eslint.config.js, .editorconfig, .gitattributes, .gitignore",
+    "core.js": "core-*.js, core.test.js"
+  },
+  "npm.packageManager": "npm"
+}

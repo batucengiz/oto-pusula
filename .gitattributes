@@ -1,0 +1,8 @@
+# Windows'ta da depodaki dosyalar LF satır sonuyla açılır; aksi hâlde Prettier "biçim hatalı" der.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.zip binary
+*.pdf binary
