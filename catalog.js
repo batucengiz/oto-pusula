@@ -24,7 +24,7 @@
     },
     Volkswagen: {
       models:
-        'Passat, Golf, Polo, Jetta, Tiguan, T-Roc, T-Cross, Taigo, Caddy, Transporter, Arteon, Touran, Bora, Scirocco, Beetle, Touareg, Amarok, Crafter, Caravelle, Multivan, ID.3, ID.4, Lupo, Sharan, Up',
+        'Passat, Passat Variant, Golf, Polo, Jetta, Tiguan, T-Roc, T-Cross, Taigo, Caddy, Transporter, Arteon, Touran, Bora, Scirocco, Beetle, Touareg, Amarok, Crafter, Caravelle, Multivan, ID.3, ID.4, Lupo, Sharan, Up',
       trims:
         'Trendline, Comfortline, Highline, Impression, Style, R-Line, Life, Elegance, Sportline, Midline, Exclusive, Business, Advance, Edition, Move',
       engines: '1.6 TDI, 2.0 TDI, 1.0 TSI, 1.2 TSI, 1.4 TSI, 1.5 TSI, 1.5 TDI, 1.6 FSI, 2.0 TSI, 1.9 TDI, 1.4 TDI'
@@ -39,7 +39,7 @@
     },
     Toyota: {
       models:
-        'Corolla, Yaris, Auris, C-HR, RAV4, Hilux, Avensis, Camry, Land Cruiser, Proace, Verso, Prius, Aygo, Corolla Verso, Yaris Cross, Urban Cruiser, bZ4X',
+        'Corolla, Corolla Cross, Yaris, Auris, C-HR, RAV4, Hilux, Avensis, Camry, Land Cruiser, Proace, Verso, Prius, Aygo, Corolla Verso, Yaris Cross, Urban Cruiser, bZ4X',
       trims:
         'Vision, Dream, Flame, Passion, Advance, Premium, Elegant, Life, Comfort, Fun, Active, Terra, Sol, Style, Executive, Hybrid, Touch, Flame X-Pack, Dream X-Pack',
       engines:
@@ -234,6 +234,165 @@
     Rover: { models: '25, 45, 75, 214, 416', trims: 'Classic, Si', engines: '1.4, 1.6, 2.0' }
   };
 
+  // Aynı modelin kasa (gövde) seçenekleri: "Egea" yazınca "Egea Sedan", "Egea Hatchback", "Egea Station Wagon" da
+  // önerilir; seçilince model "Egea", kasa tipi "Sedan" olur. Yalnızca birden çok kasası olan modeller yazılır.
+  // sahibinden'in ayrı seri saydığı adlar ("Egea Cross", "Corolla Cross", "Passat Variant") model listesindedir.
+  // Kullanıcının kayıtlarında görülen kasalar da ayrıca önerilir; bu liste yalnızca başlangıç içindir.
+  const BODY_TYPES = [
+    'Sedan',
+    'Hatchback',
+    'Station Wagon',
+    'Crossover',
+    'SUV',
+    'Coupe',
+    'Cabrio',
+    'MPV',
+    'Roadster',
+    'Pick-up',
+    'Panelvan',
+    'Minivan'
+  ];
+  const SHB = 'Sedan, Hatchback';
+  const SHW = 'Sedan, Hatchback, Station Wagon';
+  const SW = 'Sedan, Station Wagon';
+  const HW = 'Hatchback, Station Wagon';
+  const VAN = 'MPV, Panelvan';
+  const BODIES = {
+    Fiat: {
+      Egea: SHW,
+      'Egea Cross': HW,
+      Tipo: SHW,
+      Palio: HW,
+      Stilo: HW,
+      Marea: SW,
+      Tempra: SW,
+      Bravo: HW,
+      500: 'Hatchback, Cabrio',
+      Doblo: VAN,
+      Fiorino: VAN,
+      Uno: 'Hatchback, Panelvan'
+    },
+    Renault: {
+      Clio: SHW,
+      Megane: 'Sedan, Hatchback, Station Wagon, Coupe, Cabrio',
+      Laguna: 'Hatchback, Station Wagon, Coupe',
+      Talisman: SW,
+      Kangoo: VAN,
+      'R 12': SW,
+      Twingo: 'Hatchback, Cabrio'
+    },
+    Volkswagen: {
+      Passat: 'Sedan',
+      Golf: 'Hatchback, Station Wagon, Cabrio',
+      Polo: SHB,
+      Jetta: SW,
+      Bora: SW,
+      Arteon: SW,
+      Beetle: 'Hatchback, Cabrio',
+      'T-Roc': 'Crossover, Cabrio',
+      Caddy: VAN,
+      Transporter: 'Panelvan, Minivan',
+      Up: 'Hatchback'
+    },
+    Ford: {
+      Focus: SHW,
+      Fiesta: SHB,
+      Mondeo: SHW,
+      Escort: SHW,
+      Mustang: 'Coupe, Cabrio',
+      Courier: VAN,
+      Connect: VAN,
+      Transit: 'Panelvan, Minivan',
+      Custom: 'Panelvan, Minivan'
+    },
+    Toyota: {
+      Corolla: SHW,
+      Yaris: SHB,
+      Auris: HW,
+      Avensis: 'Sedan, Hatchback, Station Wagon',
+      Prius: 'Hatchback, MPV',
+      Proace: 'Panelvan, Minivan'
+    },
+    Honda: { Civic: 'Sedan, Hatchback, Coupe', Accord: SW, Jazz: 'Hatchback, Crossover' },
+    Hyundai: {
+      i20: 'Hatchback, Crossover',
+      i30: SHW,
+      Accent: SHB,
+      'Accent Blue': SHB,
+      Elantra: SHB,
+      i40: SW,
+      Getz: 'Hatchback'
+    },
+    Opel: {
+      Astra: SHW,
+      Corsa: SHB,
+      Insignia: SHW,
+      Vectra: SHW,
+      Omega: SW,
+      Kadett: SHW,
+      Combo: VAN,
+      Tigra: 'Coupe, Cabrio'
+    },
+    Peugeot: {
+      206: 'Sedan, Hatchback, Station Wagon, Cabrio',
+      207: 'Sedan, Hatchback, Station Wagon, Cabrio',
+      307: 'Sedan, Hatchback, Station Wagon, Cabrio',
+      308: 'Hatchback, Station Wagon, Cabrio',
+      407: 'Sedan, Station Wagon, Coupe',
+      406: 'Sedan, Station Wagon, Coupe',
+      508: SW,
+      Partner: VAN,
+      Bipper: VAN
+    },
+    Citroen: {
+      C3: 'Hatchback, Crossover',
+      C4: 'Sedan, Hatchback, Coupe',
+      C5: SW,
+      Xsara: SHW,
+      Berlingo: VAN,
+      Nemo: VAN
+    },
+    Dacia: { Logan: SW, Sandero: 'Hatchback, Crossover', Dokker: VAN },
+    BMW: {
+      '1 Serisi': 'Hatchback, Coupe, Cabrio',
+      '2 Serisi': 'Coupe, Cabrio, Sedan, MPV',
+      '3 Serisi': 'Sedan, Station Wagon, Hatchback, Coupe, Cabrio',
+      '4 Serisi': 'Coupe, Cabrio, Hatchback',
+      '5 Serisi': 'Sedan, Station Wagon, Hatchback',
+      '6 Serisi': 'Coupe, Cabrio, Sedan'
+    },
+    'Mercedes-Benz': {
+      'A Serisi': SHB,
+      'C Serisi': 'Sedan, Station Wagon, Coupe, Cabrio',
+      'E Serisi': 'Sedan, Station Wagon, Coupe, Cabrio',
+      'S Serisi': 'Sedan, Coupe, Cabrio',
+      CLA: SW,
+      CLK: 'Coupe, Cabrio',
+      Vito: 'Panelvan, Minivan',
+      Sprinter: 'Panelvan, Minivan'
+    },
+    Audi: {
+      A1: 'Hatchback',
+      A3: 'Sedan, Hatchback, Cabrio',
+      A4: 'Sedan, Station Wagon, Cabrio',
+      A5: 'Coupe, Hatchback, Cabrio',
+      A6: SW,
+      TT: 'Coupe, Roadster'
+    },
+    Skoda: { Octavia: SW, Superb: SW, Fabia: HW, Rapid: SHB },
+    Seat: { Leon: HW, Ibiza: 'Hatchback, Station Wagon', Toledo: SHB, Cordoba: SW },
+    Nissan: { Almera: SHB, Primera: SHW, Sunny: SHB, Navara: 'Pick-up' },
+    Kia: { Ceed: HW, Rio: SHB, Cerato: SHB, Optima: SW },
+    Mazda: { Mazda3: SHB, Mazda6: SHW, 323: SHW, 626: SHW },
+    Suzuki: { Swift: SHB, SX4: SHB, Liana: SHB },
+    Mitsubishi: { Lancer: SHW, Colt: 'Hatchback, Cabrio', Galant: SW },
+    Chevrolet: { Aveo: SHB, Cruze: SHW, Lacetti: SHW, Kalos: SHB, Camaro: 'Coupe, Cabrio' },
+    Mini: { Cooper: 'Hatchback, Cabrio', 'Cooper S': 'Hatchback, Cabrio', One: 'Hatchback, Cabrio' },
+    'Alfa Romeo': { 147: 'Hatchback', 156: SW, 159: SW },
+    Subaru: { Impreza: SHB, Legacy: SW },
+    Tofaş: { Şahin: 'Sedan', Kartal: 'Station Wagon', Doğan: 'Sedan' }
+  };
+
   const FUELS = ['Benzin', 'Dizel', 'LPG', 'Benzin & LPG', 'Hibrit', 'Elektrik'];
   const TRANSMISSIONS = ['Manuel', 'Otomatik', 'Yarı Otomatik'];
 
@@ -244,10 +403,18 @@
 
   const catalog = {};
   for (const [brand, data] of Object.entries(BRANDS)) {
-    catalog[brand] = { models: list(data.models), trims: list(data.trims || ''), engines: list(data.engines || '') };
+    const bodies = Object.fromEntries(
+      Object.entries(BODIES[brand] || {}).map(([model, names]) => [model, list(names)])
+    );
+    catalog[brand] = {
+      models: list(data.models),
+      trims: list(data.trims || ''),
+      engines: list(data.engines || ''),
+      bodies
+    };
   }
 
-  const api = { BRANDS: catalog, FUELS, TRANSMISSIONS, CITIES };
+  const api = { BRANDS: catalog, BODY_TYPES, FUELS, TRANSMISSIONS, CITIES };
   root.OtoCatalog = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);

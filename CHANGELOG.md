@@ -2,6 +2,13 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.20.0 — 2026-10-26
+
+- **Otomatik tamamlamada kasa seçenekleri.** "egea" yazınca artık yalnızca Fiat Egea ve Egea Cross değil, Egea Sedan, Egea Hatchback ve Egea Station Wagon da önerilir. Aynısı Corolla, Clio, Megane, Focus, Astra, Civic, i30, Golf, 3 Serisi, C Serisi, A4, Octavia, Leon ve 140'tan fazla modelde çalışır (gömülü liste). Listede olmayan modeller için kayıtlarında görülen kasalar önerilir (ör. Picanto Hatchback); böylece analiz ettiğin her araba için kasa seçeneği çıkar. sahibinden'in ayrı seri saydığı adlar (Egea Cross, Corolla Cross, Passat Variant) model olarak kalır.
+- **Seçilince doğru alanlar dolar.** Yeni arama formunda "Fiat Egea Sedan" seçilince marka Fiat, model Egea, yeni **Kasa tipi** alanı Sedan olur. Stok aracı formunda model alanında "Egea Sedan" seçmek ya da yazmak da model ve kasayı ayırır; "Egea Sedan" hiçbir zaman model adı olarak kaydedilmez, böylece fiyat hesabı ve model ailesi eşleştirmesi bozulmaz. Elle yazdığın kasaya dokunulmaz.
+- **Kayıtlı arama kasaya göre süzer.** "Hatchback" araması sahibinden'deki "Hatchback 5 kapı" ilanına, "Station Wagon" araması başlıktan okunan "Station" ilanına uyar; kasası bilinmeyen ilan elenmez.
+- Yeni testler (suggest.test.js, alerts.test.js). Ağ isteği yoktur.
+
 ## 7.19.0 — 2026-10-25
 
 - **Panelde marka ve model bazlı toplu silme.** İlanlar sayfasında yeni "Marka ve model" bölümü: kayıtlı ilanlar marka > model olarak sayılarıyla listelenir (birden çok marka karışmışsa bölüm kendiliğinden açılır). Bir modeli ya da tüm markayı tek tuşla ("Sil" / "Markayı sil") silebilirsin; Passat'ı bitirip Egea'ya geçince Passat ilanlarını tek tuşla temizle.

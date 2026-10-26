@@ -437,6 +437,43 @@ test('popup: sessiz saatte masaüstü bildirimi çıkmaz, bildirim yine kaydedil
   assert.equal(popup.$('alert-count').textContent, '3');
 });
 
+test('panel: arama adında "egea" yazınca Egea Sedan / Cross / Hatchback da çıkar; seçilince kasa tipi de dolar', () => {
+  const { window, $ } = openDashboard(store.empty());
+  $('search-add').click();
+  const form = $('search-form');
+  const type = value => {
+    form.elements.name.value = value;
+    form.elements.name.dispatchEvent(new window.Event('input'));
+  };
+  type('egea');
+  const options = [...window.document.getElementById('name-options').options].map(option => option.value);
+  for (const name of ['Fiat Egea', 'Fiat Egea Cross', 'Fiat Egea Sedan', 'Fiat Egea Hatchback'])
+    assert.ok(options.includes(name), `${name}: ${options.join()}`);
+  type('Fiat Egea Sedan');
+  assert.equal(form.elements.brand.value, 'Fiat');
+  assert.equal(form.elements.model.value, 'Egea');
+  assert.equal(form.elements.body.value, 'Sedan');
+  type('Fiat Egea Cross');
+  assert.equal(form.elements.model.value, 'Egea Cross');
+  assert.equal(form.elements.body.value, '', 'kendi doldurduğu kasa geri silinir');
+  form.elements.body.value = 'Station Wagon';
+  type('Toyota Corolla');
+  assert.equal(form.elements.body.value, 'Station Wagon', 'elle yazılan kasaya dokunulmaz');
+});
+
+test('kayıtlı arama kasa tipine göre süzer; "Hatchback" araması "Hatchback 5 kapı" ilanına uyar, kasası bilinmeyen elenmez', () => {
+  const search = alerts.normalizeSearch({ brand: 'Fiat', model: 'Egea', body: 'Hatchback' });
+  const egea = { brand: 'Fiat', model: 'Egea', year: 2020, km: 50000, price: 900000 };
+  assert.equal(alerts.matches({ ...egea, body: 'Hatchback 5 kapı' }, search), true);
+  assert.equal(alerts.matches({ ...egea, body: 'Sedan' }, search), false);
+  assert.equal(alerts.matches(egea, search), true);
+  assert.equal(
+    alerts.matches({ ...egea, body: 'Station' }, alerts.normalizeSearch({ model: 'Egea', body: 'Station Wagon' })),
+    true
+  );
+  assert.match(search.name, /Fiat Egea Hatchback/);
+});
+
 test('panel: arama adında "Fiat Egea" seçilince marka ve model dolar; şehir ve yıl önerileri var', () => {
   const { window, $ } = openDashboard(store.empty());
   $('search-add').click();

@@ -13,7 +13,7 @@
   const MAX_SEARCHES = 30;
   const MAX_ALERTS = 300;
   const NUMBER_FIELDS = ['yearMin', 'yearMax', 'kmMax', 'priceMin', 'priceMax'];
-  const TEXT_FIELDS = ['brand', 'model', 'trim', 'transmission', 'fuel', 'city'];
+  const TEXT_FIELDS = ['brand', 'model', 'body', 'trim', 'transmission', 'fuel', 'city'];
   // Fırsat bildirimi: tahmini piyasa ortasının en az bu kadar altında ve fırsat adayı (core.dealEligible).
   const BARGAIN_GAP = -0.05;
 
@@ -109,11 +109,20 @@
 
   // Kriterlere uyuyor mu? Boş bırakılan kriter her ilana uyar. Arama listesinde bazı alanlar (yakıt, vites) okunamaz;
   // ilanda bilgi yoksa o kriter yüzünden ilan elenmez (bildirimde kaçırmaktansa göstermek yeğlenir).
+  // Kasa ilk kelimesiyle karşılaştırılır: "Hatchback" araması "Hatchback 5 kapı" ilanına, "Station Wagon" araması
+  // başlıktan okunan "Station" ilanına uyar. Kasası bilinmeyen ilan elenmez.
+  function sameBody(a, b) {
+    const first = value => key(String(value).trim().split(/\s+/)[0]);
+    const [x, y] = [first(a), first(b)];
+    return !!x && !!y && (x.startsWith(y) || y.startsWith(x));
+  }
+
   function matches(record, search) {
     if (!record || !search) return false;
     if (search.brand && brandKey(record.brand) !== brandKey(search.brand)) return false;
     if (search.model && !key(record.model).startsWith(key(search.model))) return false;
     if (search.trim && !contains([record.engine, record.trim, record.title].join(' '), search.trim)) return false;
+    if (search.body && record.body && !sameBody(record.body, search.body)) return false;
     if (search.yearMin && record.year && record.year < search.yearMin) return false;
     if (search.yearMax && record.year && record.year > search.yearMax) return false;
     if (search.kmMax && Number.isFinite(record.km) && record.km > search.kmMax) return false;
@@ -203,7 +212,7 @@
   // Kriterlerin kısa yazımı: "Volkswagen Passat · 1.6 TDI · 2016–2020 · en çok 150.000 km · ₺1.200.000'e kadar".
   function criteria(search) {
     const parts = [];
-    const vehicle = [search.brand, search.model].filter(Boolean).join(' ');
+    const vehicle = [search.brand, search.model, search.body].filter(Boolean).join(' ');
     if (vehicle) parts.push(vehicle);
     if (search.trim) parts.push(search.trim);
     if (search.yearMin && search.yearMax)

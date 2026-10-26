@@ -314,3 +314,62 @@ test('öneri listesi, ilan okuyucunun tanıdığı tüm marka ve modelleri kapsa
   }
   assert.deepEqual(missing, [], 'ilan okuyucunun bildiği ad öneri listesinde yok');
 });
+
+test('kasa seçenekleri: "egea" yazınca Egea, Egea Cross, Egea Sedan, Egea Hatchback, Egea Station Wagon önerilir', () => {
+  const models = suggest.suggest('model', 'egea', { brand: 'Fiat' });
+  assert.deepEqual(models.slice(0, 5), ['Egea', 'Egea Cross', 'Egea Sedan', 'Egea Hatchback', 'Egea Station Wagon']);
+  // Marka yazılmadan da çıkar; seçilince marka da dolar.
+  assert.ok(suggest.suggest('model', 'corolla', {}).includes('Corolla Sedan'));
+  assert.deepEqual(suggest.canonicalize({ brand: '', model: 'corolla hatchback', body: '' }), {
+    brand: 'Toyota',
+    model: 'Corolla',
+    body: 'Hatchback'
+  });
+  // Elle yazılmış kasa korunur; "Egea Sedan" hiçbir zaman model adı olarak kaydedilmez.
+  assert.equal(suggest.canonicalize({ brand: 'Fiat', model: 'Egea Sedan', body: 'Hatchback' }).body, 'Hatchback');
+  assert.equal(suggest.resolve('model', 'Egea Sedan', { brand: 'Fiat' }).exact, false);
+  // Model adında geçen kasa yinelenmez ("Egea Cross Cross" yok); kasası tek tip olan modelde liste boş kalmaz.
+  assert.ok(!suggest.bodyVariants('Fiat', 'Egea Cross').some(body => /cross/i.test(body)));
+});
+
+test('kasa seçenekleri her model için: kayıtlarda görülen kasa önce gelir, sahibinden yazılışı tek biçime çevrilir', () => {
+  const records = [
+    record('Kia', 'Picanto', { body: 'Hatchback 5 kapı' }),
+    record('Kia', 'Picanto', { body: 'Hatchback 3 kapı' }),
+    record('Renault', 'Clio', { body: 'Station wagon' })
+  ];
+  // Katalogda kasa listesi olmayan model (Picanto) de kayıtlardan kasa önerisi alır.
+  assert.deepEqual(suggest.bodyVariants('Kia', 'Picanto', records), ['Hatchback']);
+  assert.equal(suggest.bodyVariants('Renault', 'Clio', records)[0], 'Station Wagon');
+  assert.equal(suggest.suggest('body', '', { brand: 'Fiat', model: 'Egea', records: [] })[0], 'Sedan');
+  assert.equal(
+    suggest.canonicalize({ brand: 'Kia', model: 'Picanto', body: 'hatchback 5 kapı' }, records).body,
+    'Hatchback'
+  );
+  // Katalogdaki her kasa adı genel kasa listesindendir ve her model için en az bir kasa vardır.
+  const { BRANDS, BODY_TYPES } = require('./catalog.js');
+  for (const [brand, data] of Object.entries(BRANDS))
+    for (const [model, bodies] of Object.entries(data.bodies)) {
+      assert.ok(data.models.includes(model), `${brand} ${model} model listesinde yok`);
+      for (const body of bodies) assert.ok(BODY_TYPES.includes(body), `${brand} ${model}: ${body}`);
+      assert.ok(suggest.bodyVariants(brand, model).length, `${brand} ${model}`);
+    }
+});
+
+test('formda: model alanında "Egea Sedan" seçilince model Egea, kasa tipi Sedan olur', () => {
+  const { window, field, type, options } = openForm();
+  type('brand', 'Fiat');
+  type('model', 'egea');
+  assert.ok(options('model').includes('Egea Sedan'), options('model').join());
+  const item = [...field('model').nextElementSibling.querySelectorAll('li')].find(
+    li => li.textContent === 'Egea Sedan'
+  );
+  item.dispatchEvent(new window.MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+  assert.equal(field('model').value, 'Egea');
+  assert.equal(field('body').value, 'Sedan');
+  // Elle yazıp alandan çıkınca da ayrılır.
+  type('model', 'egea hatchback');
+  field('model').dispatchEvent(new window.Event('blur'));
+  assert.equal(field('model').value, 'Egea');
+  assert.equal(field('body').value, 'Hatchback');
+});
