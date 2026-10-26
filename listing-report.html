@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <script src="theme-mode.js"></script>
+    <title>Oto Pusula | İlan raporu</title>
+    <link rel="icon" href="icons/icon32.png" />
+    <link rel="stylesheet" href="report.css" />
+    <link rel="stylesheet" href="price-timeline.css" />
+    <link rel="stylesheet" href="listing-report.css" />
+  </head>
+  <body class="lr-body">
+    <div class="lr-toolbar no-print">
+      <button id="print" type="button" class="lr-primary">PDF olarak kaydet / yazdır</button>
+      <button id="copy" type="button">Metni kopyala</button>
+      <label><input id="show-offer" type="checkbox" checked /> Pazarlık önerisini göster</label>
+      <label><input id="show-compare" type="checkbox" checked /> Benzer ilanları göster</label>
+      <span id="status" class="lr-muted" role="status"></span>
+      <p class="lr-muted lr-hint">
+        Yazdırma penceresinde hedef olarak “PDF olarak kaydet”i seçin. Rapor tek A4 sayfasına sığacak şekilde
+        hazırlanır.
+      </p>
+    </div>
+    <main class="lr-page" id="page">
+      <header class="lr-head">
+        <div>
+          <div class="lr-brand">OTO PUSULA · İLAN RAPORU</div>
+          <h1 id="title">Rapor hazırlanıyor…</h1>
+          <p id="subtitle" class="lr-muted"></p>
+        </div>
+        <div class="lr-meta lr-muted" id="meta"></div>
+      </header>
+      <dl id="facts" class="lr-facts"></dl>
+      <p id="verdict" class="lr-verdict" role="note"></p>
+      <div class="lr-grid">
+        <section id="score-box" class="lr-card"></section>
+        <section id="market-box" class="lr-card lr-wide"></section>
+        <section id="expertise-box" class="lr-card lr-wide"></section>
+        <section id="offer-box" class="lr-card"></section>
+        <section id="timeline-box" class="lr-card lr-full"></section>
+        <section id="compare-box" class="lr-card lr-full"></section>
+      </div>
+      <footer class="lr-foot lr-muted">
+        İlan verisi ve satıcı beyanından, bu bilgisayarda toplanan benzer ilanlarla hazırlanmıştır. Ekspertiz ve resmi
+        değerleme yerine geçmez; tahmin satış fiyatı garantisi değildir.
+        <span class="lr-sign">Oto Pusula · Batuhan Cengiz tarafından geliştirildi</span>
+      </footer>
+    </main>
+    <script src="core-records.js"></script>
+    <script src="core-csv.js"></script>
+    <script src="core-price.js"></script>
+    <script src="core-limits.js"></script>
+    <script src="negotiation.js"></script>
+    <script src="core-deal.js"></script>
+    <script src="core.js"></script>
+    <script src="alerts.js"></script>
+    <script src="open-gate.js"></script>
+    <script src="store.js"></script>
+    <script src="expertise.js"></script>
+    <script src="expertise-ui.js"></script>
+    <script src="price-timeline.js"></script>
+    <script src="report.js"></script>
+    <script src="listing-report.js"></script>
+    <script src="listing-report-page.js"></script>
+  </body>
+</html>

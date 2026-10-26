@@ -10,7 +10,13 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'u
 // Eklentinin çalışması için gereken dosyalar: manifest + sayfalar (popup, panel, ekspertiz raporu, yapay zeka kurulumu) + sayfaların
 // yüklediği her şey + simgeler.
 function runtimeFiles() {
-  const pages = [manifest.action.default_popup, manifest.options_page, 'report.html', 'ai-setup.html'];
+  const pages = [
+    manifest.action.default_popup,
+    manifest.options_page,
+    'report.html',
+    'listing-report.html',
+    'ai-setup.html'
+  ];
   const files = new Set(['manifest.json', 'extract.js', ...pages]);
   Object.values(manifest.icons).forEach(file => files.add(file));
   Object.values(manifest.action.default_icon).forEach(file => files.add(file));

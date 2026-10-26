@@ -251,6 +251,13 @@
     });
   }
 
+  // Tek sayfalık, müşteriye gösterilebilir ilan raporu (listing-report.html): yazdırılır ya da PDF kaydedilir.
+  function openListingReport(record, reading = null) {
+    chrome.tabs.create({
+      url: chrome.runtime.getURL('listing-report.html') + globalThis.OtoReport.encodeHash(record.id, [], reading)
+    });
+  }
+
   // Arama sonucundaki aday için ilana girmeden rapor (kaporta okunmadıysa raporda "bilinmiyor" yazar).
   function reportLink(record) {
     const link = element('button', 'link-button', 'Ekspertiz raporu ↗');
@@ -296,7 +303,11 @@
         copy.textContent = 'Kopyalanamadı';
       }
     });
-    box.append(open, copy);
+    const summary = element('button', 'secondary', 'PDF ilan raporu');
+    summary.type = 'button';
+    summary.title = 'Puan, piyasa farkı, ekspertiz, pazarlık, fiyat geçmişi ve benzer ilanlar tek A4 sayfada.';
+    summary.addEventListener('click', () => openListingReport(record, reading));
+    box.append(open, summary, copy);
     return box;
   }
 

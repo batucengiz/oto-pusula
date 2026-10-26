@@ -2,6 +2,13 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.25.0 — 2026-10-26
+
+- **Tek sayfalık PDF ilan raporu.** Popup'taki "PDF ilan raporu" düğmesi (ve panelde ilan detayındaki "PDF ilan raporu ↗") seçili ilanı müşteriye gösterilebilecek tek A4 sayfada açar: üstte ilan bilgileri ve tek cümlelik özet (fiyat piyasaya göre nerede, kaporta riski), altında fırsat puanı göstergesi (fiyat / kaporta / güven payları), piyasa farkı çubuğu (aralık, orta ve ilan fiyatı aynı ölçekte), renk kodlu kaporta şemalı ekspertiz özeti, pazarlık önerisi (açılış / hedef / en fazla), fiyat geçmişi grafiği ve en yakın 5 benzer ilanla karşılaştırma tablosu (bu araca göre düzeltilmiş fiyatlarla).
+- **"PDF olarak kaydet" için hazırlandı.** Yazdırmada sayfa A4 dikey, kenar boşlukları dar, düğmeler gizli, koyu temada bile açık renkli; renkli göstergeler kaybolmaz. Uzun ekspertiz satırları tek sayfaya sığacak şekilde kısaltılır (tamamı Ekspertiz raporunda kalır).
+- **Müşteriye göstermeden önce seçim.** "Pazarlık önerisini göster" ve "Benzer ilanları göster" kutucukları kaldırılınca o bölümler ekrandan, PDF'ten ve "Metni kopyala" çıktısından çıkar.
+- Yalnızca bilgisayardaki kayıtlar kullanılır; sahibinden'e ek istek ve sunucu yoktur. Yeni dosyalar: listing-report.html, listing-report.js, listing-report-page.js, listing-report.css, listing-report.test.js.
+
 ## 7.24.0 — 2026-10-26
 
 - **Galeri için alım-satım kâr hesabı.** Panelde ilan detayında katlanır küçük bir araç: alış fiyatı (pazarlık hedefiyle, yoksa ilan fiyatıyla önerilir), ekspertiz, boya/onarım, noter, vergi/harç ve diğer masraflar, hedef satış fiyatı (boşsa piyasa ortası). Toplam maliyet, satış, kâr, kâr oranı, başa baş satış fiyatı ve tahmini satış süresi anında hesaplanır; kâr yeşil, zarar kırmızı gösterilir.
