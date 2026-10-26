@@ -32,11 +32,13 @@
   const masked = key => `${key.slice(0, 6)}••••••${key.slice(-4)}`;
   const busy = () => checking || $('wizard').hidden;
 
-  function showReady(key) {
+  function showReady(key, note = '') {
     $('found').hidden = true;
     $('wizard').hidden = true;
     $('ready').hidden = false;
     $('saved-key').textContent = `Kayıtlı anahtar: ${masked(key)}`;
+    $('ready-note').textContent = note;
+    $('ready-note').hidden = !note;
     $('close-tab').focus?.();
   }
 
@@ -74,15 +76,18 @@
     $('found').hidden = true;
     input.value = key;
     setStep(3);
-    say('Anahtar deneniyor…', 'busy');
+    say('Anahtar deneniyor… (Google yavaşsa 20 saniyeyi bulabilir)', 'busy');
     try {
-      remote.saveKey(localStorage, await remote.testKey(key));
-      say('Anahtar çalışıyor ✓', 'good');
-      showReady(key);
+      // Google o an yavaş ya da yoğunsa bile anahtar geçerliyse kaydedilir; yavaşlık ayrıca söylenir.
+      const checked = await remote.checkKey(key);
+      remote.saveKey(localStorage, checked.key);
+      showReady(key, checked.note);
     } catch (error) {
-      say(error.message || 'Anahtar kaydedilemedi.', 'bad');
+      const diag = remote.diagnosis?.(error);
+      say(`${error.message || 'Anahtar kaydedilemedi.'}${diag ? `\n${diag}` : ''}`, 'bad');
     } finally {
       checking = false;
+      paintLog();
     }
   }
 
@@ -182,8 +187,37 @@
     say('Anahtar silindi. Asistan artık Google’a bağlanmaz.', 'good');
   });
 
+  // Tanılama: son denemeler (saat, model, sonuç, süre). Anahtar ve soru günlükte yoktur.
+  function logLines() {
+    return (remote.readLog?.() || []).map(item => {
+      const at = new Date(item.at);
+      const time = Number.isNaN(at.getTime()) ? '' : at.toLocaleString('tr-TR');
+      return `${time} · ${item.model} · ${remote.outcomeText(item)} · ${Math.round((item.ms || 0) / 1000)} sn`;
+    });
+  }
+  function paintLog() {
+    const lines = logLines();
+    $('ai-log').hidden = !lines.length;
+    $('ai-log-list').replaceChildren(
+      ...lines.reverse().map(line => {
+        const item = document.createElement('li');
+        item.textContent = line;
+        return item;
+      })
+    );
+  }
+  $('ai-log-copy').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(logLines().join('\n'));
+      $('ai-log-copy').textContent = 'Kopyalandı ✓';
+    } catch {
+      $('ai-log-copy').textContent = 'Kopyalanamadı';
+    }
+  });
+
   const saved = remote.loadKey(localStorage);
   if (saved) showReady(saved);
   else setStep(1);
   showManualPaste();
+  paintLog();
 })();

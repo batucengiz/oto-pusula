@@ -2,6 +2,14 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.28.0 — 2026-10-27
+
+- **"Google zamanında cevap vermedi" düzeltildi.** Kök sebep: anahtar denemesinde ilk model (gemini-flash-latest) takılınca 20 saniyelik sürenin tamamını tek başına yiyor, yedek modellere sıra gelmiyordu; deneme zaman aşımına düşünce geçerli anahtar **kaydedilmiyordu**, bu yüzden popup tekrar tekrar kurulum sayfasına yönlendiriyordu. Artık bir model birkaç saniye içinde cevap vermezse beklemesi sürerken sıradaki model de aynı anda denenir; önce gelen cevap kullanılır, diğeri iptal edilir (anahtar denemesinde 4 sn, sohbette 15 sn sonra).
+- **Yavaşlık anahtarı reddettirmez.** Google cevap üretmekte yavaşsa ya da yoğunsa anahtar ayrıca çok hızlı bir istekle (model bilgisi) denetlenir; geçerliyse kaydedilir ve "Google şu an yavaş" notu gösterilir. Yanlış anahtar yine reddedilir. Google hiç cevap vermiyorsa anahtar yine kaydedilir, ilk soruda denenir. Hiçbir hata anahtarı kendiliğinden silmez.
+- **Çalışan model hatırlanır.** Popup her açılışta sıfırdan başladığı için takılan model her soruda yeniden deneniyordu. En son çalışan model, bir süre sona alınan (yoğun/takılan) modeller ve anahtarın gönderilme biçimi bu bilgisayarda hatırlanır; anahtarın kendisi bu kayda yazılmaz.
+- **Tanı satırı.** Yapay zeka cevap veremeyince yedek cevabın altında küçük bir satır çıkar: hangi model, ne kadar sürdü, ne döndü (ör. "Tanı: flash-latest zaman aşımı 15 sn → 2.5-flash HTTP 503 (01:33)"). Kurulum sayfasında "Son yapay zeka denemeleri" listesi ve Kopyala düğmesi var. Anahtar ve sorular günlüğe yazılmaz.
+- Sohbette genel süre sınırı Gemini için 80 sn'ye çıktı (yedek modeller yarıda kesilmesin); boş cevap, ilk deneme uzun sürdüyse yeniden istenmez. Sahibinden'e ek istek yok.
+
 ## 7.27.0 — 2026-10-26
 
 - **Arama sayfası sohbeti artık kaybolmuyor.** Önceden yalnızca tek ilan sohbeti kaydediliyordu; arama sayfasındaki sohbet popup kapanınca (cevaptaki ilana gidince) siliniyordu. Artık aramanın adresine göre bu bilgisayarda saklanır (sayfa numarası ve sıralama sayılmaz). Aynı aramaya dönüp popup'ı açınca "önceki sohbetiniz kayıtlı" yazar, düğme "Analiz et ve sohbete devam et" olur; analizden sonra önceki sorular, cevaplar, "İlan N" bağlantıları ve ilan kartları geri gelir, yeni soruda önceki konuşma yapay zekaya da verilir. "Geçmişi sil" ile silinir. Sayfa yine kendiliğinden okunmaz.

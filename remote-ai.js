@@ -95,7 +95,8 @@
         'Google bu yapay zeka modelini kapatmış olabilir. Eklentinin en son sürümünü indirip güncelleyin.',
         status
       );
-    if (status === 408) return 'Google zamanında cevap vermedi (birkaç kez denendi). Biraz sonra tekrar sorun.';
+    if (status === 408)
+      return 'Google zamanında cevap vermedi; birden fazla modelle denendi. Bir dakika sonra tekrar sorun.';
     if (status >= 500)
       return withCode(
         'Google’ın yapay zekası şu an çok yoğun; yedek modellerle birkaç kez denendi. Bir dakika sonra tekrar sorun.',
@@ -163,8 +164,20 @@
   // takılan istek ve 429 (ücretsiz anahtarda kota model başınadır). Bunlarda kullanıcıya hemen hata gösterilmez:
   // sıradaki modele geçilir (flash-lite çoğu zaman boştur), hepsi geçici hata verirse artan beklemeyle (ve küçük
   // rastgele payla) yeniden denenir. Toplam süre bütçeyle sınırlıdır; her deneme ayrıca kendi süre sınırına sahiptir.
-  // 404 (model kapanmış) modeli bu oturumda bir daha denetmez; yoğun ya da kotası dolan model bir süre sona alınır.
-  const POLICY = { rounds: 3, baseMs: 900, maxWaitMs: 6000, tryMs: 25000, budgetMs: 45000, coolMs: 60000 };
+  // Bir model hedgeMs içinde cevap vermezse beklemesi sürerken sıradaki model de paralel denenir; önce gelen
+  // cevap kullanılır, diğeri iptal edilir (takılan tek model bütün süreyi yiyip "zamanında cevap vermedi" dedirtmez).
+  // 404 (model kapanmış) modeli bir gün denetmez; yoğun, takılan ya da kotası dolan model bir süre sona alınır.
+  const POLICY = {
+    rounds: 3,
+    baseMs: 900,
+    maxWaitMs: 6000,
+    tryMs: 30000,
+    hedgeMs: 15000,
+    budgetMs: 55000,
+    coolMs: 60000
+  };
+  // Anahtar denemesi çok kısa bir istektir: birkaç saniyede gelmezse hemen diğer model de denenir.
+  const TEST_POLICY = { ...POLICY, rounds: 2, tryMs: 12000, hedgeMs: 4000, budgetMs: 25000 };
   const TRANSIENT = status => status === 408 || status === 429 || status >= 500;
 
   function abortError() {
@@ -203,7 +216,7 @@
     }
   }
 
-  // Tek deneme: kullanıcının iptali ve deneme süresi birlikte uygulanır. Süre dolarsa 408 gibi davranılır.
+  // Tek deneme: iptal ve deneme süresi birlikte uygulanır. Süre dolarsa 408 gibi davranılır.
   async function once(url, init, key, fetcher, signal, tryMs) {
     const controller = typeof AbortController === 'function' ? new AbortController() : null;
     let timedOut = false;
@@ -227,28 +240,134 @@
     }
   }
 
-  // Model durumu anahtar başınadır: kapanan (404) ve bir süre sona alınan (yoğun/kota) modeller.
+  // Model durumu anahtar başınadır: kapanan (404), bir süre sona alınan (yoğun/kota/takılan) modeller ve en son
+  // çalışan model. Popup her açılışta sıfırdan başladığı için durum eklenti sayfalarının yerel deposunda da tutulur;
+  // anahtarın kendisi değil yalnızca kısa bir özeti yazılır.
+  const MODEL_STATE = 'otoPusula_aiModels';
+  const GONE_MS = 24 * 60 * 60 * 1000;
+  const memory = () => (typeof root.document !== 'undefined' ? root.localStorage : null);
+  function keyTag(key) {
+    let hash = 5381;
+    for (const char of String(key)) hash = ((hash * 33) ^ char.charCodeAt(0)) >>> 0;
+    return hash.toString(36);
+  }
   const states = new Map();
   function stateFor(key) {
-    if (!states.has(key)) states.set(key, { gone: new Set(), cooling: new Map(), extra: [] });
-    return states.get(key);
+    if (states.has(key)) return states.get(key);
+    const state = { gone: new Map(), cooling: new Map(), extra: [], preferred: '', query: false, tag: keyTag(key) };
+    try {
+      const saved = JSON.parse(memory()?.getItem(MODEL_STATE) || 'null');
+      if (saved?.tag === state.tag) {
+        const known = model => /^gemini-[\w.-]+$/.test(model);
+        for (const [model, until] of Object.entries(saved.cooling || {}))
+          if (known(model)) state.cooling.set(model, Number(until) || 0);
+        for (const [model, until] of Object.entries(saved.gone || {}))
+          if (known(model)) state.gone.set(model, Number(until) || 0);
+        state.extra = (saved.extra || []).filter(known).slice(0, 3);
+        state.preferred = known(saved.preferred) ? saved.preferred : '';
+        state.query = saved.query === true;
+      }
+    } catch {
+      /* bozuk ya da kapalı depo: durum boş başlar */
+    }
+    states.set(key, state);
+    return state;
+  }
+  function keepState(state) {
+    try {
+      memory()?.setItem(
+        MODEL_STATE,
+        JSON.stringify({
+          tag: state.tag,
+          preferred: state.preferred,
+          query: state.query,
+          extra: state.extra,
+          cooling: Object.fromEntries(state.cooling),
+          gone: Object.fromEntries(state.gone)
+        })
+      );
+    } catch {
+      /* depo doluysa ya da kapalıysa yalnızca bu sayfada hatırlanır */
+    }
   }
 
-  // Deneme sırası: en iyi model önce; yoğun/kotası dolan modeller soğuma süresince en sona. Soğuma bitince en iyi
-  // modele geri dönülür (yedek model kalıcı olmaz).
+  // Deneme sırası: en son çalışan model önce, sonra en iyi model; yoğun/kotası dolan modeller soğuma süresince en
+  // sona. Soğuma bitince yeniden sıraya girer.
   function order(state, now) {
-    const alive = [...new Set([...MODELS, ...state.extra])].filter(model => !state.gone.has(model));
+    const gone = model => state.gone.get(model) > now;
+    const alive = [...new Set([state.preferred, ...MODELS, ...state.extra])].filter(model => model && !gone(model));
     const cool = model => state.cooling.get(model) > now;
     return [...alive.filter(model => !cool(model)), ...alive.filter(cool)];
   }
 
+  // Tanılama: her denemenin sonucu (model, süre, durum) kısa bir günlükte tutulur. Hata olduğunda kullanıcıya
+  // gösterilen "Tanı" satırı ve kurulum sayfasındaki son denemeler listesi buradan gelir. Anahtar ya da soru yazılmaz.
+  const LOG_STORAGE = 'otoPusula_aiLog';
+  const LOG_MAX = 20;
+  const short = model => String(model || '').replace(/^gemini-/, '');
+  function outcomeText(item) {
+    if (item.status === 'ok') return 'tamam';
+    if (item.status === 'timeout') return 'zaman aşımı';
+    if (item.status === 'network') return 'bağlantı yok';
+    if (item.status === 'cancelled') return 'iptal';
+    return `HTTP ${item.status}`;
+  }
+  function record(trace, item) {
+    trace?.push(item);
+    try {
+      const store = memory();
+      if (!store) return;
+      const log = JSON.parse(store.getItem(LOG_STORAGE) || '[]');
+      log.push(item);
+      store.setItem(LOG_STORAGE, JSON.stringify(log.slice(-LOG_MAX)));
+    } catch {
+      /* günlük tutulamazsa deneme yine sürer */
+    }
+  }
+  function readLog() {
+    try {
+      const log = JSON.parse(memory()?.getItem(LOG_STORAGE) || '[]');
+      return Array.isArray(log) ? log.slice(-LOG_MAX) : [];
+    } catch {
+      return [];
+    }
+  }
+  const clock = at => {
+    const date = new Date(at);
+    return Number.isNaN(date.getTime())
+      ? ''
+      : `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  };
+  // Tek satırlık tanı: "Tanı: flash-latest zaman aşımı 12 sn → 2.5-flash HTTP 503 (01:33)".
+  function traceLine(trace) {
+    const items = (trace || []).filter(item => item.status !== 'cancelled').slice(-4);
+    if (!items.length) return '';
+    const parts = items.map(item => `${short(item.model)} ${outcomeText(item)} ${Math.round(item.ms / 1000)} sn`);
+    const at = clock(items[items.length - 1].at);
+    return `Tanı: ${parts.join(' → ')}${at ? ` (${at})` : ''}`;
+  }
+  function diagnosis(error) {
+    const line = traceLine(error?.trace);
+    if (line) return line;
+    return error?.status ? `Tanı: HTTP ${error.status}` : '';
+  }
+
   // Bir generateContent isteği. Dönen yanıt ya başarılıdır ya da son hata yanıtıdır; ağ hiç yoksa istisna atar.
   // onRetry(bilgi) popup'ta "Google yoğun, yedek modelle deneniyor…" gibi kısa bir durum yazmak içindir.
-  async function generate(key, body, fetcher, signal, { policy = POLICY, onRetry, now = () => Date.now() } = {}) {
+  // trace verilirse her deneme (model, süre, sonuç) ona da eklenir.
+  async function generate(
+    key,
+    body,
+    fetcher,
+    signal,
+    { policy = POLICY, onRetry, now = () => Date.now(), trace = [] } = {}
+  ) {
     const init = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body };
     const started = now();
     const left = () => policy.budgetMs - (now() - started);
     const state = stateFor(key);
+    if (state.query) queryAuth = true;
+    const hedgeMs = policy.hedgeMs ?? policy.tryMs;
     let last = null;
     let offline = null;
     let discovered = false;
@@ -257,39 +376,113 @@
       if (!models.length && !discovered) {
         // Bilinen modellerin hepsi kapanmış: Google'ın listesinden en yeni flash modelleri bir kez alınır.
         discovered = true;
-        state.extra.push(...(await discoverModels(key, fetcher, state.gone)));
+        state.extra.push(...(await discoverModels(key, fetcher, new Set(state.gone.keys()))));
         models = order(state, now());
       }
       if (!models.length) break;
       let soonest = Infinity;
       let anyTransient = false;
-      for (const model of models) {
-        if (left() <= 0) break;
-        let response;
-        try {
-          response = await once(endpointFor(model), init, key, fetcher, signal, Math.min(policy.tryMs, left()));
-        } catch (cause) {
-          if (cause?.name === 'AbortError') throw cause;
-          offline = cause;
-          anyTransient = true;
-          onRetry?.({ reason: 'network', model, round });
-          continue;
+      // Bu turdaki denemeler tek grupta: biri başarılı olunca (ya da kullanıcı iptal edince) diğerleri kesilir.
+      const group = typeof AbortController === 'function' ? new AbortController() : null;
+      const relay = () => group?.abort();
+      signal?.addEventListener?.('abort', relay);
+      const running = new Set();
+      let next = 0;
+      const launch = () => {
+        const model = models[next];
+        next += 1;
+        const begun = now();
+        const entry = { model };
+        entry.done = once(
+          endpointFor(model),
+          init,
+          key,
+          fetcher,
+          group?.signal || signal,
+          Math.min(policy.tryMs, left())
+        )
+          .then(
+            response => ({ entry, response }),
+            cause => ({ entry, cause })
+          )
+          .then(result => ({ ...result, ms: now() - begun }));
+        running.add(entry);
+      };
+      let final = null;
+      try {
+        if (left() > 0) launch();
+        while (running.size && !final) {
+          let hedgeTimer = null;
+          const canHedge = next < models.length && left() > 0;
+          const hedge = canHedge
+            ? new Promise(resolve => {
+                hedgeTimer = setTimeout(() => resolve(null), hedgeMs);
+              })
+            : null;
+          const settled = await Promise.race([...[...running].map(entry => entry.done), ...(hedge ? [hedge] : [])]);
+          clearTimeout(hedgeTimer);
+          if (signal?.aborted) throw abortError();
+          if (!settled) {
+            // Model takıldı: beklemesi sürerken sıradaki model de denenir.
+            onRetry?.({ reason: 'slow', model: models[next - 1], round });
+            launch();
+            continue;
+          }
+          const { entry, response, cause, ms } = settled;
+          running.delete(entry);
+          const model = entry.model;
+          const at = new Date().toISOString();
+          if (cause) {
+            if (cause?.name === 'AbortError') {
+              if (signal?.aborted) throw cause;
+              record(trace, { at, model, status: 'cancelled', ms });
+            } else {
+              offline = cause;
+              anyTransient = true;
+              record(trace, { at, model, status: 'network', ms });
+              onRetry?.({ reason: 'network', model, round });
+            }
+          } else {
+            last = response;
+            record(trace, {
+              at,
+              model,
+              status: response.ok ? 'ok' : response.timedOut ? 'timeout' : response.status,
+              ms
+            });
+            if (response.ok) {
+              state.cooling.delete(model);
+              state.preferred = model;
+              final = response;
+            } else if (response.status === 404) {
+              state.gone.set(model, now() + GONE_MS);
+              if (state.preferred === model) state.preferred = '';
+            } else if (!TRANSIENT(response.status)) {
+              final = response;
+            } else {
+              anyTransient = true;
+              state.cooling.set(model, now() + policy.coolMs);
+              if (state.preferred === model) state.preferred = '';
+              if (response.status === 429)
+                soonest = Math.min(soonest, (await retryDelay(response)) || policy.baseMs * 2);
+              onRetry?.({
+                reason: response.status === 429 ? 'quota' : response.timedOut ? 'slow' : 'busy',
+                status: response.status,
+                model,
+                round
+              });
+            }
+          }
+          // Hata veren denemenin yerine hemen sıradaki model başlatılır.
+          if (!final && !running.size && next < models.length && left() > 0) launch();
         }
-        last = response;
-        if (response.ok) {
-          state.cooling.delete(model);
-          return response;
-        }
-        if (response.status === 404) {
-          state.gone.add(model);
-          continue;
-        }
-        if (!TRANSIENT(response.status)) return response;
-        anyTransient = true;
-        state.cooling.set(model, now() + policy.coolMs);
-        if (response.status === 429) soonest = Math.min(soonest, (await retryDelay(response)) || policy.baseMs * 2);
-        onRetry?.({ reason: response.status === 429 ? 'quota' : 'busy', status: response.status, model, round });
+      } finally {
+        signal?.removeEventListener?.('abort', relay);
+        if (running.size) group?.abort();
+        state.query = queryAuth;
+        keepState(state);
       }
+      if (final) return final;
       if (!anyTransient) {
         // Denenen modellerin hepsi 404 verdi: bir tur daha, bu kez Google'ın model listesiyle.
         if (!discovered && !order(state, now()).length) {
@@ -309,12 +502,47 @@
     return last || { ok: false, status: 404 };
   }
 
-  // Anahtarı denemek için çok kısa gerçek bir istek atılır (models listesi anahtar geçerli olsa da modeller
-  // kapalıysa başarılı görünürdü). Kota doluysa (429) anahtar yine de geçerlidir.
-  async function testKey(key, fetcher = root.fetch?.bind(root)) {
+  // Anahtarın kendisini (modelleri değil) denetleyen hızlı istek: model bilgisini okumak cevap üretmeyi gerektirmez,
+  // Google yoğunken bile çabuk döner. 400/401/403 anahtarın yanlış olduğunu söyler.
+  async function keyAccepted(key, fetcher, trace) {
+    const begun = Date.now();
+    let response;
+    try {
+      response = await once(
+        `${BASE}/models/${MODELS[MODELS.length - 1]}`,
+        { method: 'GET', headers: {} },
+        key,
+        fetcher,
+        undefined,
+        8000
+      );
+    } catch {
+      record(trace, {
+        at: new Date().toISOString(),
+        model: 'anahtar-kontrol',
+        status: 'network',
+        ms: Date.now() - begun
+      });
+      return { known: false };
+    }
+    const status = response.ok ? 'ok' : response.timedOut ? 'timeout' : response.status;
+    record(trace, { at: new Date().toISOString(), model: 'anahtar-kontrol', status, ms: Date.now() - begun });
+    if (response.ok || response.status === 404 || response.status === 429) return { known: true, valid: true };
+    if (REJECTED.has(response.status)) return { known: true, valid: false, response };
+    return { known: false };
+  }
+
+  // Anahtarı dener. Önce çok kısa gerçek bir cevap istenir (model listesi anahtar geçerli olsa da modeller
+  // kapalıysa başarılı görünürdü). Google o an yavaşsa ya da yoğunsa (zaman aşımı, 5xx) anahtar ayrıca hızlı bir
+  // istekle denetlenir; geçerliyse kaydedilir ve kullanıcıya yavaşlık ayrıca söylenir. Böylece geçici bir aksaklık
+  // anahtarı reddettirip kullanıcıyı kurulum sayfasında döndürmez. Kota doluysa (429) anahtar yine de geçerlidir.
+  // Dönen nesne: { key, verified, note, trace }.
+  async function checkKey(key, fetcher = root.fetch?.bind(root), { policy = TEST_POLICY } = {}) {
     const clean = normalizeKey(key);
     if (!clean) throw remoteError(`Bu bir Gemini anahtarına benzemiyor. ${KEY_HINT}`);
-    let response;
+    const trace = [];
+    let response = null;
+    let offline = false;
     try {
       response = await generate(
         clean,
@@ -324,20 +552,52 @@
         }),
         fetcher,
         undefined,
-        { policy: { ...POLICY, rounds: 2, budgetMs: 20000 } }
+        { policy, trace }
       );
     } catch {
-      throw remoteError(OFFLINE);
+      offline = true;
     }
-    if (response.ok || response.status === 429) return clean;
-    const error = await failure(response);
-    if (/anahtarı kabul edilmedi/.test(error.message))
-      throw remoteError(
+    if (response && (response.ok || response.status === 429)) return { key: clean, verified: true, note: '', trace };
+    if (response && !TRANSIENT(response.status) && response.status !== 404) {
+      const error = await failure(response);
+      error.trace = trace;
+      if (/anahtarı kabul edilmedi/.test(error.message))
+        error.message = 'Google bu anahtarı kabul etmedi. AI Studio’dan anahtarı yeniden kopyalayıp yapıştırın.';
+      throw error;
+    }
+    // Cevap gelmedi (zaman aşımı, yoğunluk, model kapalı ya da bağlantı): anahtarın kendisi ayrıca denetlenir.
+    const accepted = await keyAccepted(clean, fetcher, trace);
+    if (accepted.known && !accepted.valid) {
+      const error = remoteError(
         'Google bu anahtarı kabul etmedi. AI Studio’dan anahtarı yeniden kopyalayıp yapıştırın.',
-        error.status,
-        error.detail
+        accepted.response.status
       );
-    throw error;
+      error.trace = trace;
+      throw error;
+    }
+    if (accepted.known)
+      return {
+        key: clean,
+        verified: true,
+        note: 'Anahtar geçerli ve kaydedildi. Google şu an yavaş cevap veriyor; ilk sorularda biraz bekleyebilirsiniz.',
+        trace
+      };
+    if (offline && !trace.some(item => item.status !== 'network')) {
+      const error = remoteError(OFFLINE);
+      error.trace = trace;
+      throw error;
+    }
+    return {
+      key: clean,
+      verified: false,
+      note: 'Anahtar kaydedildi ama Google şu an cevap vermediği için denenemedi. İlk soruda kendiliğinden denenir.',
+      trace
+    };
+  }
+
+  // Eski çağrılar için: yalnızca anahtarı döndürür.
+  async function testKey(key, fetcher = root.fetch?.bind(root), options) {
+    return (await checkKey(key, fetcher, options)).key;
   }
 
   // Google'ın cevabından metni ve bitiş sebebini okur. Güvenlik filtresi (blockReason, SAFETY…) ayrı söylenir;
@@ -384,17 +644,26 @@
           generationConfig: { temperature: 0.3, maxOutputTokens: 4096 }
         });
         let answer = '';
-        // Boş gelen cevap (geçici aksaklık) bir kez daha istenir; güvenlik filtresi tekrar edilmez.
+        const trace = [];
+        const begun = Date.now();
+        const fail = error => Object.assign(error, { trace });
+        // Boş gelen cevap (geçici aksaklık) bir kez daha istenir; güvenlik filtresi tekrar edilmez. İlk deneme
+        // zaten uzun sürdüyse yeniden istenmez: kullanıcı yedek cevabı beklemeden görür.
         for (let attempt = 0; attempt < 2 && !answer; attempt += 1) {
+          if (attempt && Date.now() - begun > policy.budgetMs / 2) break;
           let response;
           try {
-            response = await generate(key, body, fetcher, signal, { policy, onRetry });
+            response = await generate(key, body, fetcher, signal, { policy, onRetry, trace });
           } catch (cause) {
             if (cause?.name === 'AbortError') throw cause;
-            throw remoteError(OFFLINE);
+            throw fail(remoteError(OFFLINE));
           }
-          if (!response.ok) throw await failure(response);
-          answer = (await readAnswer(response)).text;
+          if (!response.ok) throw fail(await failure(response));
+          try {
+            answer = (await readAnswer(response)).text;
+          } catch (error) {
+            throw fail(error);
+          }
         }
         // Boş cevap geçmişe yazılmaz.
         if (!answer) return '';
@@ -419,13 +688,14 @@
       contents: [{ role: 'user', parts: [{ inline_data: { mime_type: match[1], data: match[2] } }, { text: prompt }] }],
       generationConfig: { temperature: 0.2, maxOutputTokens: 4096 }
     });
+    const trace = [];
     let response;
     try {
-      response = await generate(key, body, fetcher);
+      response = await generate(key, body, fetcher, undefined, { trace });
     } catch {
-      throw remoteError(OFFLINE);
+      throw Object.assign(remoteError(OFFLINE), { trace });
     }
-    if (!response.ok) throw await failure(response);
+    if (!response.ok) throw Object.assign(await failure(response), { trace });
     return (await readAnswer(response)).text;
   }
 
@@ -442,11 +712,17 @@
     saveKey,
     clearKey,
     testKey,
+    checkKey,
     createSession,
     describeImage,
     generate,
     errorMessage,
-    POLICY
+    diagnosis,
+    traceLine,
+    readLog,
+    outcomeText,
+    POLICY,
+    TEST_POLICY
   };
   root.OtoRemoteAI = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
