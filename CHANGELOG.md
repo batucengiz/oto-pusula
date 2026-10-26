@@ -2,6 +2,17 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.19.1 — 2026-10-26
+
+- **Excel'de boş kalan motor bilgileri dolduruldu.** Kaydedilmiş gerçek arama sayfalarında motoru boş kalan ilan tipleri bulundu ve okuma güçlendirildi:
+  - Audi'nin güç koduyla yazılan motorları ("40 TDI", "35 TFSI", "45 TFSI e"); "40" artık paket sanılmıyor.
+  - Toyota "1.33" gibi iki ondalıklı hacimler, başlıkta virgülle yazılan "1,6 TDİ" ve bitişik "1.5dCi".
+  - Mercedes "C 200 D" (büyük D) → "200 d"; yalnızca başlıkta yazan "C200d", "E 200 d", BMW "320i"/"520d".
+  - "1,5 MİLYONA" gibi fiyatlar motor sanılmaz; büyük harfli başlıktaki kodlar üreticinin yazımıyla kaydedilir ("HDİ" → "HDi").
+- Eski sürümlerin motorsuz kaydettiği ilanlarda Excel, motoru kayıttaki motor hacminden (1598 cc → 1.6) ya da ilan başlığından tamamlar; ilanları yeniden okumak gerekmez.
+- Elektrikli araçlarda (yakıt "Elektrik", Togg, Tesla) Motor hücresine "Elektrikli" yazılır ve "Eksik bilgi"de motor eksik sayılmaz.
+- Hâlâ boş kalan motor hücresinin sebebi "Eksik bilgi" sütununda yazar: arama listesinde ve başlıkta motor yoksa "ilan sayfasında yazar, ilanı açıp analiz edin", ilan sayfası okunduğu halde yoksa "ilan sayfasında yazmıyor".
+
 ## 7.19.0 — 2026-10-25
 
 - **Panelde marka ve model bazlı toplu silme.** İlanlar sayfasında yeni "Marka ve model" bölümü: kayıtlı ilanlar marka > model olarak sayılarıyla listelenir (birden çok marka karışmışsa bölüm kendiliğinden açılır). Bir modeli ya da tüm markayı tek tuşla ("Sil" / "Markayı sil") silebilirsin; Passat'ı bitirip Egea'ya geçince Passat ilanlarını tek tuşla temizle.
