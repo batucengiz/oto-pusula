@@ -954,6 +954,7 @@
     $('open-listing').hidden = !(isListing && core.listingUrl(vehicle));
     $('watch-listing').hidden = !isListing;
     $('expert-report').hidden = !(isListing && globalThis.OtoReport);
+    $('listing-report').hidden = !(isListing && globalThis.OtoReport);
     $('whatsapp-listing').hidden = !(isListing && vehicle.sellerPhone);
     $('forget-phone').hidden = !(isListing && vehicle.sellerPhone);
     $('watch-listing').textContent = vehicle.watched ? '★ Takipten çıkar' : '☆ Takibe al';
@@ -1244,6 +1245,13 @@
   $('expert-report').addEventListener('click', () => {
     if (!selectedVehicle || !globalThis.OtoReport) return;
     const url = `report.html${globalThis.OtoReport.encodeHash(selectedVehicle.id)}`;
+    if (globalThis.chrome?.tabs?.create) chrome.tabs.create({ url: chrome.runtime.getURL(url) });
+    else window.open(url, '_blank', 'noopener');
+  });
+  // Tek sayfalık ilan raporu (yazdır / PDF); ekspertiz raporuyla aynı adres biçimini kullanır.
+  $('listing-report').addEventListener('click', () => {
+    if (!selectedVehicle || !globalThis.OtoReport) return;
+    const url = `listing-report.html${globalThis.OtoReport.encodeHash(selectedVehicle.id)}`;
     if (globalThis.chrome?.tabs?.create) chrome.tabs.create({ url: chrome.runtime.getURL(url) });
     else window.open(url, '_blank', 'noopener');
   });

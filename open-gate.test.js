@@ -260,8 +260,10 @@ test('sahibinden ilanı açan her yol open-gate.js üzerinden geçer', () => {
   assert.deepEqual(stray, [], 'sınırdan geçmeyen açma yolu');
   // target="_blank" bağlantıların hepsi, sınırı kuran sayfada (dashboard) kullanılır ve guardLinks orada kurulur.
   const targetBlank = found.filter(item => /_blank'/.test(item.text) && /\.target =/.test(item.text));
-  for (const item of targetBlank) assert.ok(['dashboard.js', 'compare-ui.js'].includes(item.file), item.file);
+  for (const item of targetBlank)
+    assert.ok(['dashboard.js', 'compare-ui.js', 'listing-report-page.js'].includes(item.file), item.file);
   assert.match(read('dashboard.js'), /openGate\.guardLinks\(document, /);
+  assert.match(read('listing-report-page.js'), /OtoOpenGate\?\.guardLinks\(document, /);
   assert.doesNotMatch(read('popup.js'), /\.target = '_blank'/, 'popup bağlantıları sınırsız açamaz');
   // Eski toplu açma yolu kalmadı.
   for (const file of ['popup.js', 'dashboard.js', 'compare-ui.js', 'chat.css', 'popup.css', 'theme.css'])
@@ -269,7 +271,8 @@ test('sahibinden ilanı açan her yol open-gate.js üzerinden geçer', () => {
   // Sayfalar open-gate.js'i kullanıldığı betikten önce yükler.
   for (const [html, scripts] of [
     ['popup.html', ['popup.js']],
-    ['dashboard.html', ['compare-ui.js', 'dashboard.js']]
+    ['dashboard.html', ['compare-ui.js', 'dashboard.js']],
+    ['listing-report.html', ['listing-report-page.js']]
   ]) {
     const page = read(html);
     const gate = page.indexOf('<script src="open-gate.js">');
