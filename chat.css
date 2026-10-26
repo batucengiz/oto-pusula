@@ -123,6 +123,7 @@
 }
 .chat-mode {
   display: inline-flex;
+  white-space: nowrap;
   align-items: center;
   gap: 5px;
   margin: 1px 0 0;
@@ -141,6 +142,7 @@
 }
 .chat-save {
   padding: 5px 10px;
+  white-space: nowrap;
   border-radius: 999px;
   background: var(--ai-raised);
   color: var(--ai-ink-2);
@@ -362,65 +364,107 @@
 }
 .chat-ai {
   color: var(--ai-ink);
-  overflow-wrap: anywhere;
+  /* "anywhere" min-content genişliğini sıfırlar; esnek kutuda metin harf harf kırılır. Uzun kelime yine taşmadan kırılır. */
+  overflow-wrap: break-word;
+  min-width: 0;
 }
-.chat-rich p + p,
-.chat-rich p + ul,
-.chat-rich p + ol,
-.chat-rich ul + p,
-.chat-rich ol + p {
-  margin-top: 7px;
+
+/* Cevap tipografisi: tek metin akışı, bloklar arası düzenli boşluk, satır içi ilan rozetleri. */
+.chat-rich {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ai-ink-2);
 }
-.chat-rich .chat-lead {
-  padding: 8px 11px;
-  border-radius: 10px;
-  background: var(--ai-raised);
+.chat .chat-rich > * + * {
+  margin-top: 8px;
+}
+.chat-rich > p {
+  display: block;
 }
 .chat-rich strong {
   font-weight: 700;
+  color: var(--ai-ink);
+}
+.chat-rich .chat-lead {
+  display: block;
+  padding: 9px 12px;
+  border: 1px solid var(--ai-line);
+  border-left: 3px solid var(--ai-accent);
+  border-radius: 4px 10px 10px 4px;
+  background: var(--ai-raised);
   color: var(--ai-ink);
 }
 .chat-rich .chat-lead strong:first-child {
   color: var(--ai-accent-ink);
 }
 .chat-rich .chat-h {
-  margin: 12px 0 4px;
+  margin: 14px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--ai-line);
   font-size: 12.5px;
   font-weight: 750;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
   color: var(--ai-ink);
+}
+.chat .chat-rich > .chat-h:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+.chat .chat-rich > .chat-h + * {
+  margin-top: 6px;
 }
 .chat-rich ul,
 .chat-rich ol {
-  margin: 4px 0 0;
-  padding-left: 18px;
+  margin-bottom: 0;
+  padding-left: 20px;
 }
 .chat-rich li {
-  margin-bottom: 3px;
+  padding-left: 2px;
+}
+.chat-rich li + li {
+  margin-top: 5px;
 }
 .chat-rich li::marker {
   color: var(--ai-accent);
-}
-.chat .chat-ref {
-  display: inline;
-  padding: 0 5px;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--ai-accent) 16%, transparent);
-  color: var(--ai-accent-ink);
   font-weight: 700;
-  text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, var(--ai-accent) 45%, transparent);
-  text-underline-offset: 2px;
+}
+.chat-rich ol li::marker {
+  font-size: 0.92em;
+}
+
+/* "İlan 3" bağlantısı: metnin içinde küçük rozet; satır içinde kalır, kendi içinde kırılmaz. */
+.chat .chat-ref {
+  display: inline-block;
+  padding: 0 6px;
+  border: 1px solid color-mix(in srgb, var(--ai-accent) 32%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--ai-accent) 12%, transparent);
+  color: var(--ai-accent-ink);
+  font-size: 0.92em;
+  font-weight: 700;
+  line-height: 1.45;
+  white-space: nowrap;
+  vertical-align: baseline;
+  text-decoration: none;
 }
 .chat .chat-ref::after {
-  content: ' ↗';
+  content: '↗';
+  margin-left: 3px;
   font-size: 0.85em;
+  opacity: 0.8;
 }
 .chat .chat-ref:hover {
+  border-color: var(--ai-accent);
   background: var(--ai-accent);
   color: var(--ai-on-accent);
 }
+.chat .chat-ref:active:not(:disabled) {
+  transform: none;
+}
 .chat .chat-ref.opened::after {
-  content: ' ✓';
+  content: '✓';
 }
 .chat-error {
   color: var(--ai-warn);
@@ -567,8 +611,9 @@
 .chat .chat-pick {
   position: relative;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 10px;
+  /* Dar popup'ta başlık ve etiketler tam genişliği kullanır; fiyat ve "Aç" kartın altında tek satırdır. */
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 10px;
   align-items: start;
   width: 100%;
   padding: 10px 11px;
@@ -659,14 +704,18 @@
   background: color-mix(in srgb, var(--ai-bad) 14%, transparent);
 }
 .chat-pick-side {
+  grid-column: 2;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 7px;
+  border-top: 1px solid var(--ai-line);
 }
 .chat-pick-price {
   color: var(--ai-ink);
-  font-size: 13px;
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
   font-weight: 800;
   white-space: nowrap;
 }
@@ -957,8 +1006,9 @@
   color: var(--ai-warn);
 }
 
-/* Sohbetler paneli (7.30, Gemini'nin yan menüsü gibi): başlıkta ☰ ve ✎, açılınca sohbetin üstünü kaplar. */
-.chat-lead,
+/* Sohbetler paneli (7.30, Gemini'nin yan menüsü gibi): başlıkta ☰ ve ✎, açılınca sohbetin üstünü kaplar.
+   Başlığın sol grubu .chat-head-lead'dir; .chat-lead cevabın "Kısa cevap" paragrafıdır ve normal metin akışında kalmalı. */
+.chat-head-lead,
 .chat-tools {
   display: flex;
   align-items: center;
