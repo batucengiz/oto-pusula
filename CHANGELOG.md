@@ -2,6 +2,13 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.27.0 — 2026-10-26
+
+- **Arama sayfası sohbeti artık kaybolmuyor.** Önceden yalnızca tek ilan sohbeti kaydediliyordu; arama sayfasındaki sohbet popup kapanınca (cevaptaki ilana gidince) siliniyordu. Artık aramanın adresine göre bu bilgisayarda saklanır (sayfa numarası ve sıralama sayılmaz). Aynı aramaya dönüp popup'ı açınca "önceki sohbetiniz kayıtlı" yazar, düğme "Analiz et ve sohbete devam et" olur; analizden sonra önceki sorular, cevaplar, "İlan N" bağlantıları ve ilan kartları geri gelir, yeni soruda önceki konuşma yapay zekaya da verilir. "Geçmişi sil" ile silinir. Sayfa yine kendiliğinden okunmaz.
+- **"En mantıklı N ilan" fiyat ve eksperi birlikte tartar.** Her ilan için tek bir Oto Pusula toplam puanı: fırsat puanı (piyasa farkı, kaporta, satıcı güveni) ekspertiz yorumuyla düzeltilir (risk düşük +6, orta −12, yüksek −30; hatasız iddiası tutarlı +3, şüpheli −4, tutmuyor −10; ağır uyarı −10). Ucuz ama hatasız iddiası tutmayan ilan artık listenin tepesine çıkmaz. Asistan sıralamayı bu puana göre yapar ve her ilan için fiyat değerlendirmesini (piyasa farkı, fırsat puanı, pazarlık hedefi) ve eksper yorumunu (risk, hatasız iddiası, kaporta pazarlık etkisi) birlikte gerekçelendirir. Yapay zeka düşerse yedek cevap da aynı puan ve gerekçelerle verilir.
+- **Ekspertiz yorumu kayda yazılır.** İlan sayfası analiz edilince eksper yorumunun kısa özeti (risk, hatasız iddiası, ilk 3 gerekçe, pazarlık etkisi yüzdesi) ilan kaydına eklenir; ilan açıklamasının kendisi saklanmaz. Arama sayfası yeniden okununca özet silinmez. Eski kayıtlarda özet yoksa satıcının boya/değişen şeması ve tramer beyanından yeniden kurulur; ilanı hiç açılmamışsa "eksper yorumu yok, ilanı açıp analiz edin" denir.
+- Sohbet kartlarında "Puan", "Eksper: risk …" ve "Hatasız iddiası tutmuyor/şüpheli" etiketleri. Panelde ilan karşılaştırması da eksper yorumunu kullanır. Sunucu yok, sahibinden'e ek istek yok.
+
 ## 7.26.0 — 2026-10-26
 
 - **Yedekle ve başka bilgisayarda geri yükle.** Paneldeki "Yedek indir" artık tüm verini tek bir JSON dosyasına yazar: kayıtlı ilanlar (takip listesi, satıcı numaraları, fiyat geçmişi dahil), galeri stoğu, kayıtlı aramalar, bildirimler ve bildirim ayarları, ilan sohbet geçmişi, "yapay zekaya kaydet" listesi, galeri kâr hesabına girdiğin değerler, tema ve sohbet ayarları. İndirmeden önce yedeğe ne gireceği sayılarla gösterilir. Dosyada sürüm ve biçim bilgisi vardır.

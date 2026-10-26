@@ -296,9 +296,59 @@
   const COMPARE_MIN = 2;
   const COMPARE_MAX = 5;
 
+  // Ekspertiz yorumu (expertise.js): kayıttaki özet ya da satıcının şemasından yeniden kurulan yorum; yoksa null.
+  function expertiseOf(record) {
+    if (record?.expertise?.risk) return record.expertise;
+    try {
+      const expertise = root.OtoExpertise || (typeof require === 'function' ? require('./expertise.js') : null);
+      return expertise?.forRecord(record) || null;
+    } catch {
+      return null;
+    }
+  }
+
+  const RISK_WORD = { low: 'düşük', medium: 'orta', high: 'yüksek', unknown: 'bilinmiyor' };
+  const CLAIM_WORD = { consistent: 'tutarlı', doubtful: 'şüpheli', contradicted: 'tutmuyor' };
+  const RISK_POINTS = { low: 6, medium: -12, high: -30, unknown: 0 };
+  const CLAIM_POINTS = { consistent: 3, doubtful: -4, contradicted: -10, none: 0 };
+
+  // "En mantıklı ilan" puanı (0-100): fırsat puanı (fiyat, kaporta, satıcı güveni) ekspertiz yorumu ve ağır uyarılarla
+  // düzeltilir. Fırsat puanı yoksa piyasa farkından kaba bir taban alınır. Ekspertiz bilgisi olmayan ilan cezalanmaz
+  // ama "bilinmiyor" diye yazılır. Model sıralamayı bu puanla görür; hesap eklentide yapılır.
+  function senseScore(entry) {
+    const { record, result, deal, advice } = entry || {};
+    const expertise = expertiseOf(record);
+    const base = deal ? deal.score : result?.center ? Math.max(0, Math.min(60, 35 - result.gap * 100)) : 15;
+    const notes = [];
+    let total = base;
+    if (expertise && expertise.risk !== 'unknown') {
+      const points = RISK_POINTS[expertise.risk] + (CLAIM_POINTS[expertise.claim] || 0);
+      total += points;
+      notes.push(`ekspertiz ${points >= 0 ? '+' : ''}${points}`);
+    }
+    const bad = (advice?.flags || []).filter(flag => flag.level === 'bad').length;
+    if (bad) {
+      total -= Math.min(20, bad * 10);
+      notes.push(`ağır uyarı -${Math.min(20, bad * 10)}`);
+    }
+    return { score: Math.round(Math.max(0, Math.min(100, total))), base: Math.round(base), notes, expertise };
+  }
+
+  function expertiseFact(expertise) {
+    if (!expertise) return 'ekspertiz yorumu yok (ilan sayfası açılıp analiz edilmemiş)';
+    const parts = [`ekspertiz riski ${RISK_WORD[expertise.risk]}`];
+    if (CLAIM_WORD[expertise.claim]) parts.push(`hatasız iddiası ${CLAIM_WORD[expertise.claim]}`);
+    if (expertise.reasons?.length) parts.push(expertise.reasons.join(' '));
+    if (expertise.high > 0)
+      parts.push(`kaporta durumu fiyatı kabaca %${Math.round(expertise.low)}–%${Math.round(expertise.high)} düşürür`);
+    if (!expertise.text) parts.push('yalnızca satıcının boya/değişen şemasına göre');
+    return `ekspertiz yorumu: ${parts.join(', ')}`;
+  }
+
   // Karşılaştırma için her ilanın kısa özeti. Yalnızca eklentinin kayıtlı verisi kullanılır.
   function compareFacts(entries, today = new Date(), max = COMPARE_MAX) {
     return entries.slice(0, max).map(({ record, result, deal, advice }, index) => {
+      const sense = senseScore({ record, result, deal, advice });
       const body = bodyOf(record);
       const years = Math.max(0.5, today.getUTCFullYear() - record.year + 0.5);
       const parts = [
@@ -310,6 +360,8 @@
           : 'piyasa tahmini yok',
         body.known ? `kaporta ${body.score}/100 (${body.label})` : 'kaporta şeması okunmadı',
         deal ? `fırsat puanı ${deal.score}/100` : 'fırsat puanı yok',
+        expertiseFact(sense.expertise),
+        `Oto Pusula toplam puanı ${sense.score}/100${sense.notes.length ? ` (${sense.notes.join(', ')})` : ''}`,
         record.sellerType ? `satıcı: ${record.sellerType}` : '',
         record.city || '',
         advice?.offer
@@ -330,12 +382,16 @@
     }
   }
 
+  const SENSE_RULE =
+    '“En mantıklı / en iyi N ilan” gibi seçim sorularında ilanlar Oto Pusula toplam puanına göre sıralı verildi; bu sırayı esas al, değiştirirsen nedenini söyle. Her seçtiğin ilan için fiyat değerlendirmesini (piyasa ortasına göre fark, fırsat puanı, pazarlık önerisi) ve ekspertiz yorumunu (risk, hatasız iddiası, kaporta) birlikte bir-iki cümlede gerekçelendir. Ekspertiz yorumu olmayan ilan için “ilanı açıp Analiz et’e basın, eksper yorumu çıksın” de.';
+
   function compareSystemPrompt(lines) {
     return [
       'Sen Oto Pusula adlı ikinci el araç eklentisinin asistanısın; otomobiller konusunda bilgili, dürüst bir danışmansın.',
       'Kullanıcı aşağıdaki ilanlar arasında karar vermek istiyor. Her zaman Türkçe ve sade yaz.',
       'Önce en mantıklı seçeneği numarasıyla söyle, sonra her ilan için bir-iki cümlelik artı/eksi ver, en sonda kısa bir gerekçe yaz (en fazla 10-12 cümle).',
       'Fiyat yorumunda eklentinin piyasa tahminini, fırsat puanını, kaporta puanını ve uyarıları kullan; yeni fiyat uydurma. Model ve motorların genel bilinen güçlü/zayıf yanlarını belirsizlik payıyla ekleyebilirsin.',
+      SENSE_RULE,
       'Kaporta bilgisi satıcı beyanıdır; kesin “al” demek yerine ekspertiz ve tramer kontrolünü hatırlat.',
       ...EXPERT_RULES,
       '',
@@ -344,10 +400,10 @@
     ].join('\n');
   }
 
-  // Yapay zeka olmadan da gösterilen sıralama: fırsat puanı, yoksa piyasaya göre fark.
+  // Yapay zeka olmadan da gösterilen sıralama: toplam puan (fırsat puanı + ekspertiz yorumu + ağır uyarılar).
   function rankForCompare(entries) {
-    const score = entry => (entry.deal ? entry.deal.score : entry.result?.center ? 40 - entry.result.gap * 100 : -1);
-    return [...entries].sort((a, b) => score(b) - score(a));
+    const scored = entries.map(entry => ({ entry, score: senseScore(entry).score }));
+    return scored.sort((a, b) => b.score - a.score).map(item => item.entry);
   }
 
   // Arama sonuçları sayfası: küçük modele sığması için ilanlar fırsat puanına göre sıralanıp ilk LIST_MAX tanesi verilir.
@@ -382,7 +438,7 @@
     const lines = compareFacts(ranked, today, max);
     const priced = entries.filter(entry => entry.result?.center);
     const cheap = priced.filter(entry => entry.result.gap < 0).length;
-    const best = entries.length > max ? `; fırsat puanına göre en iyi ${max} tanesi aşağıda` : '';
+    const best = entries.length > max ? `; toplam puana göre en iyi ${max} tanesi aşağıda` : '';
     const stats = `Piyasa tahmini olan ${priced.length} ilanın ${cheap} tanesi piyasa ortasının altında.`;
     if (scope.kind === 'all') {
       const total = scope.total ?? entries.length;
@@ -520,7 +576,8 @@
       where,
       'Her zaman Türkçe ve sade yaz.',
       'İlanlardan söz ederken numarasını ve kısa adını yaz (ör. “İlan 2 · Egea 2021, 850.000 TL”). Listede olmayan ilan, fiyat ya da özellik uydurma.',
-      'Seçim sorularında fırsat puanını, piyasa ortasına göre farkı, km yorumunu, kaporta puanını ve uyarıları birlikte tart; neden seçtiğini her ilan için tek cümleyle söyle. Uyarısı olan ilanları neden riskli olduğuyla belirt.',
+      'Seçim sorularında fırsat puanını, piyasa ortasına göre farkı, km yorumunu, kaporta puanını, ekspertiz yorumunu ve uyarıları birlikte tart; neden seçtiğini her ilan için tek cümleyle söyle. Uyarısı ya da ekspertiz riski yüksek olan ilanları neden riskli olduğuyla belirt.',
+      SENSE_RULE,
       'Listedeki bilgi yetmiyorsa (ör. kaporta şeması okunmamış) ilanı açıp analiz etmeyi öner. Kesin “al” deme; ekspertiz ve tramer kontrolünü hatırlat.',
       ...EXPERT_RULES,
       '',
@@ -870,39 +927,61 @@
     const folded = fold(text);
     const name = (entry, index) =>
       `İlan ${index + 1} · ${[entry.record.brand, entry.record.model].filter(Boolean).join(' ')} ${entry.record.year}, ${lira(entry.record.price)}`;
-    const detail = entry =>
-      [
+    const detail = entry => {
+      const sense = senseScore(entry);
+      const expertise = sense.expertise;
+      return [
         `${Number(entry.record.km).toLocaleString('tr-TR')} km`,
+        `toplam puan ${sense.score}/100`,
         entry.deal ? `fırsat puanı ${entry.deal.score}/100` : '',
         entry.result?.center
           ? `piyasa ortasının ${percent(entry.result.gap)} ${entry.result.gap < 0 ? 'altında' : 'üstünde'}`
-          : 'piyasa tahmini yok'
+          : 'piyasa tahmini yok',
+        expertise && expertise.risk !== 'unknown'
+          ? `ekspertiz riski ${RISK_WORD[expertise.risk]}${CLAIM_WORD[expertise.claim] ? `, hatasız iddiası ${CLAIM_WORD[expertise.claim]}` : ''}${expertise.reasons?.[0] ? ` (${expertise.reasons[0].replace(/\.$/, '')})` : ''}`
+          : 'ekspertiz yorumu yok, ilanı açıp analiz edin',
+        entry.advice?.offer ? `pazarlıkta hedef ${lira(entry.advice.offer.target)}` : ''
       ]
         .filter(Boolean)
         .join(', ');
+    };
     if (!shown.length) return `**Kısa cevap:** Değerlendirilecek ilan bulunamadı.\n\n${NO_AI}`;
     const out = [];
     if (view.noMatch) out.push('Sorudaki şartlara uyan ilan yok; en yakın seçenekler aşağıda.', '');
     const numbered = shown.map((entry, index) => ({ entry, index }));
     if (/uzak dur|riskli|kaçın|tehlikeli|sorunlu/.test(folded) && !/en az riskli/.test(folded)) {
-      const risky = numbered.filter(({ entry }) => (entry.advice?.flags || []).length);
+      const highRisk = entry => ['high', 'medium'].includes(expertiseOf(entry.record)?.risk);
+      const risky = numbered.filter(({ entry }) => (entry.advice?.flags || []).length || highRisk(entry));
       out.push(
         risky.length
           ? `**Kısa cevap:** ${risky.length} ilanda eklentinin uyarısı var.`
           : '**Kısa cevap:** Listedeki ilanlarda eklentinin uyarısı yok; yine de ekspertiz şart.',
         ''
       );
-      for (const { entry, index } of risky.slice(0, 6))
-        out.push(`- **${name(entry, index)}:** ${entry.advice.flags.map(flag => flag.label).join(', ')}`);
+      for (const { entry, index } of risky.slice(0, 6)) {
+        const expertise = expertiseOf(entry.record);
+        const reasons = [
+          ...(entry.advice?.flags || []).map(flag => flag.label),
+          ...(highRisk(entry)
+            ? [
+                `ekspertiz riski ${RISK_WORD[expertise.risk]}${expertise.reasons?.[0] ? ` (${expertise.reasons[0].replace(/\.$/, '')})` : ''}`
+              ]
+            : [])
+        ];
+        out.push(`- **${name(entry, index)}:** ${reasons.join(', ')}`);
+      }
     } else {
       let picks = numbered;
       if (/düşük km|az km|en az km/.test(folded))
         picks = [...numbered].sort((a, b) => a.entry.record.km - b.entry.record.km);
-      else if (/en az riskli/.test(folded)) picks = numbered.filter(({ entry }) => !(entry.advice?.flags || []).length);
+      else if (/en az riskli/.test(folded))
+        picks = numbered.filter(
+          ({ entry }) => !(entry.advice?.flags || []).length && expertiseOf(entry.record)?.risk !== 'high'
+        );
       picks = picks.slice(0, 3);
       out.push(
         picks.length
-          ? `**Kısa cevap:** Eklentinin hesabına göre öne çıkanlar: ${picks.map(({ index }) => `İlan ${index + 1}`).join(', ')}.`
+          ? `**Kısa cevap:** Eklentinin hesabına göre (fiyat + ekspertiz yorumu) öne çıkanlar: ${picks.map(({ index }) => `İlan ${index + 1}`).join(', ')}.`
           : '**Kısa cevap:** Uyarısız ilan yok; aşağıdaki uyarıları inceleyin.',
         ''
       );
@@ -1011,6 +1090,8 @@
     COMPARE_MIN,
     COMPARE_MAX,
     compareFacts,
+    senseScore,
+    expertiseOf,
     compareSystemPrompt,
     rankForCompare,
     MAX_QUESTION,

@@ -236,6 +236,9 @@ class FakeNode {
   replaceChildren(...children) {
     this.children = [...children];
   }
+  prepend(...children) {
+    this.children.unshift(...children);
+  }
   addEventListener(name, callback) {
     this.listeners[name] = callback;
   }
@@ -264,6 +267,7 @@ async function popupWithModel(
     damage,
     captures = [],
     clock,
+    history = false,
     timers = { setTimeout, clearTimeout }
   } = {}
 ) {
@@ -343,6 +347,7 @@ async function popupWithModel(
     'assistant.js',
     ...(expertise ? ['expertise.js'] : []),
     ...(remote ? ['remote-ai.js'] : []),
+    ...(history ? ['chat-history.js'] : []),
     'popup.js'
   ])
     vm.runInContext(fs.readFileSync(require.resolve(`./${file}`), 'utf8'), context);
@@ -352,7 +357,7 @@ async function popupWithModel(
   const children = get('result').children;
   return Object.assign(
     children.find(child => child.className === 'chat'),
-    { siblings: children, body }
+    { siblings: children, body, get }
   );
 }
 
@@ -1308,7 +1313,7 @@ test('liste süzgeci: bütçe, km, yıl, vites, yakıt ve model sorudan okunur; 
   const big = assistant.listContext('en iyisi?', many);
   assert.equal(big.shown.length, assistant.LIST_MAX);
   assert.equal(big.shown[0].deal.score, 29, 'fırsat puanına göre ön eleme');
-  assert.match(big.lines[0], /30 ilan okundu; fırsat puanına göre en iyi 15/);
+  assert.match(big.lines[0], /30 ilan okundu; toplam puana göre en iyi 15/);
 });
 
 test('popup: ilan analizinde ekspertiz yorumu kendiliğinden gösterilir, sohbete de verilir', async () => {
@@ -1621,4 +1626,154 @@ test('popup: yerleşik model düşerse yedek cevap, uydurma tutar yazarsa cevab�
   await chip.click();
   const warn = walk(chat).find(node => node.className === 'chat-note warn');
   assert.match(warn.textContent, /Verilerde olmayan tutar: 123\.456 TL/);
+});
+
+test('arama sayfası sohbeti: ilana gidip dönünce (popup yeniden açılınca) kaldığı yerden sürer, bağlantılar aynı ilanı açar', async () => {
+  const page = searchPage([
+    ['1.4 Fire Urban', 2021, '90.000', '850.000 TL'],
+    ['1.4 Fire Urban', 2020, '110.000', '760.000 TL'],
+    ['1.3 Multijet Easy', 2019, '150.000', '720.000 TL'],
+    ['1.4 Fire Easy', 2022, '45.000', '935.000 TL']
+  ]);
+  const storage = new Map();
+  const systems = [];
+  const api = {
+    availability: async () => 'available',
+    create: async options => {
+      systems.push(options.initialPrompts[0].content);
+      return { prompt: async () => '**Kısa cevap:** İlan 2 en mantıklısı, sonra İlan 1.', destroy() {} };
+    }
+  };
+  const settle = async () => {
+    for (let i = 0; i < 5; i += 1) await new Promise(resolve => setImmediate(resolve));
+  };
+  const first = await popupWithModel(api, { page, storage, history: true });
+  const form = walk(first).find(node => node.tag === 'form');
+  form.children.find(node => node.tag === 'input').value = 'Bu listede en mantıklı 3 ilan hangisi?';
+  await form.listeners.submit({ preventDefault() {} });
+  await settle();
+  const before = walk(first)
+    .filter(node => node.className === 'chat-ref')
+    .map(node => node.title);
+  assert.equal(before.length, 2);
+  assert.ok([...storage.keys()].includes('otoPusula_chat'), 'arama sohbeti bu bilgisayara kaydedilir');
+  assert.match(storage.get('otoPusula_chat'), /list:\/fiat-egea/);
+
+  // Kullanıcı ilana gitti, popup kapandı. Aynı aramaya dönüp popup'ı yeniden açıyor.
+  const opened = [];
+  const second = await popupWithModel(api, { page, storage, history: true, opened });
+  await settle();
+  assert.match(second.get('page-hint').textContent, /önceki sohbetiniz kayıtlı \(1 soru\)/);
+  assert.equal(second.get('analyze').textContent, 'Analiz et ve sohbete devam et');
+  const nodes = walk(second);
+  assert.ok(nodes.some(node => /Bu aramadaki önceki sohbet/.test(node.textContent)));
+  assert.ok(nodes.some(node => node.textContent === 'Bu listede en mantıklı 3 ilan hangisi?'));
+  const refs = nodes.filter(node => node.className === 'chat-ref');
+  assert.deepEqual(
+    refs.map(node => node.title),
+    before,
+    'geri yüklenen cevaptaki İlan 1 / İlan 2 aynı ilanlara bağlı'
+  );
+  assert.ok(
+    nodes.some(node => /^chat-pick /.test(node.className)),
+    'ilan kartları da geri gelir'
+  );
+  refs[0].click();
+  assert.match(opened[0], /^https:\/\/www\.sahibinden\.com\/ilan\//);
+
+  // Sohbet sürer: yeni soruda önceki soru-cevap modele verilir.
+  const again = walk(second).find(node => node.tag === 'form');
+  again.children.find(node => node.tag === 'input').value = 'Peki İlan 2 için ne kadar teklif vermeliyim?';
+  await again.listeners.submit({ preventDefault() {} });
+  await settle();
+  assert.match(systems.at(-1), /ÖNCEKİ SOHBET[\s\S]*en mantıklı 3 ilan/);
+
+  // Geçmişi sil: kayıt gider.
+  await walk(second)
+    .find(node => node.className === 'chat-wipe')
+    .click();
+  assert.doesNotMatch(storage.get('otoPusula_chat'), /list:\/fiat-egea/);
+});
+
+test('en mantıklı ilan: ekspertiz riski ve hatasız iddiası fiyatla birlikte tartılır; bilgiler modele ve yedek cevaba girer', () => {
+  const make = (id, price, expertise) =>
+    core.normalizeRecord(
+      {
+        id: `sh-${id}`,
+        source: 'sahibinden',
+        listingId: id,
+        brand: 'Fiat',
+        model: 'Egea',
+        year: 2021,
+        km: 90000,
+        price,
+        ...(expertise ? { expertise } : {})
+      },
+      'comparable'
+    );
+  const result = price => ({
+    center: 850000,
+    gap: (price - 850000) / 850000,
+    confidence: 'yüksek',
+    status: 'aralıkta',
+    count: 9
+  });
+  const cheapRisky = make('1000000011', 760000, {
+    risk: 'high',
+    claim: 'contradicted',
+    reasons: ['Hatasız iddiası tutmuyor.'],
+    low: 6,
+    high: 12,
+    text: true
+  });
+  const fairClean = make('1000000012', 820000, { risk: 'low', claim: 'consistent', reasons: [], text: true });
+  const unknown = make('1000000013', 800000);
+  const entries = [cheapRisky, fairClean, unknown].map((record, i) => ({
+    record,
+    result: result(record.price),
+    deal: { score: [82, 66, 70][i] },
+    advice: { flags: [] }
+  }));
+  assert.equal(assistant.senseScore(entries[0]).score, 82 - 30 - 10);
+  assert.equal(assistant.senseScore(entries[1]).score, 66 + 6 + 3);
+  assert.equal(assistant.senseScore(entries[2]).score, 70, 'eksper bilgisi yoksa cezalanmaz');
+  assert.deepEqual(
+    assistant.rankForCompare(entries).map(entry => entry.record.listingId),
+    ['1000000012', '1000000013', '1000000011'],
+    'ucuz ama hatasız iddiası tutmayan ilan sona düşer'
+  );
+
+  const view = assistant.listContext('Bu listede en mantıklı 3 ilan hangisi?', entries, today);
+  const text = view.lines.join('\n');
+  assert.match(
+    text,
+    /İlan 1: Fiat Egea.*ekspertiz riski düşük, hatasız iddiası tutarlı.*Oto Pusula toplam puanı 75\/100/
+  );
+  assert.match(text, /İlan 2: .*ekspertiz yorumu yok \(ilan sayfası açılıp analiz edilmemiş\)/);
+  assert.match(
+    text,
+    /İlan 3: .*ekspertiz riski yüksek, hatasız iddiası tutmuyor, Hatasız iddiası tutmuyor\., kaporta durumu fiyatı kabaca %6–%12 düşürür/
+  );
+  const system = assistant.listSystemPrompt(view.lines);
+  assert.match(system, /Oto Pusula toplam puanına göre sıralı/);
+  assert.match(system, /fiyat değerlendirmesini .* ve ekspertiz yorumunu .* birlikte/);
+  assert.match(assistant.compareSystemPrompt(view.lines), /Oto Pusula toplam puanına göre sıralı/);
+  assert.deepEqual(
+    assistant.checkAnswer('İlan 3 piyasanın %11 altında ama kaporta fiyatı %6–%12 düşürür; hatasız iddiası tutmuyor.', {
+      source: system,
+      count: 3
+    }),
+    [],
+    'eksper ve fiyat rakamları kaynakta olduğu için uydurma sayılmaz'
+  );
+
+  const fallback = assistant.listFallbackAnswer('Bu listede en mantıklı 3 ilan hangisi?', view);
+  assert.match(fallback, /fiyat \+ ekspertiz yorumu/);
+  assert.match(
+    fallback,
+    /İlan 1 · Fiat Egea 2021.*toplam puan 75\/100.*ekspertiz riski düşük, hatasız iddiası tutarlı/
+  );
+  assert.match(fallback, /İlan 2 .*ekspertiz yorumu yok, ilanı açıp analiz edin/);
+  const avoid = assistant.listFallbackAnswer('Hangi ilanlardan uzak durmalıyım?', view);
+  assert.match(avoid, /İlan 3 .*ekspertiz riski yüksek \(Hatasız iddiası tutmuyor\)/);
 });

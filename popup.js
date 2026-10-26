@@ -514,7 +514,8 @@
           deal: core.dealScore(record, result),
           advice: core.advise(record, result)
         }));
-        nodes.push(chatSection({ kind: 'list', entries }));
+        const chatKey = globalThis.OtoChatHistory?.pageKey(activeTab?.url || raw?.url) || '';
+        nodes.push(chatSection({ kind: 'list', entries, chatKey }));
       }
     } catch {
       /* sohbet açılamasa da sonuç gösterilir */
@@ -1005,8 +1006,24 @@
           )
         );
       }
+      // Toplam puan ve eksper yorumu: "en mantıklı" sıralaması bunlarla yapılır (assistant.senseScore).
+      const sense = assistant.senseScore?.({ record, result, deal, advice });
+      if (sense) tags.append(element('span', 'chat-tag strong', `Puan ${sense.score}`));
       if (deal) tags.append(element('span', 'chat-tag', `Fırsat ${deal.score}`));
       if (body.known) tags.append(element('span', 'chat-tag', `Kaporta ${body.score}`));
+      const expertise = sense?.expertise;
+      if (expertise && expertise.risk !== 'unknown')
+        tags.append(
+          element(
+            'span',
+            `chat-tag ${{ high: 'bad', medium: 'warn', low: 'good' }[expertise.risk]}`,
+            `Eksper: risk ${{ high: 'yüksek', medium: 'orta', low: 'düşük' }[expertise.risk]}`
+          )
+        );
+      else tags.append(element('span', 'chat-tag muted', 'Eksper yorumu yok'));
+      if (expertise?.claim === 'contradicted') tags.append(element('span', 'chat-tag bad', 'Hatasız iddiası tutmuyor'));
+      else if (expertise?.claim === 'doubtful')
+        tags.append(element('span', 'chat-tag warn', 'Hatasız iddiası şüpheli'));
       for (const flag of warnings.slice(0, 2))
         tags.append(element('span', `chat-tag ${flag.level}`, `⚠ ${flag.label}`));
       if (tags.children?.length) main.append(tags);
@@ -1055,9 +1072,12 @@
     };
 
     const listMode = chat.context.kind === 'list';
-    const history = listMode ? null : globalThis.OtoChatHistory;
     const recordId = listMode ? null : chat.context.record.id;
-    // Liste sohbeti: her soruda ilanlar soruya göre süzülür; önceki sorular yalnızca bu pencerede tutulur.
+    // Sohbet bu bilgisayarda saklanır: ilan sohbeti ilan kimliğiyle, arama sayfası sohbeti aramanın adresiyle. Böylece
+    // cevaptaki ilana gidip dönünce ya da popup kapanıp açılınca sohbet kaldığı yerden sürer.
+    const chatKey = listMode ? chat.context.chatKey : recordId;
+    const history = chatKey ? globalThis.OtoChatHistory : null;
+    // Liste sohbeti: her soruda ilanlar soruya göre süzülür; modele son iki soru-cevap da verilir.
     let listView = null;
     const listTurns = [];
     // Liste sohbetinin kapsamı: açık sayfa ("page") ya da eklentide kayıtlı, okunan tüm sayfalardaki ilanlar ("all",
@@ -1353,7 +1373,9 @@
             listTurns.push({ q: question, a: answer });
             listTurns.splice(0, Math.max(0, listTurns.length - 2));
           }
-          history?.add(recordId, question, answer).catch?.(() => {});
+          // "İlan N" bağlantıları geri yüklenince de aynı ilanı açsın diye o cevabın ilan sırası da saklanır.
+          const refs = (listMode ? view?.shown || [] : saved).map(entry => entry.record.id);
+          history?.add(chatKey, question, answer, undefined, refs).catch?.(() => {});
         }
         // Uydurma tutar/yüzde ya da listede olmayan ilan numarası varsa cevabın altında kısa bir uyarı çıkar.
         const note = answer
@@ -1509,31 +1531,83 @@
     }
     saveButton.addEventListener('click', () => toggle(recordId));
 
-    // Önceki sohbet: aynı ilana dönünce görünür, tek tuşla silinir.
+    // Geri yüklenen cevaptaki ilanlar: önce açık sayfadakiler, yoksa eklentinin yerel kaydından yeniden hesaplanır.
+    function entriesFor(refs = []) {
+      try {
+        const page = new Map((chat.context.entries || []).map(entry => [entry.record.id, entry]));
+        const all = store.load().comparables;
+        const byId = new Map(all.map(item => [item.id, item]));
+        return refs.map(id => {
+          if (page.has(id)) return page.get(id);
+          const record = byId.get(id);
+          if (!record) return null;
+          const result = core.estimate(record, all);
+          return { record, result, deal: core.dealScore(record, result), advice: core.advise(record, result) };
+        });
+      } catch {
+        return [];
+      }
+    }
+
+    // Kayıtlı bir cevap: "İlan N" bağlantıları ve ilan kartları o cevabın kendi ilan sırasıyla yeniden kurulur.
+    function pastAnswer(turn) {
+      const entries = entriesFor(turn.refs);
+      const node = element('div', 'chat-msg ai');
+      const rich = element('div', 'chat-ai chat-rich');
+      rich.append(...richNodes(turn.a, number => entries[number - 1]?.record));
+      node.append(rich);
+      try {
+        const cards = entries.some(Boolean)
+          ? listingCards(
+              turn.a,
+              entries.map(entry => entry || null)
+            )
+          : null;
+        if (cards) node.append(cards);
+      } catch {
+        /* kartlar çizilemese de cevap görünür */
+      }
+      node.append(actions(turn.a, turn.q));
+      return node;
+    }
+
+    // Önceki sohbet: aynı ilana ya da aynı aramaya dönünce görünür, tek tuşla silinir.
     async function restore() {
       try {
-        [pastTurns, savedList] = await Promise.all([history.load(recordId), history.savedIds()]);
+        [pastTurns, savedList] = await Promise.all([history.load(chatKey), listMode ? [] : history.savedIds()]);
       } catch {
         pastTurns = [];
         savedList = [];
       }
-      paintSaved();
-      if (!pastTurns.length) return;
+      if (!listMode) paintSaved();
+      if (view !== chatView || !pastTurns.length) return;
+      if (listMode) listTurns.push(...pastTurns.slice(-2).map(turn => ({ q: turn.q, a: turn.a })));
       const divider = element('div', 'chat-divider');
       const wipe = element('button', 'chat-wipe', 'Geçmişi sil');
       wipe.type = 'button';
       wipe.addEventListener('click', async () => {
-        await history.clear(recordId);
+        await history.clear(chatKey);
         pastTurns = [];
+        listTurns.length = 0;
         closeChat();
         log.replaceChildren();
+        chat.section.classList?.remove('started');
       });
-      divider.append(element('span', '', 'Önceki sohbet · bu bilgisayarda kayıtlı'), wipe);
-      log.prepend?.(divider, ...pastTurns.flatMap(turn => [bubble('me', turn.q), bubble('ai', turn.a)]));
+      divider.append(
+        element(
+          'span',
+          '',
+          listMode ? 'Bu aramadaki önceki sohbet · bu bilgisayarda kayıtlı' : 'Önceki sohbet · bu bilgisayarda kayıtlı'
+        ),
+        wipe
+      );
+      log.prepend?.(divider, ...pastTurns.flatMap(turn => [bubble('me', turn.q), pastAnswer(turn)]));
       chat.section.classList?.add('started');
+      // Kaldığı yer görünsün: son cevaba kaydırılır.
+      log.lastElementChild?.scrollIntoView?.({ block: 'start' });
     }
     if (history) restore();
-    else saveButton.hidden = true;
+    if (!history || listMode) saveButton.hidden = true;
     if (listMode) savedStrip.hidden = true;
 
     const composer = element('div', 'chat-composer');
@@ -1632,6 +1706,19 @@
     scopeBar.append(element('span', 'chat-scope-label', 'Kapsam'), pageButton, allButton, brandSelect);
     if (scopeChoosable()) paintScope();
     chat.section.replaceChildren(head, scopeBar, savedStrip, ...notices, empty, log, status, composer);
+  }
+
+  // Bu sayfada (ya da aynı aramada) kayıtlı bir sohbet varsa popup açılır açılmaz söylenir; analiz edince sohbet
+  // kaldığı yerden görünür. Sayfa kendiliğinden okunmaz: okuma yine yalnızca kullanıcı düğmeye basınca yapılır.
+  async function resumeHint(url) {
+    const history = globalThis.OtoChatHistory;
+    const key = history?.pageKey(url);
+    if (!key) return;
+    const turns = await history.load(key).catch(() => []);
+    if (!turns.length) return;
+    $('analyze').textContent = 'Analiz et ve sohbete devam et';
+    $('page-hint').textContent =
+      `Bu ${key.startsWith('list:') ? 'aramada' : 'ilanda'} önceki sohbetiniz kayıtlı (${turns.length} soru). Analiz edince kaldığınız yerden devam eder.`;
   }
 
   async function analyze() {
@@ -1785,6 +1872,7 @@
           ? 'İlan sayfası: fiyat ve satıcı açıklaması okunacak.'
           : 'Arama sonucu: listedeki ilanlar okunacak.'
         : 'sahibinden.com’da bir arama sonucu veya ilan sayfası açın.';
+      return activeTab ? resumeHint(activeTab.url) : null;
     })
     .catch(() => {
       $('page-hint').textContent = 'Sekme bilgisi alınamadı.';

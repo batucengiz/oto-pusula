@@ -808,3 +808,41 @@ test('açıklama uyarıları: riskli ifadeler yakalanır, olumsuzlar ve olağan 
     []
   );
 });
+
+test('ilan sayfası: ekspertiz yorumunun kısa özeti kayda yazılır, arama sayfası yeniden okununca silinmez', () => {
+  const detail = {
+    kind: 'detail',
+    url: 'https://www.sahibinden.com/ilan/vasita-otomobil-fiat-egea-1234567801/detay',
+    listingId: '1234567801',
+    title: 'HATASIZ BOYASIZ EGEA',
+    priceText: '850.000 TL',
+    location: 'İstanbul / Kadıköy',
+    info: [
+      ['Marka', 'Fiat'],
+      ['Seri', 'Egea'],
+      ['Model', '1.4 Fire Urban'],
+      ['Yıl', '2021'],
+      ['KM', '90.000']
+    ],
+    description: 'Araç hatasız boyasız. Sol ön kapı değişen. 150.000 TL tramer kaydı var.',
+    damage: { changed: ['Sol Ön Kapı'], painted: [], local: [] }
+  };
+  const record = listing.parseDetailPage(detail);
+  assert.equal(record.expertise.risk, 'high');
+  assert.equal(record.expertise.claim, 'contradicted');
+  assert.equal(record.expertise.text, true);
+  assert.ok(record.expertise.reasons.length >= 1 && record.expertise.reasons.length <= 3);
+  assert.equal(record.description, undefined, 'açıklamanın kendisi saklanmaz');
+
+  const state = listing.ingest(detail, { schema: 1, stock: [], comparables: [], pages: [] }).state;
+  const search = listing.parseSearchPage({
+    kind: 'search',
+    pageTitle: 'Fiat Egea',
+    headers: HEADERS,
+    rows: [row('1234567801', '1.4 Fire Urban', 'HATASIZ BOYASIZ EGEA', '2021', '90.000', '840.000 TL')]
+  });
+  const merged = core.mergeObservations(state.comparables, search.records).records;
+  assert.equal(merged[0].price, 840000);
+  assert.equal(merged[0].expertise.claim, 'contradicted', 'listeden gelen kayıt eksper özetini silmez');
+  assert.equal(core.normalizeRecord({ ...merged[0], expertise: { risk: 'bozuk' } }, 'comparable').expertise, undefined);
+});

@@ -49,7 +49,7 @@ test('sohbet geçmişi: ilan başına saklanır, sınırlıdır, eskiyen silinir
   );
   assert.deepEqual(stale, {});
   assert.deepEqual(chatHistory.prune('bozuk'), {});
-  assert.equal(chatHistory.append({}, 'x', 'q', 'a'.repeat(5000)).x.turns[0].a.length, 1500);
+  assert.equal(chatHistory.append({}, 'x', 'q', 'a'.repeat(5000)).x.turns[0].a.length, chatHistory.MAX_TEXT);
   storage.setItem(chatHistory.KEY, '{bozuk json');
   assert.deepEqual(await chatHistory.load('a', storage), [], 'bozuk kayıt sohbeti bozmaz');
 });
@@ -287,4 +287,23 @@ test('karşılaştırma seçimi kutucukla yapılır; ilan adı sahibinden’deki
     globalThis.document = saved.document;
     globalThis.OtoChatHistory = saved.history;
   }
+});
+
+test('sohbet anahtarı: ilan sayfasında kayıt kimliği, arama sayfasında sayfa numarası/sıralama atılmış arama', async () => {
+  const detail = 'https://www.sahibinden.com/ilan/vasita-otomobil-fiat-egea-temiz-1234567890/detay';
+  assert.equal(chatHistory.pageKey(detail), record('1234567890').id, 'ilan sohbetinin kayıt anahtarıyla aynı');
+  const page1 = chatHistory.pageKey('https://www.sahibinden.com/fiat-egea?a5_min=2019&sorting=price_asc');
+  const page2 = chatHistory.pageKey('https://www.sahibinden.com/fiat-egea/?pagingOffset=20&a5_min=2019');
+  assert.equal(page1, 'list:/fiat-egea?a5_min=2019');
+  assert.equal(page2, page1, 'aynı aramanın 2. sayfası aynı sohbet');
+  assert.notEqual(chatHistory.pageKey('https://www.sahibinden.com/fiat-egea?a5_min=2020'), page1);
+  assert.equal(chatHistory.pageKey('https://example.com/fiat-egea'), '');
+  assert.equal(chatHistory.pageKey('bozuk'), '');
+
+  const storage = memory();
+  await chatHistory.add(page1, 'En mantıklı 3 ilan?', 'İlan 2 en mantıklısı.', storage, ['a', 'b', 'c']);
+  const [turn] = await chatHistory.load(page1, storage);
+  assert.deepEqual(turn.refs, ['a', 'b', 'c'], 'cevaptaki İlan N sırası saklanır');
+  const cleaned = chatHistory.prune({ x: { at: Date.now(), turns: [{ q: 'q', a: 'a', refs: [1, 'ok', {}] }] } });
+  assert.deepEqual(cleaned.x.turns[0].refs, ['ok']);
 });
