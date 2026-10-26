@@ -718,6 +718,251 @@
       .join('\n\n');
   }
 
+  // --- Yapay zeka cevap veremezse: eklentinin kendi hesaplarıyla kurulan yedek cevap (model ve ağ yok). ---
+  // Yedek cevaptaki her rakam doğrudan eklentinin hesabından gelir; bu yüzden uydurma rakam içeremez.
+  const INTENTS = [
+    ['offtopic', /yemek tarif|tarifi|ödev|kod yaz|siyaset|seçim|maç|hava durumu|şiir|fıkra|bitcoin|borsa/],
+    ['offer', /teklif|pazarlık|indirim|kaça (alır|iner|veri)|ne kadar (ver|öde)|kaç para ver|son fiyat/],
+    ['seller', /satıcı(ya|yla)? .*sor|satıcıya|ne sormal/],
+    ['description', /açıklama|şüpheli|yalan|dolandırıc|kandır|tuzak/],
+    ['inspection', /ekspertiz|eksper|baktır|kronik|arıza|sorunlar|kontrol ettir/],
+    ['body', /boya|değişen|kaporta|hasar|tramer|kaza/],
+    ['km', /\bkm|kilometre/],
+    ['compare', /benzer|karşılaştır|kıyas|diğer ilan|neden (pahalı|ucuz)|pahalı\/ucuz|daha (pahalı|ucuz)/],
+    ['price', /değer mi|fiyat|piyasa|uygun mu|alınır mı|almalı mı|mantıklı mı|fırsat|kaç para/]
+  ];
+
+  function fallbackIntent(text) {
+    const folded = fold(text);
+    return INTENTS.find(([, pattern]) => pattern.test(folded))?.[0] || 'general';
+  }
+
+  const bullets = items => items.map(item => `- ${item}`);
+  const NO_AI = 'Bu cevap yapay zeka olmadan, eklentinin kendi hesaplarıyla hazırlandı.';
+
+  function priceLines({ record, result, deal }) {
+    const lines = [];
+    if (result?.center) {
+      lines.push(
+        `İlan fiyatı **${lira(record.price)}**; eklentinin piyasa tahmini ${lira(result.low)} – ${lira(result.high)} (orta ${lira(result.center)}).`,
+        `İlan piyasa ortasının **${percent(result.gap)} ${result.gap < 0 ? 'altında' : 'üstünde'}**; durum: ${result.status}, güven ${result.confidence} (${result.count} benzer ilan).`
+      );
+      if (typeof result.position === 'number' && result.count >= 4)
+        lines.push(`Benzer ilanların %${Math.round(result.position * 100)}'i (yıl/km düzeltmesiyle) bu araçtan ucuz.`);
+    } else lines.push(`İlan fiyatı ${lira(record.price)}; yeterli benzer ilan olmadığı için piyasa tahmini yok.`);
+    if (deal) lines.push(`Fırsat puanı **${deal.score}/100**${deal.label ? ` (${deal.label})` : ''}.`);
+    return lines;
+  }
+
+  function priceSummary({ result }) {
+    if (!result?.center) return 'Piyasa tahmini için yeterli benzer ilan yok; fiyatın uygun olup olmadığı bilinmiyor.';
+    return result.gap < 0
+      ? `İlan, piyasa ortasının ${percent(result.gap)} altında (${result.status}).`
+      : `İlan, piyasa ortasının ${percent(result.gap)} üstünde (${result.status}).`;
+  }
+
+  function fallbackAnswer(text, context) {
+    const { record, result, body, advice, textFlags = [], expertise = [], today = new Date() } = context;
+    const intent = fallbackIntent(text);
+    const out = [];
+    if (intent === 'offtopic')
+      return `**Kısa cevap:** Ben yalnızca araçlar ve bu ilan hakkında yardımcı olabiliyorum.\n\nŞunları sorabilirsiniz:\n${bullets(SUGGESTIONS.slice(0, 4)).join('\n')}`;
+    if (intent === 'offer') {
+      const reasons = offerReasons({ record, result, body, advice });
+      if (advice?.offer) {
+        out.push(
+          `**Kısa cevap:** Açılış teklifi **${lira(advice.offer.open)}**, hedef **${lira(advice.offer.target)}**.`,
+          '',
+          advice.offer.note
+        );
+        if (reasons.length) out.push('', '## Pazarlık gerekçeleri', ...bullets(reasons));
+      } else
+        out.push(
+          '**Kısa cevap:** Eklenti bu ilan için teklif rakamı önermiyor (piyasa tahmini yetersiz ya da ağır hasar var).',
+          '',
+          ...(reasons.length ? ['## Pazarlıkta söylenebilecekler', ...bullets(reasons)] : []),
+          'Teklif vermeden önce ekspertiz ve tramer sonucunu görün.'
+        );
+    } else if (intent === 'seller')
+      out.push(
+        '**Kısa cevap:** Satıcıya önce hasar kaydını ve ekspertiz iznini sorun.',
+        '',
+        '## Sorulacaklar',
+        ...bullets(sellerQuestions({ record, body, advice }))
+      );
+    else if (intent === 'inspection') {
+      out.push('**Kısa cevap:** Ekspertizde aşağıdaki maddeleri mutlaka baktırın.');
+      if (expertise.length)
+        out.push('', '## Ekspertiz yorumu', ...bullets(expertise.map(line => clean(line.text, 300))));
+      out.push('', '## Baktırılacaklar', ...bullets(inspectionChecklist({ record, body, advice, textFlags, today })));
+      if (/kronik|arıza|sorun/.test(fold(text)))
+        out.push('', 'Bu modele özgü kronik sorunlar için yapay zeka gerekiyor; yetkili servise de sorabilirsiniz.');
+    } else if (intent === 'description')
+      out.push(
+        ...(textFlags.length
+          ? [
+              `**Kısa cevap:** Açıklamada ${textFlags.length} dikkat çeken ifade var.`,
+              '',
+              ...bullets(textFlags.map(flag => `**${flag.label}:** ${flag.text} («${clean(flag.quote, 120)}»)`))
+            ]
+          : [
+              '**Kısa cevap:** Açıklamada belirgin bir risk ifadesi bulunmadı.',
+              '',
+              'Yine de ekspertiz ve tramer kontrolü gerekli.'
+            ]),
+        ...(advice?.flags?.length
+          ? ['', '## Eklentinin uyarıları', ...bullets(advice.flags.map(f => `**${f.label}:** ${f.text}`))]
+          : [])
+      );
+    else if (intent === 'km') {
+      const years = Math.max(0.5, today.getUTCFullYear() - record.year + 0.5);
+      const perYear = record.km / years;
+      out.push(
+        `**Kısa cevap:** Yıllık kullanım ${kmVerdict(perYear)}.`,
+        '',
+        `${record.year} model, ${record.km.toLocaleString('tr-TR')} km: yılda ortalama yaklaşık ${Math.round(perYear).toLocaleString('tr-TR')} km.`,
+        record.km >= 120000
+          ? 'Yüksek km’de triger/zincir, debriyaj, şanzıman ve yürüyen aksam bakımını sorun.'
+          : 'Km’nin gerçek olduğunu servis kayıtlarıyla doğrulayın.'
+      );
+    } else if (intent === 'body') {
+      const known = body?.known;
+      out.push(
+        known
+          ? `**Kısa cevap:** Satıcı beyanına göre kaporta: ${body.label} (kaporta puanı ${body.score}/100).`
+          : '**Kısa cevap:** Satıcı boya/değişen şemasını doldurmamış; kaporta durumu bilinmiyor.'
+      );
+      if (known || record.condition) out.push('');
+      if (known && body.changed.length) out.push(`- Değişen: ${body.changed.join(', ')}`);
+      if (known && body.painted.length) out.push(`- Boyalı: ${body.painted.join(', ')}`);
+      if (known && body.local.length) out.push(`- Lokal boyalı: ${body.local.join(', ')}`);
+      if (record.condition) out.push(`- İlandaki hasar beyanı: ${record.condition}`);
+      out.push(
+        '',
+        '## Tramer nasıl sorgulanır',
+        '- e-Devlet’ten ya da şasi numarasıyla SMS ile (HASAR boşluk şasi no, 5664)',
+        '- Kayıt tutarı boyalı/değişen parçalarla uyumlu olmalı; ekspertizde boya ölçümü yaptırın'
+      );
+    } else if (intent === 'compare') {
+      const similar = comparableLines(result);
+      out.push(`**Kısa cevap:** ${priceSummary({ result })}`, '', ...bullets(priceLines(context)));
+      if (similar.length)
+        out.push('', '## En yakın benzer ilanlar', ...bullets(similar.map(line => line.replace(/^Benzer ilan: /, ''))));
+    } else {
+      out.push(`**Kısa cevap:** ${priceSummary({ result })}`, '', ...bullets(priceLines(context)));
+      for (const flag of (advice?.flags || []).slice(0, 3)) out.push(`- **${flag.label}:** ${flag.text}`);
+      if (intent === 'general')
+        out.push('', 'Bu soru genel araç bilgisi istiyor; ayrıntılı cevap için yapay zeka bağlantısı gerekiyor.');
+    }
+    out.push('', NO_AI);
+    return out.join('\n');
+  }
+
+  // Arama sayfası / kayıtlı ilanlar için yedek cevap: eklentinin sıralaması (fırsat puanı) ve uyarılar.
+  function listFallbackAnswer(text, view) {
+    const shown = view?.shown || [];
+    const folded = fold(text);
+    const name = (entry, index) =>
+      `İlan ${index + 1} · ${[entry.record.brand, entry.record.model].filter(Boolean).join(' ')} ${entry.record.year}, ${lira(entry.record.price)}`;
+    const detail = entry =>
+      [
+        `${Number(entry.record.km).toLocaleString('tr-TR')} km`,
+        entry.deal ? `fırsat puanı ${entry.deal.score}/100` : '',
+        entry.result?.center
+          ? `piyasa ortasının ${percent(entry.result.gap)} ${entry.result.gap < 0 ? 'altında' : 'üstünde'}`
+          : 'piyasa tahmini yok'
+      ]
+        .filter(Boolean)
+        .join(', ');
+    if (!shown.length) return `**Kısa cevap:** Değerlendirilecek ilan bulunamadı.\n\n${NO_AI}`;
+    const out = [];
+    if (view.noMatch) out.push('Sorudaki şartlara uyan ilan yok; en yakın seçenekler aşağıda.', '');
+    const numbered = shown.map((entry, index) => ({ entry, index }));
+    if (/uzak dur|riskli|kaçın|tehlikeli|sorunlu/.test(folded) && !/en az riskli/.test(folded)) {
+      const risky = numbered.filter(({ entry }) => (entry.advice?.flags || []).length);
+      out.push(
+        risky.length
+          ? `**Kısa cevap:** ${risky.length} ilanda eklentinin uyarısı var.`
+          : '**Kısa cevap:** Listedeki ilanlarda eklentinin uyarısı yok; yine de ekspertiz şart.',
+        ''
+      );
+      for (const { entry, index } of risky.slice(0, 6))
+        out.push(`- **${name(entry, index)}:** ${entry.advice.flags.map(flag => flag.label).join(', ')}`);
+    } else {
+      let picks = numbered;
+      if (/düşük km|az km|en az km/.test(folded))
+        picks = [...numbered].sort((a, b) => a.entry.record.km - b.entry.record.km);
+      else if (/en az riskli/.test(folded)) picks = numbered.filter(({ entry }) => !(entry.advice?.flags || []).length);
+      picks = picks.slice(0, 3);
+      out.push(
+        picks.length
+          ? `**Kısa cevap:** Eklentinin hesabına göre öne çıkanlar: ${picks.map(({ index }) => `İlan ${index + 1}`).join(', ')}.`
+          : '**Kısa cevap:** Uyarısız ilan yok; aşağıdaki uyarıları inceleyin.',
+        ''
+      );
+      for (const { entry, index } of picks) out.push(`- **${name(entry, index)}:** ${detail(entry)}`);
+    }
+    out.push('', NO_AI);
+    return out.join('\n');
+  }
+
+  // --- Cevap denetimi: yapay zekanın cevabındaki uydurma rakam, olmayan ilan numarası, dil ve tekrar sorunları. ---
+  // source: modele verilen metnin tamamı (sistem talimatı + ilan bilgileri). Cevaptaki TL tutarları ve yüzdeler
+  // bu metinde geçmiyorsa "uydurma" sayılır; genel bilgi rakamları (mikron, bin km, yıl) denetlenmez.
+  function moneyValues(text) {
+    const values = [];
+    const pattern = /(\d{1,3}(?:\.\d{3})+|\d+(?:,\d+)?)\s*(milyon|bin)?\s*(?:tl|lira|₺)/gi;
+    for (const [, number, unit = ''] of String(text ?? '').matchAll(pattern)) {
+      const value = amount(number, unit.toLocaleLowerCase('tr-TR'));
+      if (Number.isFinite(value) && value >= 1000) values.push(value);
+    }
+    return values;
+  }
+  const percentValues = text => [...String(text ?? '').matchAll(/%\s?(\d{1,3})(?![\d.,])/g)].map(m => Number(m[1]));
+  const ENGLISH = /\b(the|and|is|are|you|your|this|that|with|however|which|price|car|should|would)\b/gi;
+
+  function checkAnswer(answer, { source = '', count } = {}) {
+    const text = String(answer ?? '').trim();
+    const issues = [];
+    if (text.length < 25) issues.push({ kind: 'empty', text: 'Cevap boş ya da çok kısa.' });
+    const known = moneyValues(source);
+    const invented = moneyValues(text).filter(value => !known.some(base => Math.abs(base - value) <= base * 0.005));
+    if (invented.length)
+      issues.push({
+        kind: 'number',
+        values: invented,
+        text: `Verilerde olmayan tutar: ${invented.map(lira).join(', ')}`
+      });
+    const knownPercent = new Set(percentValues(source));
+    const badPercent = percentValues(text).filter(
+      value => ![value - 1, value, value + 1].some(near => knownPercent.has(near))
+    );
+    if (badPercent.length)
+      issues.push({ kind: 'percent', values: badPercent, text: `Verilerde olmayan yüzde: %${badPercent.join(', %')}` });
+    if (Number.isInteger(count)) {
+      const wrong = [...text.matchAll(/İlan\s+(\d{1,3})\b/g)].map(m => Number(m[1])).filter(n => n < 1 || n > count);
+      if (wrong.length)
+        issues.push({ kind: 'listing', values: wrong, text: `Listede olmayan ilan: İlan ${wrong.join(', İlan ')}` });
+    }
+    if ((text.match(ENGLISH) || []).length >= 3) issues.push({ kind: 'language', text: 'Cevapta İngilizce var.' });
+    const seen = new Map();
+    for (const line of text
+      .split('\n')
+      .map(item => item.trim())
+      .filter(item => item.length > 15))
+      seen.set(line, (seen.get(line) || 0) + 1);
+    if ([...seen.values()].some(times => times >= 3))
+      issues.push({ kind: 'repeat', text: 'Cevapta tekrar eden satırlar var.' });
+    return issues;
+  }
+
+  // Popup'ta cevabın altında gösterilen kısa uyarı (yalnızca rakam ve ilan numarası sorunlarında).
+  function checkNote(issues) {
+    const serious = issues.filter(issue => ['number', 'percent', 'listing'].includes(issue.kind));
+    if (!serious.length) return '';
+    return `Dikkat: ${serious.map(issue => issue.text).join('; ')}. Rakamları eklentinin analiziyle karşılaştırın.`;
+  }
+
   // Popup'ta gösterilecek kısa Türkçe hata metni.
   function errorText(error, mode) {
     if (error?.name === 'RemoteAIError') return error.message;
@@ -733,6 +978,11 @@
   }
 
   const api = {
+    fallbackIntent,
+    fallbackAnswer,
+    listFallbackAnswer,
+    checkAnswer,
+    checkNote,
     listFilter,
     narrowRecords,
     savedScope,

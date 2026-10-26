@@ -2,6 +2,14 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.20.0 — 2026-10-26
+
+- **Yapay zeka düşse de soru cevapsız kalmaz.** Gemini ya da Chrome'un yerleşik modeli hata verirse (yoğunluk, kota, bağlantı, süre aşımı) hata yazısı yerine eklentinin kendi hesaplarıyla kurulan cevap gösterilir; üstünde hatanın nedeni ve "Eklentinin kendi hesaplarıyla cevap verildi" notu, altında "Yeniden sor" düğmesi durur. Sorunun konusu kurallarla anlaşılır: teklif/pazarlık (açılış ve hedef rakamı, gerekçeler), satıcıya sorulacaklar, ekspertiz listesi, açıklamadaki şüpheli ifadeler, km yorumu, kaporta ve tramer sorgulama, benzer ilanlarla kıyas, fiyat değerlendirmesi. Arama listesinde en mantıklı 3 ilan, düşük km'liler ve uyarılı (uzak durulacak) ilanlar "İlan N" bağlantılarıyla verilir. Bu cevaptaki her rakam eklentinin hesabından gelir; modele özgü kronik sorun gibi bilmediği şeyi uydurmaz, "yapay zeka gerekiyor" der.
+- **Cevap denetimi.** Yapay zekanın cevabındaki TL tutarları ve yüzdeler modele verilen bilgilerle karşılaştırılır; verilerde olmayan bir tutar, yüzde ya da listede olmayan bir ilan numarası varsa cevabın altında "Dikkat: Verilerde olmayan tutar: … Rakamları eklentinin analiziyle karşılaştırın." uyarısı çıkar.
+- **Yapay zeka deneme seti (ai-eval.test.js):** 39 soru (yazım hatalı, kısa, konu dışı ve "talimatları unut" denemeleri dahil) × 4 örnek ilan (temiz, boyalı/değişenli, piyasa tahmini olmayan, yüksek km'li dizel otomatik) ve 15 sahte model cevabı. Konu seçimi, uydurma rakam/yüzde, olmayan ilan numarası, İngilizce, tekrar eden satır ve boş cevap denetlenir; bilgisayarda kayıtlı gerçek sahibinden sayfaları varsa onlarla da denenir. `npm test` içinde çalışır, gerçek yapay zekaya istek atmaz.
+- Excel: Audi'nin güç kodlu motorları ("40 TDI", "35 TFSI") artık Motor sütununda; arama satırında yalnızca "40" yazsa da ilan başlığından okunur.
+- Depo temizliği: `fixtures` klasörü depoya yanlışlıkla bağlantı (symlink) olarak girmişti; çıkarıldı, kaydedilmiş sayfalar yalnızca bilgisayarda kalır.
+
 ## 7.19.0 — 2026-10-25
 
 - **Panelde marka ve model bazlı toplu silme.** İlanlar sayfasında yeni "Marka ve model" bölümü: kayıtlı ilanlar marka > model olarak sayılarıyla listelenir (birden çok marka karışmışsa bölüm kendiliğinden açılır). Bir modeli ya da tüm markayı tek tuşla ("Sil" / "Markayı sil") silebilirsin; Passat'ı bitirip Egea'ya geçince Passat ilanlarını tek tuşla temizle.

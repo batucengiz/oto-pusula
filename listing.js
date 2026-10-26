@@ -238,6 +238,11 @@
     return { engine: [match[2], ...engineWords].join(' '), trim };
   }
 
+  function powerCode(text) {
+    const match = String(text ?? '').match(/(?:^|\s)([2-7][05])\s?(TDI|TFSI|TFSIe|e-tron)(?=\s|$)/i);
+    return match ? `${match[1]} ${match[2].toUpperCase().replace('TFSIE', 'TFSI e').replace('E-TRON', 'e-tron')}` : '';
+  }
+
   function findBody(text) {
     return BODIES.find(([, pattern]) => pattern.test(text))?.[0] || '';
   }
@@ -313,6 +318,8 @@
       const match = String(version).match(/(?:^|\s)(\d{3}[a-zA-Z]{0,2}(?:\s(?:d|e|i|h|CDI|BlueTEC|4MATIC))?)(?=\s|$)/);
       if (match) codeEngine = match[1];
     }
+    // Audi güç kodları: "40 TDI", "35 TFSI", "45 TFSI e"; satırda yalnızca "40" yazsa da başlıkta geçen kod alınır.
+    if (!engine && !technical.engine && !codeEngine) codeEngine = powerCode(version) || powerCode(title);
     // Satırda motor yoksa sırasıyla: gezinme yolundaki motor basamağı, ilan başlığı, sayfa başlığı ("Fiat Egea Cross
     // 1.4 Fire Fiyatları"). Yalnızca hacim + motor kodu alınır; fiyatlar ("1.300.000") motor sanılmaz.
     const crumbParts = technicalParts(levels.join(' '));
