@@ -1,7 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const path = require('node:path');
 const core = require('./core.js');
 const listing = require('./listing.js');
 
@@ -156,11 +155,11 @@ test('Excel ve popup öne çıkanları fırsat puanına göre sıralar', () => {
   assert.equal(table.rows[0][table.columns.findIndex(column => column.title === 'Satıcı tipi')], 'Sahibinden');
 });
 
-test('gerçek ilan sayfasından satıcı tipi okunur', () => {
-  const dir = path.join(__dirname, 'fixtures');
+test('gerçek ilan sayfasından satıcı tipi okunur', t => {
+  const fixtures = require('./test-fixtures.js');
   // Otomobil ilanı kullanılır: motosiklet ilanı (ilan-semasiz) artık kategori gereği okunmaz.
-  const file = path.join(dir, 'temiz.html');
-  if (!fs.existsSync(file)) return;
+  const file = fixtures.fixturePath('temiz.html');
+  if (!fs.existsSync(file)) return t.skip(fixtures.missing);
   const { extractFromHtml } = require('./tools/verify-page.js');
   const record = listing.parseDetailPage(extractFromHtml(fs.readFileSync(file, 'utf8')));
   assert.equal(record.sellerType, 'Galeriden');

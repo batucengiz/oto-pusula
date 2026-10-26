@@ -13,22 +13,18 @@ const CORE_FILES = [
   'alerts.js'
 ];
 
-// fixtures/ altındaki kaydedilmiş gerçek sahibinden sayfaları yalnızca bu bilgisayarda durur (.gitignore):
-// sitenin içeriği ve satıcı bilgileri depoya konmaz. Klasör boşsa bu testler atlanır.
-const dir = path.join(__dirname, 'fixtures');
-const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter(name => /\.html?$/i.test(name)) : [];
+// Kaydedilmiş gerçek sayfalar yalnızca yerelde durur; klasör yoksa bu testler atlanır (bkz. test-fixtures.js).
+const fixtures = require('./test-fixtures.js');
+const dir = fixtures.dir;
+const files = fixtures.htmlFixtures();
 
-test(
-  'kaydedilmiş gerçek sayfalar okunabiliyor',
-  { skip: files.length ? false : 'fixtures/ klasöründe kayıtlı sayfa yok' },
-  () => {
-    const { analyze } = require('./tools/verify-page.js');
-    for (const name of files) {
-      const report = analyze(fs.readFileSync(path.join(dir, name), 'utf8'));
-      assert.ok(report.ok, `${name}: ${report.lines.join(' | ')}`);
-    }
+test('kaydedilmiş gerçek sayfalar okunabiliyor', { skip: files.length ? false : fixtures.missing }, () => {
+  const { analyze } = require('./tools/verify-page.js');
+  for (const name of files) {
+    const report = analyze(fs.readFileSync(path.join(dir, name), 'utf8'));
+    assert.ok(report.ok, `${name}: ${report.lines.join(' | ')}`);
   }
-);
+});
 
 test('doğrulama aracı sayfa betiklerini çalıştırmaz ve yalnızca okuyucuyu koşturur', () => {
   const { extractFromHtml } = require('./tools/verify-page.js');
@@ -179,7 +175,7 @@ test('ilanları silinen sayfa listeden kalkar; "0 ilan" gösteren boş sayfa bir
 // çift kayıt, kopuk/boş sayfa, geçersiz marka ("Seçiniz"), bağlantısız ilan ve çöken hesap aranır.
 test(
   'gerçek sayfalarla uçtan uca yolculuk: okunan her şey tutarlı kalır',
-  { skip: files.length ? false : 'fixtures/ klasöründe kayıtlı sayfa yok' },
+  { skip: files.length ? false : fixtures.missing },
   () => {
     const core = require('./core.js');
     const listing = require('./listing.js');

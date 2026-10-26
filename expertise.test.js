@@ -236,9 +236,10 @@ test('ekspertiz: okuyucu sayfadaki ekspertiz bölümünü alır, menü bağlant�
 });
 
 test('ekspertiz: kayıtlı gerçek ilan sayfalarında yanlış ekspertiz bölümü bulunmaz', t => {
-  const dir = path.join(__dirname, 'fixtures');
+  const fixtures = require('./test-fixtures.js');
+  const dir = fixtures.dir;
   const files = ['boyali.html', 'temiz.html', 'ilan-orijinal.html'].filter(file => fs.existsSync(path.join(dir, file)));
-  if (!files.length) return t.skip('fixtures klasörü yok');
+  if (!files.length) return t.skip(fixtures.missing);
   const { extractFromHtml } = require('./tools/verify-page.js');
   for (const file of files) {
     const raw = extractFromHtml(fs.readFileSync(path.join(dir, file), 'utf8'));
