@@ -2,6 +2,11 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.37.0 — 2026-10-27
+
+- **Kaynağı olmayan paket ve motor adları katalogdan çıkarıldı.** 7.36.0 öneriyi modele ve yıla bağladı ama diğer markaların paket ve motor adları kaynaksız yazılmıştı. Artık paket/motor yalnızca kaynağı olan modellerde var: Egea, Egea Cross, Tipo, Linea, Albea, Palio (üretici/ikinci el sayfaları ve ilan başlıkları), Corolla (Toyota 2026 kataloğu) ve kaydedilmiş sahibinden sayfalarında görülen gerçek sürümler (Clio, Megane, Symbol, Fluence, Talisman, Yaris, i10, i20, Accent Blue, Astra, 301, C-Elysee, Scala, A3, C/E Serisi, CLA, 5 Serisi, Golf, Passat). Diğer ~356 modelde bu alanlar boştur; orada yalnızca kendi ilanlarınızdaki adlar "ilanlarınızdan" etiketiyle önerilir.
+- Yıl aralıkları ve kasalar değişmedi (genel bilgi). Yeni model eklemek için kaynak gerekir; bunun için `catalog.js` başındaki kural yazıldı.
+
 ## 7.36.0 — 2026-10-27
 
 - **Araç formundaki paket, motor ve kasa önerileri artık ezber değil.** Sebep: paket ve motor listesi marka geneliydi ve yıla bakmıyordu; 1997 Fiat Tipo için Egea'nın Easy, Urban, Lounge, Street, Cross paketleri ve Sedan/Pick-up kasası çıkıyordu. Artık her model kuşak kuşak (yıl aralığı) tutulur ve öneriler yalnızca yazılan modelin, yıl yazıldıysa o yılın kuşağının adlarıdır. 1997 Tipo: paket S, SX, SX A.K.; motor 1.4, 1.6; kasa Hatchback. 2020 Egea'da eski Tipo paketi çıkmaz.
