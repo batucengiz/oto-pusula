@@ -2,6 +2,12 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.41.0 — 2026-10-27
+
+- **Araç formunun paket ve motor önerileri ~20 modelden ~145 modele çıktı, hepsi kaynaklı.** Kaynak: arabalar.com.tr'nin yıl yıl yayımladığı, Türkiye'de satılan sürüm listeleri. Her model için kuşak başına en az bir yılın sayfası okundu; sayfadaki gerçek paket ve motor adları o yılı kapsayan kuşağa yazıldı (adlar tekrar temizlendi: otomatik/DSG/EDC gibi şanzıman ekleri, beygir sayıları ve "3K" gibi garanti etiketleri atıldı). Ford (Focus, Fiesta, Mondeo, Kuga, Puma, C-Max, B-Max), Renault (Clio, Megane, Symbol, Fluence, Taliant, Captur, Kadjar, Talisman, Laguna, Scenic, Koleos, Austral), Volkswagen (Passat, Golf, Polo, Jetta, Tiguan, T-Roc, Taigo, Caddy, Scirocco), Toyota (Corolla, Yaris, Auris, C-HR, RAV4, Hilux, Avensis, Verso), Hyundai, Opel, Peugeot, Citroen, Dacia, BMW, Mercedes-Benz, Audi, Skoda, Seat, Nissan, Kia, Honda ve bazı Mazda/Suzuki/Fiat modelleri.
+- **Hâlâ boş olanlar:** arabalar.com.tr'de sayfası bulunamayan ya da henüz okunmayan modeller (ör. Volvo, Mitsubishi, Chevrolet, Jeep, Land Rover, Tesla, Togg, Mazda'nın çoğu, ticari araçlar). Orada paket/motor önerilmez; yalnızca kendi ilanlarınızdaki adlar çıkar. Sonraki sürümlerde sırayla doldurulacak.
+- Motor adı olarak BMW (320d) ve Mercedes (C 250 CDI) tip adları da kabul edilir. Yeni test: örnek sürümlerin doğru model ve kuşakta çıkması, kuşaklar arası karışmaması.
+
 ## 7.40.0 — 2026-10-27
 
 - **"Az veri" artık eğilimi de söyler.** Piyasada 4'ten az benzer ilan varken kesin fiyat durumu verilemez; yine de eldeki ilanlara göre yön belli oluyorsa Excel'in "Durum" sütununda "az veri (eğilim: uygun)" ve panelde "(eğilim: …) Az veriyle hesaplandığı için kesin değil" yazar. Durum sütunu bu yüzden genişletildi.

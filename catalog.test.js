@@ -24,11 +24,12 @@ test('katalog yapısı: her kuşağın yılı, kasası, motoru ve paketi geçerl
         for (const body of gen.bodies) assert.ok(BODY_TYPES.includes(body), `${where}: bilinmeyen kasa ${body}`);
         for (const field of ['bodies', 'engines', 'trims'])
           assert.equal(new Set(gen[field].map(core.key)).size, gen[field].length, `${where} ${field} yinelenmiş`);
-        // Motor adı hacimle başlar (ya da elektrik / Audi güç kodu); paket adı motor ya da kasa adı değildir.
+        // Motor adı hacimle başlar (ya da elektrik / Audi güç kodu / BMW ve Mercedes tip adı); paket adı motor ya da
+        // kasa adı değildir.
         for (const engine of gen.engines)
           assert.match(
             engine,
-            /^(\d\.\d{1,2}( |$)|\d{2} T(FSI|DI)$|Elektrik$)/,
+            /^(\d\.\d{1,2}( |$)|\d{2} T(FSI|DI)$|Elektrik$|[1-7]\d\d[a-z]{1,2}$|[A-Z]{1,3} ?\d{2,3}( ?[A-Za-z0-9]+)*$)/,
             `${where}: motor sanılmayan "${engine}"`
           );
         for (const trim of gen.trims) {
@@ -90,7 +91,7 @@ test('katalogda kuşağı olmayan model ya da tutmayan yıl için ezber paket/mo
   assert.deepEqual(all('trim', { brand: 'Fiat', model: 'Egea', year: 1997 }), []);
   assert.deepEqual(all('trim', { brand: 'Fiat', model: 'Tipo', year: 2020 }), []);
   // Kuşağı bilinen ama paket adı doğrulanmamış model: liste boş, kayıt varsa yalnızca kayıttan gelir.
-  assert.deepEqual(all('trim', { brand: 'Kia', model: 'Rio', year: 2019 }), []);
+  assert.deepEqual(all('trim', { brand: 'Tesla', model: 'Model 3', year: 2021 }), []);
 });
 
 test('Fiat Tipo 1997: paket S/SX/SX A.K., kasa yalnız Hatchback; Egea paketleri ve Sedan/Pick-up önerilmez', () => {
@@ -175,6 +176,35 @@ test('kaydedilmiş gerçek sahibinden ilanlarındaki sürümler doğru model ve 
     if (trim) assert.ok(all('trim', ctx).includes(trim), `${brand} ${model} ${year}: paket ${trim}`);
     if (engine) assert.ok(all('engine', ctx).includes(engine), `${brand} ${model} ${year}: motor ${engine}`);
   }
+});
+
+test('arabalar.com.tr sürüm listelerinden gelen paket ve motorlar doğru model ve kuşakta önerilir', () => {
+  // [marka, model, yıl, motor, paket]: yıl sayfalarında o yıl için yazan sürümler.
+  const seen = [
+    ['Ford', 'Focus', 2016, '1.5 TDCi', 'Titanium'],
+    ['Ford', 'Focus', 2020, '1.5 EcoBlue', 'ST-Line'],
+    ['Ford', 'Fiesta', 2012, '1.4 TDCi', 'Trend'],
+    ['Toyota', 'Corolla', 2012, '1.4 D-4D', 'Elegant'],
+    ['Volkswagen', 'Passat', 2018, '1.6 TDI', 'Highline'],
+    ['Volkswagen', 'Golf', 2010, '1.6 TDI', 'Highline'],
+    ['Opel', 'Astra', 2017, '1.6 CDTI', 'Excellence'],
+    ['Peugeot', '308', 2016, '1.6 BlueHDi', 'Allure'],
+    ['Dacia', 'Duster', 2020, '1.5 dCi', 'Prestige'],
+    ['Hyundai', 'Tucson', 2018, '1.6 CRDi', 'Elite Plus'],
+    ['Skoda', 'Superb', 2018, '2.0 TDI', 'Prestige'],
+    ['Honda', 'Civic', 2014, '1.6 i-DTEC', 'Elegance'],
+    ['BMW', '3 Serisi', 2014, '320d', 'Efficient Dynamics'],
+    ['Mercedes-Benz', 'C Serisi', 2011, 'C 250 CDI', 'Avantgarde']
+  ];
+  for (const [brand, model, year, engine, trim] of seen) {
+    const ctx = { brand, model, year };
+    assert.ok(all('trim', ctx).includes(trim), `${brand} ${model} ${year}: paket ${trim}`);
+    assert.ok(all('engine', ctx).includes(engine), `${brand} ${model} ${year}: motor ${engine}`);
+  }
+  // Kuşak ayrımı: eski Passat'ın paketi yeni kuşakta, yeni Focus'un paketi eski kuşakta çıkmaz.
+  assert.ok(!all('trim', { brand: 'Volkswagen', model: 'Passat', year: 2000 }).includes('Impression'));
+  assert.ok(!all('trim', { brand: 'Ford', model: 'Focus', year: 2002 }).includes('ST-Line'));
+  assert.ok(!all('trim', { brand: 'Renault', model: 'Clio', year: 2001 }).includes('Icon'));
 });
 
 test('düzeltilen ezber girdiler: yanlış model/paket/kasa adları katalogda yok', () => {
