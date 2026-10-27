@@ -2,6 +2,10 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.44.0 — 2026-10-27
+
+- **Katalog: Volvo, Mazda ve Mitsubishi'de ilk modeller dolduruldu** (kaynak: arabalar.com.tr yıl sayfaları). Volvo S40, S60, S80, S90, V40, XC40, XC60, XC90; Mazda 626, Mazda3, Mazda6; Mitsubishi Lancer, ASX, Colt için motor ve paket adları eklendi. Sitede sayfası bulunmayan modeller (ör. Volvo V60/V50/XC70, Mazda CX-3, Mitsubishi L200/Outlander) boş kalır; ezber ad eklenmez.
+
 ## 7.43.0 — 2026-10-27
 
 - **"Eksper yorumlananların arasından seç" artık gerçekten yalnızca eksper yorumu olan ilanlardan seçer.** Sohbete "eksper yorumlananlardan", "eksper yaptıklarımdan", "eksper raporu olanlardan" gibi yazınca yalnızca yorumu çıkmış ilanlar değerlendirilir (ilan yazısından, rapor fotoğrafından ya da satıcının boya/değişen şemasından). "Bu sayfa" kapsamındayken sayfada az, kayıtlıda daha çok yorumlu ilan varsa kapsam o soru için kendiliğinden kayıtlı ilanlara genişler. Hiç yorumlu ilan yoksa sohbet bunu açıkça söyler, yorumsuz ilanlardan seçim yapmaz. Sohbet önerilerine "Eksper yorumlananların arasından en mantıklı 3'ünü seç" eklendi.

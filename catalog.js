@@ -1104,9 +1104,17 @@
       models: 'Mazda3, Mazda6, Mazda2, CX-3, CX-5, CX-30, MX-5, 323, 626, CX-7',
       series: {
         323: [[1985, 2003, 'Sedan, Hatchback, Station Wagon', '', '']],
-        626: [[1987, 2002, 'Sedan, Hatchback, Station Wagon', '', '']],
-        Mazda3: [[2003, 0, 'Sedan, Hatchback', '', '']],
-        Mazda6: [[2002, 0, 'Sedan, Hatchback, Station Wagon', '', '']],
+        626: [
+          [
+            1987,
+            2002,
+            'Sedan, Hatchback, Station Wagon',
+            '1.8, 2.0',
+            'CE, Comfort, Exclusive, GLX, GT, SE, Sportive, TE, TRSi, TSi'
+          ]
+        ],
+        Mazda3: [[2003, 0, 'Sedan, Hatchback', '1.6, 2.3', 'Comfort, Impressive, Mirai, Touring, MPS']],
+        Mazda6: [[2002, 0, 'Sedan, Hatchback, Station Wagon', '2.0, 2.2 D', 'Sport, Power, Power Sense']],
         Mazda2: [[2002, 0, 'Hatchback', '', '']],
         'CX-3': [[2015, 0, 'Crossover', '', '']],
         'CX-30': [[2019, 0, 'Crossover', '', '']],
@@ -1143,12 +1151,12 @@
       models: 'L200, Lancer, ASX, Outlander, Colt, Pajero, Eclipse Cross, Space Star, Carisma, Galant',
       series: {
         Lancer: [
-          [1992, 2007, 'Sedan, Station Wagon', '', ''],
-          [2008, 2017, 'Sedan, Hatchback', '', '']
+          [1992, 2007, 'Sedan, Station Wagon', '1.3, 1.6', 'Comfort, Invite'],
+          [2008, 2017, 'Sedan, Hatchback', '1.5, 1.6, 1.8', 'Inform, Invite, Intense']
         ],
-        ASX: [[2010, 0, 'Crossover', '', '']],
+        ASX: [[2010, 0, 'Crossover', '1.6', 'Instyle, Intense, Invite']],
         L200: [[1996, 0, 'Pick-up', '', '']],
-        Colt: [[1996, 2012, 'Hatchback, Cabrio', '', '']],
+        Colt: [[1996, 2012, 'Hatchback, Cabrio', '1.1, 1.3, 1.5, 1.5 DI-D', 'Inform, Invite']],
         Galant: [[1992, 2012, 'Sedan, Station Wagon', '', '']],
         Carisma: [[1995, 2004, 'Sedan, Hatchback', '', '']],
         Outlander: [[2001, 0, 'SUV', '', '']],
@@ -1179,21 +1187,21 @@
     Volvo: {
       models: 'S40, S60, S80, S90, V40, V50, V60, V90, XC40, XC60, XC70, XC90, C30, C70',
       series: {
-        S40: [[1995, 2012, 'Sedan', '', '']],
+        S40: [[1995, 2012, 'Sedan', '1.6, 1.6 D, 2.0 D, 2.5 T5', 'Dynamic Edition, Premium Edition, Prime Edition']],
         S60: [
-          [2000, 2018, 'Sedan', '', ''],
+          [2000, 2018, 'Sedan', '1.5 T3, 1.6 D2, 2.0 D4, 2.0 T5, 2.4 D4', 'Advance, Premium, R-Design'],
           [2019, 0, 'Sedan', '', '']
         ],
-        S80: [[1998, 2016, 'Sedan', '', '']],
-        S90: [[2016, 0, 'Sedan', '', '']],
-        V40: [[2012, 2019, 'Hatchback', '', '']],
+        S80: [[1998, 2016, 'Sedan', '1.6 D, 2.0 D3, 2.0 T, 2.4 D5, 3.0 T6', 'Executive']],
+        S90: [[2016, 0, 'Sedan', '2.0 D4, 2.0 D5, 2.0 T6', 'Inscription Plus, Inscription, Momentum, R-Design']],
+        V40: [[2012, 2019, 'Hatchback', '1.5 T3, 1.6 D2, 2.0 D4, 2.0 T5', 'Advance, Premium, R-Design, Ocean Race']],
         V50: [[2004, 2012, 'Station Wagon', '', '']],
         V60: [[2010, 0, 'Station Wagon', '', '']],
         V90: [[2016, 0, 'Station Wagon', '', '']],
-        XC40: [[2018, 0, 'SUV', '', '']],
-        XC60: [[2008, 0, 'SUV', '', '']],
+        XC40: [[2018, 0, 'SUV', '1.5 T3, 2.0 T4', 'Momentum, R-Design']],
+        XC60: [[2008, 0, 'SUV', '2.0 D4, 2.2 D4, 2.4 D5', 'Advance, Ocean Race, Premium, R-Design']],
         XC70: [[2000, 2016, 'Station Wagon', '', '']],
-        XC90: [[2002, 0, 'SUV', '', '']],
+        XC90: [[2002, 0, 'SUV', '2.0 D5, 2.0 T8', 'Inscription, Momentum, R-Design, Excellence']],
         C30: [[2006, 2013, 'Hatchback', '', '']],
         C70: [[1997, 2013, 'Coupe, Cabrio', '', '']]
       }
