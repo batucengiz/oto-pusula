@@ -132,6 +132,8 @@ expertise-ui.js (renk kodlu araç şeması, parça ve yapısal kontrol tablolar�
 expertise.js (ekspertiz yorumu: ilan yazısı ve sayfadaki ekspertiz bölümü → parça parça bulgu, şema çelişkisi, risk, pazarlık etkisi; ağ isteği yok)
 negotiation.js (pazarlık önerisi: açılış / hedef / en fazla, gerekçeler ve satıcıya hazır teklif mesajı; ağ isteği yok)
 flip.js (galeri alım-satım kâr hesabı: maliyet, kâr, başa baş, satış süresi; değerler cihazda; ağ isteği yok)
+seller.js (satıcı profili: galeri mağaza adı ve yetki belge no. ile kayıttaki aynı satıcının ilanları, piyasaya göre fiyat eğilimi; kişi adı saklanmaz; ağ isteği yok)
+loan.js (taşıt kredisi hesaplayıcı: aylık taksit, toplam faiz, vade karşılaştırması, taksit/gelir oranı; girdiler cihazda; ağ isteği yok)
 assistant.js (ilan sohbeti: core.js sonuçlarını yapay zekaya bağlam olarak verir; satıcı soruları, teklif gerekçesi; ağ isteği yok)
 ai-setup.html/js/css (Gemini anahtarı kurulum sihirbazı)
 chat.css (asistan tasarımı)

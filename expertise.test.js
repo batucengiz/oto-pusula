@@ -253,3 +253,28 @@ test('ekspertiz dosyası ağ isteği ve dinamik kod içermez', () => {
   const source = fs.readFileSync(path.join(__dirname, 'expertise.js'), 'utf8');
   assert.doesNotMatch(source, /\beval\(|new Function\(|innerHTML|fetch\(|XMLHttpRequest|chrome\./);
 });
+
+test('verdict: panel rozeti ve Excel için eksper durumu (fotoğraf yazıdan üstün, eski okuma ve açılmamış ayrı)', () => {
+  const expertise = require('./expertise.js');
+  const text = { risk: 'low', claim: 'consistent', reasons: [], low: 0, high: 0, text: true };
+  assert.deepEqual(expertise.verdict({ expertise: text }), {
+    has: true,
+    source: 'text',
+    risk: 'low',
+    claim: 'consistent',
+    note: ''
+  });
+  const photo = expertise.verdict({ expertise: { ...text, photo: { risk: 'high', note: 'Şasi onarımı' } } });
+  assert.equal(photo.risk, 'high');
+  assert.equal(photo.source, 'photo');
+  assert.equal(photo.note, 'Şasi onarımı');
+  assert.equal(expertise.verdict({ expertise: { ...text, text: false } }).source, 'schema');
+  assert.deepEqual(expertise.verdict({ detailRead: true, damage: { painted: ['Kaput'] } }), {
+    has: false,
+    source: 'old',
+    risk: 'unknown'
+  });
+  assert.deepEqual(expertise.verdict({}), { has: false, source: 'none', risk: 'unknown' });
+  assert.equal(expertise.verdictText({ expertise: text }), 'düşük risk (ilan yazısı)');
+  assert.equal(expertise.verdictText({}), 'yok (analiz edilmedi)');
+});

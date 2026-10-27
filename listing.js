@@ -888,8 +888,20 @@
       damage: raw.damage,
       tramer,
       sellerType: get('KIMDEN'),
+      sellerName: raw.storeName,
+      sellerLicense: raw.storeLicense,
       expertise: expertiseOf({ raw, title, tramer, price })
     });
+  }
+
+  // Excel'deki "Eksper yorumu" hücresi: risk ve kaynağı; ilan analiz edilmediyse nedeni.
+  function expertText(record) {
+    const expertise = root.OtoExpertise || (typeof require === 'function' ? require('./expertise.js') : null);
+    try {
+      return expertise ? expertise.verdictText(record) : '';
+    } catch {
+      return '';
+    }
   }
 
   // Ekspertiz yorumunun kısa özeti kayda yazılır: arama sayfasındaki sohbet "en mantıklı ilan" sorusunda bu ilanın
@@ -1284,6 +1296,7 @@
       { title: 'Uyarılar', width: 26 },
       { title: 'Kaporta (satıcı şeması)', width: 20 },
       { title: 'Kaporta puanı', width: 13 },
+      { title: 'Eksper yorumu', width: 26 },
       { title: 'Değişen parçalar', width: 28 },
       { title: 'Boyalı parçalar', width: 34 },
       { title: 'Lokal boyalı', width: 22 },
@@ -1293,6 +1306,7 @@
       { title: 'Güven', width: 8 },
       { title: 'Yöntem', width: 14 },
       { title: 'Satıcı tipi', width: 15 },
+      { title: 'Galeri', width: 22 },
       { title: 'Satıcı tel', width: 15 },
       { title: 'WhatsApp', width: 16 },
       { title: 'Takipte', width: 8 },
@@ -1365,6 +1379,7 @@
         advice.flags.map(flag => flag.label).join(', '),
         body.known ? body.label : 'bilinmiyor',
         body.known ? body.score : '',
+        expertText(record),
         body.known ? body.changed.join(', ') : '',
         body.known ? body.painted.join(', ') : '',
         body.known ? body.local.join(', ') : '',
@@ -1374,6 +1389,7 @@
         result.confidence,
         result.method === 'model' ? 'fiyat modeli' : result.method === 'benzer' ? 'benzer ilanlar' : '',
         record.sellerType || '',
+        record.sellerName || '',
         formatPhone(record.sellerPhone),
         whatsappCell(record),
         record.watched ? 'evet' : '',

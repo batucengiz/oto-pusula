@@ -161,6 +161,7 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
     'xlsx.js',
     'store.js',
     'open-gate.js',
+    'expertise.js',
     'dashboard-ui.js',
     'dashboard.js'
   ]) {
@@ -341,11 +342,39 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
   assert.equal(opened.length, 6, 'süre dolunca yeniden açılır');
   storage.set('otoPusula_v1', savedState);
   windowListeners.storage({ key: 'otoPusula_v1' });
+  // "Eksik bilgili ilanı aç": ilan sayfası okunmamış ilanları (yakıt, vites gibi alanlar yalnızca orada yazar) tek tek açar.
+  const missingButton = get('open-next-missing');
+  assert.equal(missingButton.hidden, false, 'ilan sayfası okunmamış ilan varken düğme görünmeli');
+  const missingBefore = Number(missingButton.textContent.match(/\((\d+)\)/)[1]);
+  opened.length = 0;
+  clock.now += 10 * 60 * 1000;
+  missingButton.click();
+  assert.equal(opened.length, 1);
+  assert.match(opened[0], /^https:\/\/www\.sahibinden\.com\/ilan\//);
+  assert.equal(Number(missingButton.textContent.match(/\((\d+)\)/)?.[1] ?? 0), missingBefore - 1, 'sayaç bir azalmalı');
   get('market-filter').value = 'all';
   get('market-sort').value = 'body';
   get('market-filter').listeners.change();
   assert.ok(get('market-body').children.length > 1, 'kaporta puanına göre sıralama çalışmalı');
   assert.ok(get('action-list').children.length > 0);
+  // Eksper yorumu: ilan analiz edilince kayda yazılır; panelde ayrı sütun, "Eksper yorumlananlar" süzgeci ve sayaç var.
+  const withExpert = JSON.parse(storage.get('otoPusula_v1'));
+  const marked = withExpert.comparables.find(item => item.source === 'sahibinden');
+  marked.expertise = { risk: 'low', claim: 'none', reasons: [], low: 0, high: 0, text: true };
+  storage.set('otoPusula_v1', JSON.stringify(withExpert));
+  windowListeners.storage({ key: 'otoPusula_v1' });
+  get('market-filter').value = 'expert';
+  get('market-filter').listeners.change();
+  assert.equal(get('market-body').children.length, 1, 'yalnızca eksper yorumu olan ilan listelenir');
+  assert.match(get('market-count').textContent, /eksper yorumu olan 1/);
+  get('market-filter').value = 'no-expert';
+  get('market-filter').listeners.change();
+  assert.equal(
+    get('market-body').children.length,
+    withExpert.comparables.filter(item => item.source === 'sahibinden').length - 1
+  );
+  get('market-filter').value = 'all';
+  get('market-filter').listeners.change();
   // Tema düğmesi: tıklayınca hata vermez, düğme kendi durumunu günceller.
   get('theme-toggle').click();
   assert.match(get('theme-toggle').title, /temaya geç/);

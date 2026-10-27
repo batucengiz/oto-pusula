@@ -12,6 +12,8 @@
     <link rel="stylesheet" href="price-timeline.css" />
     <link rel="stylesheet" href="negotiation.css" />
     <link rel="stylesheet" href="flip.css" />
+    <link rel="stylesheet" href="loan.css" />
+    <link rel="stylesheet" href="seller.css" />
     <link rel="stylesheet" href="backup.css" />
     <link rel="stylesheet" href="storage.css" />
   </head>
@@ -184,6 +186,8 @@
               <button class="button button-primary" id="deal-shortcut" type="button">Fırsat arabalar</button
               ><button class="button button-secondary" id="open-next-deal" type="button" hidden>
                 Kaportası okunmamış fırsatı aç</button
+              ><button class="button button-secondary" id="open-next-missing" type="button" hidden>
+                Eksik bilgili ilanı aç</button
               ><button class="button button-secondary" id="ai-compare-open" type="button">Seç ve karşılaştır</button
               ><button class="button button-secondary" id="export-market" type="button">Excel’e aktar</button>
             </div>
@@ -219,6 +223,8 @@
               <select id="market-filter">
                 <option value="all">Tüm ilanlar</option>
                 <option value="deal">Fırsat adayları (uygun ve altı)</option>
+                <option value="expert">Eksper yorumlananlar</option>
+                <option value="no-expert">Eksper yorumu olmayanlar</option>
                 <option value="warn">Uyarı olanlar</option>
                 <option value="watch">Takip listem</option>
                 <option value="phone">Numarası kayıtlı (WhatsApp)</option>
@@ -267,6 +273,7 @@
                   <th>Fark</th>
                   <th>Takip</th>
                   <th>Kaporta (beyan)</th>
+                  <th>Eksper yorumu</th>
                   <th>Fiyat durumu</th>
                   <th>Fırsat puanı</th>
                 </tr>
@@ -786,6 +793,8 @@
     <script src="charts.js"></script>
     <script src="price-timeline.js"></script>
     <script src="flip.js"></script>
+    <script src="loan.js"></script>
+    <script src="seller.js"></script>
     <script src="xlsx.js"></script>
     <script src="store.js"></script>
     <script src="dashboard-ui.js"></script>

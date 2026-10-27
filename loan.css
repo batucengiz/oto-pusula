@@ -1,0 +1,89 @@
+/* Kredi hesaplayıcı (loan.js): panel ilan detayında katlanır küçük araç. theme.css değişkenlerini okur. */
+.loan {
+  margin: 10px 0;
+  padding: 8px 12px;
+  border: 1px solid var(--line, #d0d7de);
+  border-radius: var(--r-md, 8px);
+  max-width: 600px;
+}
+.loan summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.loan-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin: 10px 0 6px;
+}
+.loan-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--muted, #57606a);
+}
+.loan-field input,
+.loan-field select {
+  font: inherit;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.loan-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+.loan-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: var(--r-sm, 6px);
+  background: var(--brand-soft, rgba(37, 99, 235, 0.08));
+}
+.loan-stat span {
+  font-size: 11px;
+  color: var(--muted, #57606a);
+}
+.loan-stat strong {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.loan-stat.main strong {
+  font-size: 16px;
+}
+.loan-stat.good strong {
+  color: var(--good, #047857);
+}
+.loan-stat.bad strong {
+  color: var(--bad, #b91c1c);
+}
+.loan-terms {
+  width: 100%;
+  margin: 8px 0 4px;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.loan-terms th,
+.loan-terms td {
+  padding: 3px 6px;
+  text-align: left;
+  border-bottom: 1px solid var(--line, #d0d7de);
+}
+.loan-terms .current td {
+  font-weight: 600;
+  background: var(--brand-soft, rgba(37, 99, 235, 0.08));
+}
+.loan-note,
+.loan-empty,
+.loan-foot {
+  font-size: 12px;
+  color: var(--muted, #57606a);
+  margin: 6px 0;
+}
+.loan .secondary {
+  margin-top: 4px;
+}

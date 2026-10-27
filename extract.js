@@ -145,6 +145,9 @@
       description: text(description).slice(0, 12000),
       expertiseText,
       damage,
+      // Galeri ilanında mağaza adı ve yetki belge numarası (işletme bilgisi); ilan sahibinin kişi adı okunmaz.
+      storeName: text(document.querySelector('.user-info-store-name')).slice(0, 80),
+      storeLicense: text(document.querySelector('.user-info-license-id-value')).slice(0, 20),
       // Yalnızca kullanıcı "Telefonu göster"e bastıktan sonra ekranda görünen metin okunur;
       // eklenti numarayı göstermek için hiçbir şeye tıklamaz.
       phoneText: [...document.querySelectorAll('[class*="phone"], [id*="phone"], [class*="Phone"], [id*="Phone"]')]

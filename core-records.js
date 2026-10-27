@@ -327,6 +327,9 @@
       ...(input.watched === true ? { watched: true } : {}),
       // İlan sayfasındaki "Kimden" alanı (Sahibinden / Galeriden / Yetkili Bayiden); arama listesinde yoktur.
       ...(sellerType(input.sellerType) ? { sellerType: sellerType(input.sellerType) } : {}),
+      // Galeri ilanında mağaza adı ve yetki belge numarası (seller.js satıcı profili); kişi adı saklanmaz.
+      ...(plain(input.sellerName) ? { sellerName: plain(input.sellerName).slice(0, 80) } : {}),
+      ...(/^\d{5,10}$/.test(plain(input.sellerLicense)) ? { sellerLicense: plain(input.sellerLicense) } : {}),
       // Satıcı km'yi takip sırasında düşürdüyse önceki (yüksek) değer ve tarih saklanır.
       ...(Number.isInteger(number(input.kmPrevious)) && date(input.kmChanged)
         ? { kmPrevious: number(input.kmPrevious), kmChanged: date(input.kmChanged) }
@@ -564,9 +567,9 @@
     }
     let records = [...map.values()];
     if (records.length > MAX_ROWS) {
-      // Takipteki (★) ve satıcı numarası kaydedilmiş ilanlar önce korunur; sonra en son görülenler kalır.
+      // Takipteki (★), satıcı numarası ve eksper yorumu kaydedilmiş ilanlar önce korunur; sonra en son görülenler kalır.
       // Tarihsiz kayıtlar en eski sayılır.
-      const keep = item => (item.watched || item.sellerPhone ? 1 : 0);
+      const keep = item => (item.watched || item.sellerPhone || item.expertise?.risk ? 1 : 0);
       records = records
         .sort((a, b) => keep(b) - keep(a) || String(b.date || '').localeCompare(String(a.date || '')))
         .slice(0, MAX_ROWS);

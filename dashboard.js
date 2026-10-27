@@ -14,6 +14,7 @@
     conditionLabels,
     bodyKinds,
     bodyCell,
+    expertCell,
     dealCell,
     dealTitle,
     percent,
@@ -495,6 +496,8 @@
     return node;
   }
 
+  const hasExpertise = record => !!globalThis.OtoExpertise?.verdict(record).has;
+
   function renderMarket() {
     const body = $('market-body');
     body.replaceChildren();
@@ -504,7 +507,9 @@
     const all = evaluateListings();
     const entries = [...all]
       .filter(({ record }) =>
-        core.key([labelFor(record), record.engine, record.city, record.title].join(' ')).includes(query)
+        core
+          .key([labelFor(record), record.engine, record.city, record.title, record.sellerName].join(' '))
+          .includes(query)
       )
       .filter(entry =>
         filter === 'deal'
@@ -523,11 +528,15 @@
                       ? entry.record.watched
                       : filter === 'phone'
                         ? !!entry.record.sellerPhone
-                        : filter === 'warn'
-                          ? hasWarning(entry)
-                          : filter === 'stale'
-                            ? (core.daysSince(entry.record.date) ?? 0) >= 30
-                            : true
+                        : filter === 'expert'
+                          ? hasExpertise(entry.record)
+                          : filter === 'no-expert'
+                            ? !hasExpertise(entry.record)
+                            : filter === 'warn'
+                              ? hasWarning(entry)
+                              : filter === 'stale'
+                                ? (core.daysSince(entry.record.date) ?? 0) >= 30
+                                : true
       );
     const gapOf = entry => (entry.record.condition === 'riskli' ? 1e6 : entry.result.center ? entry.result.gap : 2e6);
     // Kaporta puanı sıralamadan önce bir kez hesaplanır (karşılaştırma başına değil).
@@ -546,8 +555,11 @@
                 ? core.compareDeals(a.deal, b.deal) || gapOf(a) - gapOf(b)
                 : gapOf(a) - gapOf(b)
     );
-    $('market-count').textContent = `${entries.length}/${all.length} ilan gösteriliyor`;
+    const expertTotal = all.filter(entry => hasExpertise(entry.record)).length;
+    $('market-count').textContent =
+      `${entries.length}/${all.length} ilan gösteriliyor` + (expertTotal ? ` · eksper yorumu olan ${expertTotal}` : '');
     updateNextDealButton();
+    updateNextMissingButton();
     // Fiyatı hesaplanamayan ilan çoksa (ör. karışık arama) nedeni ve çözümü tablonun üstünde yazar.
     const coverage = core.dataCoverage(all);
     $('market-coverage').textContent = coverage.hint;
@@ -636,6 +648,7 @@
       cell(row, result.center ? percent(result.gap) : '—', 'money');
       cell(row, age === null ? '—' : age === 0 ? 'bugün' : `${age} gün`);
       cell(row, bodyCell(record, isDeal(entry)));
+      cell(row, expertCell(record));
       cell(row, priceStatusCell(entry));
       cell(row, dealCell(entry.deal));
       row.addEventListener('click', () => showDetail(record));
@@ -1049,6 +1062,27 @@
         );
       }
     }
+    if (isListing) {
+      content.append(element('h3', '', 'Eksper yorumu'));
+      const verdict = globalThis.OtoExpertise?.verdict(vehicle);
+      const head = element('p', 'detail-text');
+      head.append(expertCell(vehicle));
+      content.append(head);
+      if (verdict?.has) {
+        const reasons = (vehicle.expertise?.reasons || []).filter(Boolean);
+        const list = element('ul', 'detail-list');
+        if (verdict.note) list.append(element('li', '', `Rapor fotoğrafı: ${verdict.note}`));
+        reasons.forEach(reason => list.append(element('li', '', reason)));
+        if (list.children.length) content.append(list);
+        content.append(
+          element(
+            'p',
+            'detail-text',
+            'Yorum satıcının ilanından ve/veya yüklediğiniz rapor fotoğrafından çıkarıldı; ekspertiz yerine geçmez. Bu ilan için bir kez çıkar, kaydedilir; sohbet, karşılaştırma ve Excel aynı yorumu kullanır.'
+          )
+        );
+      }
+    }
     const deal = isListing ? core.dealScore(vehicle, result) : null;
     if (isListing) {
       content.append(element('h3', '', 'Fırsat puanı'));
@@ -1089,6 +1123,17 @@
           pace
         })
       );
+    // Galeri ilanıysa aynı satıcının kayıttaki diğer ilanları ve fiyat eğilimi (seller.js).
+    if (isListing && globalThis.OtoSeller) {
+      const sellerCard = globalThis.OtoSeller.render(
+        document,
+        globalThis.OtoSeller.profile(vehicle, evaluateListings()),
+        { select: showDetail, currentId: vehicle.id }
+      );
+      if (sellerCard) content.append(sellerCard);
+    }
+    // Kredi hesaplayıcı (loan.js): faiz, vade ve gelir son girdilerle bu cihazda hatırlanır.
+    if (isListing && globalThis.OtoLoan) content.append(globalThis.OtoLoan.render(document, { price: vehicle.price }));
     content.append(element('h3', '', 'Fiyat nasıl hesaplandı?'));
     content.append(element('p', 'detail-text', result.reason));
     core.paceLines(pace, vehicle).forEach(line => content.append(element('p', 'detail-text', line)));
@@ -1394,6 +1439,38 @@
     updateNextDealButton();
   }
 
+  // Eksik bilgili ilanlar: yakıt, vites, kasa, motor gücü gibi alanlar arama listesinde yoktur, yalnızca ilan sayfası
+  // analiz edilince dolar. Fırsatlar önce gelir; kullanıcı her basışta bir ilanı açar, sayfa hızı onda kalır.
+  const openedForDetail = new Set();
+
+  function pendingDetailListings() {
+    return evaluateListings()
+      .filter(entry => !entry.record.detailRead && core.listingUrl(entry.record))
+      .sort((a, b) => core.compareDeals(a.deal, b.deal) || a.result.gap - b.result.gap);
+  }
+
+  function updateNextMissingButton() {
+    const pending = pendingDetailListings();
+    const left = pending.filter(entry => !openedForDetail.has(entry.record.id)).length;
+    const button = $('open-next-missing');
+    button.hidden = !pending.length;
+    button.disabled = !left;
+    button.textContent = left ? `Eksik bilgili ilanı aç (${left})` : 'Açılmamış eksik bilgili ilan kalmadı';
+    button.title =
+      'Yakıt, vites, kasa, motor gücü ve çekiş arama listesinde yazmaz. Her basışta bilgisi eksik bir ilanı (fırsatlar önce) yeni sekmede açar; orada eklenti simgesine basıp “Bu sayfayı analiz et” deyin.';
+  }
+
+  function openNextMissing() {
+    const next = pendingDetailListings().find(entry => !openedForDetail.has(entry.record.id));
+    if (!next) return;
+    if (!openListingTab(core.listingUrl(next.record))) return;
+    openedForDetail.add(next.record.id);
+    notice(
+      `${labelFor(next.record)} (${lira(next.record.price)}) yeni sekmede açıldı. Orada eklenti simgesine basıp “Bu sayfayı analiz et” deyin; yakıt, vites, kasa ve motor gücü Excel'e dolar.`
+    );
+    updateNextMissingButton();
+  }
+
   function showDeals() {
     $('market-filter').value = 'deal';
     $('market-sort').value = 'deal';
@@ -1426,6 +1503,7 @@
   });
   $('deal-shortcut').addEventListener('click', showDeals);
   $('open-next-deal').addEventListener('click', openNextDeal);
+  $('open-next-missing').addEventListener('click', openNextMissing);
   $('notice').addEventListener('click', () => {
     clearTimeout(noticeTimer);
     $('notice').hidden = true;

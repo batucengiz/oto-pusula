@@ -540,6 +540,7 @@
   const LIST_MAX = 15;
   const LIST_SUGGESTIONS = [
     'Bu listede en mantıklı 3 ilan hangisi?',
+    'Eksper yorumlananların arasından en mantıklı 3’ünü seç',
     'En düşük km’li uygun fiyatlı hangisi?',
     'Hangi ilanlardan uzak durmalıyım?',
     'Fiyat/performans sıralaması yap',
@@ -611,6 +612,23 @@
     return value;
   }
 
+  // "Eksper yorumlananların arasından seç", "eksper raporu olanlar", "eksper yaptıklarım": yalnızca eksper yorumu
+  // çıkarılmış ilanlar değerlendirilir. "Eksper yorumu olmayanlar / yok" bunun tersidir, süzme sayılmaz.
+  function wantsExpertise(question) {
+    const text = fold(question);
+    if (!/eksper|ekspertiz/.test(text)) return false;
+    if (/olmayan|yok\b|yoksa|hiç|yapılmamış|yorumlanmamış/.test(text)) return false;
+    return /yorumlan|yorumladı|yaptık|yaptığ|yaptır|yapılan|yapıl|analiz|raporu olan|yorumu olan|olanlar|olan ilan|arasın|içinden|içerisinden|sadece|yalnızca/.test(
+      text
+    );
+  }
+
+  // Eksper yorumu çıkarılmış mı: yazıdan, rapor fotoğrafından ya da boya/değişen şemasından hüküm var.
+  function hasExpertise(record) {
+    const expertise = expertiseOf(record);
+    return !!expertise && expertise.risk !== 'unknown' && !oldRead(record);
+  }
+
   function listFilter(question, entries = []) {
     const text = fold(question);
     const filter = { labels: [] };
@@ -627,6 +645,7 @@
       } else if (kmNear) filter.maxKm = value;
       else if (value >= 50000) filter.maxPrice = value;
     }
+    if (wantsExpertise(text)) filter.expertOnly = true;
     if (/otomatik|dsg|cvt|edc|tiptronik/.test(text)) filter.transmission = /otomatik|yarı/;
     else if (/manuel|düz vites/.test(text)) filter.transmission = /manuel|düz/;
     if (/dizel|mazot/.test(text)) filter.fuel = /dizel/;
@@ -648,6 +667,7 @@
       }
     if (names.size) filter.names = names;
     const lira = value => `${Math.round(value).toLocaleString('tr-TR')} TL`;
+    if (filter.expertOnly) filter.labels.push('eksper yorumu olanlar');
     if (filter.maxPrice) filter.labels.push(`en fazla ${lira(filter.maxPrice)}`);
     if (filter.maxKm) filter.labels.push(`en fazla ${Math.round(filter.maxKm).toLocaleString('tr-TR')} km`);
     if (filter.minYear && filter.minYear === filter.maxYear) filter.labels.push(`${filter.minYear} model`);
@@ -665,6 +685,7 @@
   // Bilinmeyen alan (ör. arama listesinde vites sütunu yoksa) ilanı elemez.
   function applyListFilter(entries, filter) {
     return entries.filter(({ record }) => {
+      if (filter.expertOnly && !hasExpertise(record)) return false;
       if (filter.maxPrice && record.price > filter.maxPrice) return false;
       if (filter.maxKm && record.km > filter.maxKm) return false;
       if (filter.minYear && record.year < filter.minYear) return false;
@@ -689,7 +710,9 @@
     const matched = noMatch ? 0 : scope.kind === 'all' ? (scope.matched ?? pool.length) : pool.length;
     const head = filter.labels.length
       ? noMatch
-        ? `Sorudaki şartlara (${filter.labels.join(', ')}) uyan ilan yok; bunu söyle ve en yakın seçenekleri öner.`
+        ? filter.expertOnly
+          ? `Eksper yorumu çıkarılmış ilan yok (${filter.labels.join(', ')}). Bunu açıkça söyle; eksper yorumu olmayan ilanlardan seçim yapma, kullanıcıya ilanları açıp Analiz et’e basmasını öner.`
+          : `Sorudaki şartlara (${filter.labels.join(', ')}) uyan ilan yok; bunu söyle ve en yakın seçenekleri öner.`
         : `Sorudaki şartlara (${filter.labels.join(', ')}) uyan ${matched} ilan var (${scope.noun} ${total} ilandan).`
       : '';
     if (head) lines.unshift(head);
@@ -1202,6 +1225,8 @@
     checkAnswer,
     checkNote,
     listFilter,
+    wantsExpertise,
+    hasExpertise,
     narrowRecords,
     savedScope,
     PAGE_SCOPE,

@@ -856,7 +856,40 @@
     }
   }
 
+  // Kayıttaki eksper yorumunun tek bakışta durumu (panel rozeti, Excel sütunu, süzgeç): has=false ise yorum yoktur.
+  // source: "photo" (rapor fotoğrafı, ilan yazısından üstündür), "text" (ilan açıklaması/rapor yazısı), "schema" (yalnızca
+  // boya/değişen şeması), "old" (7.27.0 öncesi okunmuş, açıklama kaydedilmemiş), "none" (ilan hiç açılıp analiz edilmedi).
+  const SOURCE_LABEL = {
+    photo: 'rapor fotoğrafı',
+    text: 'ilan yazısı',
+    schema: 'yalnızca şema',
+    old: 'eski okuma',
+    none: 'analiz edilmedi'
+  };
+  function verdict(record) {
+    const stored = record?.expertise;
+    if (!stored?.risk && (record?.detailRead || record?.damage)) return { has: false, source: 'old', risk: 'unknown' };
+    const found = forRecord(record);
+    if (!found) return { has: false, source: 'none', risk: 'unknown' };
+    const photo = stored?.photo && RISK_LABEL[stored.photo.risk] ? stored.photo : null;
+    const risk = photo ? photo.risk : found.risk;
+    if (!risk || risk === 'unknown') return { has: false, source: 'none', risk: 'unknown' };
+    const source = photo ? 'photo' : found.text ? 'text' : 'schema';
+    return { has: true, source, risk, claim: found.claim || 'none', note: photo?.note || '' };
+  }
+
+  // Excel ve rozet için kısa metin: "düşük risk (ilan yazısı)"; yorum yoksa "yok (analiz edilmedi)".
+  function verdictText(record) {
+    const item = verdict(record);
+    return item.has
+      ? `${RISK_LABEL[item.risk]} risk (${SOURCE_LABEL[item.source]})`
+      : `yok (${SOURCE_LABEL[item.source]})`;
+  }
+
   const api = {
+    verdict,
+    verdictText,
+    SOURCE_LABEL,
     interpret,
     summary,
     photoSummary,
