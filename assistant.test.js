@@ -958,6 +958,36 @@ test('bulut oturumu: geçici sunucu hatası ve kopan bağlantıda yeniden dener,
   assert.equal(calls, 2, '4xx’te başlık ve ?key= biçimi birer kez denenir, sunucu hatası gibi tekrarlanmaz');
 });
 
+test('bulut oturumu: ilk üç model yoğunken ve ilk turda cevap gelmese de sonraki model/turda cevap alınır', async () => {
+  const ok = {
+    ok: true,
+    status: 200,
+    json: async () => ({ candidates: [{ content: { parts: [{ text: 'Tamam.' }] } }] })
+  };
+  const fast = { policy: { ...remoteAI.POLICY, baseMs: 1, maxWaitMs: 5 } };
+  assert.ok(remoteAI.MODELS.length >= 5, 'yeterince yedek model');
+  let calls = 0;
+  const fourth = remoteAI.createSession(
+    'AIza' + 'q'.repeat(35),
+    'S',
+    async () => (++calls <= 3 ? { ok: false, status: 503 } : ok),
+    fast
+  );
+  assert.equal(await fourth.prompt('soru'), 'Tamam.');
+  assert.equal(calls, 4, 'ilk üçü yoğun, dördüncü model cevapladı');
+  // Bütün modeller ilk turda yoğunsa ikinci tur denenir (tur sayısı en az 4).
+  assert.ok(remoteAI.POLICY.rounds >= 4);
+  calls = 0;
+  const second = remoteAI.createSession(
+    'AIza' + 'r'.repeat(35),
+    'S',
+    async () => (++calls <= remoteAI.MODELS.length ? { ok: false, status: 503 } : ok),
+    fast
+  );
+  assert.equal(await second.prompt('soru'), 'Tamam.');
+  assert.equal(calls, remoteAI.MODELS.length + 1);
+});
+
 test('uzman talimatları: ekspertiz, tramer, mekanik, bakım ve alım süreci bilgisi sistem metninde', () => {
   const text = assistant.systemPrompt(['Araç: X.']);
   for (const word of ['Ekspertiz', 'Tramer', 'DPF', 'DSG', 'triger', 'noterde', 'kasko', 'uydurma'])

@@ -57,7 +57,7 @@ test('anahtar denemesi: Google yavaşsa anahtar ayrıca hızlıca denetlenir ve 
   assert.equal(result.verified, true);
   assert.match(result.note, /yavaş/);
   assert.ok(seen.includes('GET'));
-  assert.match(remote.traceLine(result.trace), /flash-latest zaman aşımı/);
+  assert.match(remote.traceLine(result.trace), /flash\S* zaman aşımı/);
 
   // Yavaşlıkta da yanlış anahtar yine reddedilir.
   await assert.rejects(
