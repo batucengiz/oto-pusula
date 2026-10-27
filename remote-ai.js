@@ -8,7 +8,14 @@
   const BASE = 'https://generativelanguage.googleapis.com/v1beta';
   // Google model adlarını zamanla kapatabilir; sırayla denenir, çalışan oturum boyunca hatırlanır. Hiçbiri yoksa
   // Google'a "hangi modeller var?" diye sorulup en yeni flash modeli seçilir.
-  const MODELS = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+  // Ücretsiz anahtarda kota ve yoğunluk model başınadır: ne kadar çok yedek model, o kadar az "çok yoğun" hatası.
+  const MODELS = [
+    'gemini-flash-latest',
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite',
+    'gemini-flash-lite-latest',
+    'gemini-2.0-flash'
+  ];
   const MODEL = MODELS[0];
   const MODEL_URL = `${BASE}/models/${MODEL}`;
   const ENDPOINT = `${MODEL_URL}:generateContent`;
@@ -168,12 +175,12 @@
   // cevap kullanılır, diğeri iptal edilir (takılan tek model bütün süreyi yiyip "zamanında cevap vermedi" dedirtmez).
   // 404 (model kapanmış) modeli bir gün denetmez; yoğun, takılan ya da kotası dolan model bir süre sona alınır.
   const POLICY = {
-    rounds: 3,
-    baseMs: 900,
-    maxWaitMs: 6000,
+    rounds: 4,
+    baseMs: 1200,
+    maxWaitMs: 8000,
     tryMs: 30000,
     hedgeMs: 15000,
-    budgetMs: 55000,
+    budgetMs: 80000,
     coolMs: 60000
   };
   // Anahtar denemesi çok kısa bir istektir: birkaç saniyede gelmezse hemen diğer model de denenir.

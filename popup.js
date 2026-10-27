@@ -1484,16 +1484,18 @@
       lastSystem = system;
       if (mode.kind === 'remote') {
         // Google yoğunken istek katmanı yedek modele geçer ve bekleyip yeniden dener; kullanıcı bunu kısa bir notla görür.
-        const onRetry = ({ reason }) => {
+        const onRetry = ({ reason, round = 0 }) => {
           status.className = 'muted chat-status';
+          const rounds = globalThis.OtoRemoteAI.POLICY?.rounds || 1;
+          const attempt = round > 0 ? ` (tur ${Math.min(round + 1, rounds)}/${rounds})` : '';
           status.textContent =
             reason === 'quota'
-              ? 'Kullanım sınırına takıldı; başka modelle deneniyor…'
+              ? `Kullanım sınırına takıldı; başka modelle deneniyor…${attempt}`
               : reason === 'network'
-                ? 'Bağlantı koptu; yeniden deneniyor…'
+                ? `Bağlantı koptu; yeniden deneniyor…${attempt}`
                 : reason === 'slow'
-                  ? 'Google yavaş; aynı anda yedek modele de soruluyor…'
-                  : 'Google yoğun; yedek modelle yeniden deneniyor…';
+                  ? `Google yavaş; aynı anda yedek modele de soruluyor…${attempt}`
+                  : `Google yoğun; yedek modelle yeniden deneniyor…${attempt}`;
         };
         chatSession = globalThis.OtoRemoteAI.createSession(mode.key, system, undefined, { onRetry });
         return chatSession;

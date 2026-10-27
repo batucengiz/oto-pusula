@@ -2,6 +2,10 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.39.0 — 2026-10-27
+
+- **Yapay zekada "çok yoğun (HTTP 503)" hatası azaldı.** Google'ın ücretsiz anahtarda yoğunluk ve kotası model başınadır; bu yüzden yedek model sayısı 3'ten 5'e çıktı (gemini-flash-lite-latest ve gemini-2.0-flash eklendi, kapanmış model 404'te kendiliğinden elenir). Yeniden deneme turu 3'ten 4'e, toplam süre 55 sn'den 80 sn'ye çıktı. Bekleme sırasında sohbetin altında hangi tur olduğu yazar: "Google yoğun; yedek modelle yeniden deneniyor… (tur 2/4)". Hepsi yine de dolarsa eskisi gibi eklentinin kendi hesabıyla cevap verilir.
+
 ## 7.38.0 — 2026-10-27
 
 - **Piyasa ilanlarında "Fiyat durumu" iki ayrı bilgi gösterir.** Asıl rozet genel piyasaya göre durumdur; "az veri" yalnızca piyasada kayıtlı benzer ilan sayısı 4'ten azken yazar ve artık altında "(piyasa: 2 benzer ilan, en az 4 gerekir)" diye nedeni görünür. Stoğunuza bağlı değildir. Altında ayrıca "(stok: uygun, %7 ucuz)" yazar: ilanın fiyatı, stoğunuzdaki aynı marka-model (±3 yıl) araçların ortanca fiyatıyla kıyaslanır; üzerine gelince stoktaki araç sayısı ve ortanca fiyat çıkar. Stoğunuzda aynı model yoksa "(stok: aynı modelde araç yok)" yazar.
