@@ -1,0 +1,51 @@
+/* Satıcı profili (seller.js): panel ilan detayında kart. theme.css değişkenlerini okur. */
+.seller-profile {
+  margin: 10px 0;
+  padding: 8px 12px;
+  border: 1px solid var(--line, #d0d7de);
+  border-radius: var(--r-md, 8px);
+  max-width: 600px;
+}
+.seller-profile h3 {
+  margin: 0 0 6px;
+}
+.seller-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 6px;
+}
+.seller-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: var(--r-sm, 6px);
+  background: var(--brand-soft, rgba(37, 99, 235, 0.08));
+}
+.seller-stat span {
+  font-size: 11px;
+  color: var(--muted, #57606a);
+}
+.seller-stat strong {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.seller-note {
+  font-size: 12px;
+  color: var(--muted, #57606a);
+  margin: 6px 0;
+}
+.seller-list {
+  margin: 4px 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+.seller-list .link-button {
+  font: inherit;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--brand, #2563eb);
+  cursor: pointer;
+  text-align: left;
+}

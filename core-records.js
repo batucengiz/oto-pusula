@@ -327,6 +327,9 @@
       ...(input.watched === true ? { watched: true } : {}),
       // İlan sayfasındaki "Kimden" alanı (Sahibinden / Galeriden / Yetkili Bayiden); arama listesinde yoktur.
       ...(sellerType(input.sellerType) ? { sellerType: sellerType(input.sellerType) } : {}),
+      // Galeri ilanında mağaza adı ve yetki belge numarası (seller.js satıcı profili); kişi adı saklanmaz.
+      ...(plain(input.sellerName) ? { sellerName: plain(input.sellerName).slice(0, 80) } : {}),
+      ...(/^\d{5,10}$/.test(plain(input.sellerLicense)) ? { sellerLicense: plain(input.sellerLicense) } : {}),
       // Satıcı km'yi takip sırasında düşürdüyse önceki (yüksek) değer ve tarih saklanır.
       ...(Number.isInteger(number(input.kmPrevious)) && date(input.kmChanged)
         ? { kmPrevious: number(input.kmPrevious), kmChanged: date(input.kmChanged) }

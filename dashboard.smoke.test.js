@@ -341,6 +341,16 @@ test('panel boş açılır; popup ilan kaydedince storage olayıyla güncellenir
   assert.equal(opened.length, 6, 'süre dolunca yeniden açılır');
   storage.set('otoPusula_v1', savedState);
   windowListeners.storage({ key: 'otoPusula_v1' });
+  // "Eksik bilgili ilanı aç": ilan sayfası okunmamış ilanları (yakıt, vites gibi alanlar yalnızca orada yazar) tek tek açar.
+  const missingButton = get('open-next-missing');
+  assert.equal(missingButton.hidden, false, 'ilan sayfası okunmamış ilan varken düğme görünmeli');
+  const missingBefore = Number(missingButton.textContent.match(/\((\d+)\)/)[1]);
+  opened.length = 0;
+  clock.now += 10 * 60 * 1000;
+  missingButton.click();
+  assert.equal(opened.length, 1);
+  assert.match(opened[0], /^https:\/\/www\.sahibinden\.com\/ilan\//);
+  assert.equal(Number(missingButton.textContent.match(/\((\d+)\)/)?.[1] ?? 0), missingBefore - 1, 'sayaç bir azalmalı');
   get('market-filter').value = 'all';
   get('market-sort').value = 'body';
   get('market-filter').listeners.change();

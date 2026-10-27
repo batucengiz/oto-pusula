@@ -888,6 +888,8 @@
       damage: raw.damage,
       tramer,
       sellerType: get('KIMDEN'),
+      sellerName: raw.storeName,
+      sellerLicense: raw.storeLicense,
       expertise: expertiseOf({ raw, title, tramer, price })
     });
   }
@@ -1293,6 +1295,7 @@
       { title: 'Güven', width: 8 },
       { title: 'Yöntem', width: 14 },
       { title: 'Satıcı tipi', width: 15 },
+      { title: 'Galeri', width: 22 },
       { title: 'Satıcı tel', width: 15 },
       { title: 'WhatsApp', width: 16 },
       { title: 'Takipte', width: 8 },
@@ -1374,6 +1377,7 @@
         result.confidence,
         result.method === 'model' ? 'fiyat modeli' : result.method === 'benzer' ? 'benzer ilanlar' : '',
         record.sellerType || '',
+        record.sellerName || '',
         formatPhone(record.sellerPhone),
         whatsappCell(record),
         record.watched ? 'evet' : '',
