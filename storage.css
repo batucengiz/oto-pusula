@@ -1,0 +1,126 @@
+/* Cihazdaki depolama bölümü (storage-ui.js). Renkler theme.css değişkenlerinden gelir (açık/koyu tema). */
+.storage-panel {
+  margin-bottom: 16px;
+}
+.storage-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.storage-head h3 {
+  margin: 0;
+}
+.storage-panel h4 {
+  margin: 18px 0 4px;
+  font-size: 13px;
+}
+.storage-badge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--surface-2);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.storage-badge[data-level='ok'] {
+  background: var(--good-bg);
+  color: var(--good);
+}
+.storage-badge[data-level='warn'] {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+.storage-badge[data-level='full'] {
+  background: var(--bad-bg);
+  color: var(--bad);
+}
+.storage-meter {
+  margin: 14px 0 8px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.storage-meter span {
+  display: block;
+  height: 100%;
+  width: 2%;
+  border-radius: inherit;
+  background: var(--good);
+  transition: width 0.3s ease;
+}
+.storage-meter[data-level='warn'] span {
+  background: var(--warn);
+}
+.storage-meter[data-level='full'] span {
+  background: var(--bad);
+}
+.storage-summary,
+.storage-note {
+  margin: 6px 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.storage-breakdown,
+.storage-cleanup {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+.storage-breakdown li {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.2fr) 2fr minmax(140px, auto);
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+.storage-label {
+  color: var(--ink);
+}
+.storage-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.storage-bar span {
+  display: block;
+  height: 100%;
+  background: var(--brand);
+  border-radius: inherit;
+}
+.storage-size {
+  text-align: right;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.storage-cleanup small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+.storage-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--warn);
+  vertical-align: middle;
+}
+.storage-dot[hidden] {
+  display: none;
+}
+@media (max-width: 720px) {
+  .storage-breakdown li {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .storage-size {
+    text-align: left;
+  }
+}

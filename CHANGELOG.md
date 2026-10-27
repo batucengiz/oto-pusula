@@ -2,7 +2,7 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
-## 7.32.0 — 2026-10-27
+## 7.33.0 — 2026-10-27
 
 - **Asistanın eksper hafızası.** Arama sayfası sohbetinde her soruda ilanlar yerel kayıttan yeniden okunur. Sohbet sürerken bir ilanı açıp "Analiz et"e basarsan (ya da rapor fotoğrafını yorumlatırsan) bir sonraki soruda o ilanın eksper riski ve hatasız iddiası hesaba katılır; Oto Pusula toplam puanı (fırsat puanı + eksper riski + hatasız iddiası + ağır uyarı) ve sıralama hemen değişir.
 - **Cevabın üstünde kısa bilgi:** "Eksper güncellendi: Fiat Egea 2021 (İlan 2) artık hesaba katıldı: risk yüksek, hatasız iddiası tutmuyor, puan 72 → 32. Sıralama buna göre yenilendi." Yapay zekaya da önceki cevaplardaki sıralama ve İlan numaralarının eskidiği söylenir; eski sıralamayı tekrarlamaz.
@@ -10,6 +10,15 @@ Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-p
 - **Rapor fotoğrafı hafızaya alınır.** "Ekrandaki rapor fotoğrafını yorumla" sonucundaki risk hükmü ve tek cümlelik özet ilan kaydına yazılır (ekran görüntüsü ve yorumun tamamı saklanmaz). Asıl rapor olduğu için satıcının yazısından üstün tutulur; ilan sohbeti de arama sohbeti de bir sonraki soruda bunu kullanır.
 - **Hangi ilanda eksper verisi var, açıkça yazar.** Sohbetin altında: "Eksper yorumu 3/15 ilanda var (1 tanesi rapor fotoğrafından) · 2 ilan eski sürümde okunmuş, açıklaması kaydedilmemiş: bir kez daha açıp Analiz et'e basın · 10 ilan hiç açılıp analiz edilmedi." 7.27.0 öncesinde okunan ilanların kartında "Eski okuma: yeniden analiz et" etiketi var; yapay zekaya da bu ilanların yorumunun yalnızca boya/değişen şemasından geldiği söylenir.
 - Açık kartlar kayıt değişince kendiliğinden yenilenir. Sahibinden'e hiçbir ek istek atılmaz; her şey bu bilgisayardaki kayıtlardan hesaplanır.
+
+## 7.32.0 — 2026-10-27
+
+- **Cihazdaki depolama göstergesi.** Panelde **Yöntem ve veri → Cihazdaki depolama**: Oto Pusula'nın bu bilgisayarda ne kadar yer kullandığı, doluluk çubuğu (Rahat / Doluyor / Dolmak üzere) ve bölüm bölüm kırılım (kayıtlı ilanlar, fiyat geçmişi, galeri stoğu, sohbetler, kayıtlı aramalar ve bildirimler, okunan sayfalar, kâr hesapları, kayıt defterleri). Doluluk; toplam boyut (25 MB pratik bütçe), sınırlı bölümlerin sayısı (5.000 ilan, 5.000 stok, 200 sohbet, 500 kâr hesabı) ve tarayıcının diskteki alanından en yüksek olanıdır.
+- **Önce uyarı, sessiz silme yok.** Depo %70'i geçince panel açılışında bir kez uyarır ve menüde "Yöntem ve veri" yanında nokta çıkar; %90'da "dolmak üzere" der. Popup da analizden sonra aynı uyarıyı yazar. Hiçbir veri kendiliğinden silinmez.
+- **Yedek indir ve temizle.** Seçmeli temizlik: 180 günden uzun süredir görülmeyen ilanlar, bir yıldan eski fiyat geçmişini aylığa indirme (ilk, son ve her ayın son fiyatı kalır), 30 günden eski sohbetler, silinmiş ilanların kâr hesapları. Her seçenek kaç kaydı etkilediğini ve ne kadar yer açacağını yazar. Temizlikten önce tüm verilerin yedeği (oto-pusula-temizlik-oncesi-….json) iner; işlem "Geri al" ile geri alınır. Takipteki (★) ve numarası kayıtlı ilanlar, yapay zekaya kaydedilenler, galeri stoğu ve sabitlenen sohbetler temizlenmez.
+- **5.000 ilan sınırında takiptekiler korunur.** Önceden sınır aşılınca en eski ilanlar takipte olsa bile düşüyordu ve bu söylenmiyordu. Artık takipteki ve numarası kayıtlı ilanlar önce korunur, kaç ilanın düştüğü popup'ta yazar.
+- **Yazma hatası açık.** Depo ya da disk doluysa "Kayıt yazılamadı: depo ya da disk dolu…" denir ve nereden temizleneceği söylenir.
+- **Her depolama anahtarı yedekte.** backup.js yedeğe giren ve girmeyen (geçici sayaç/tanı günlüğü) anahtarları sebebiyle listeler; yeni bir anahtar eklenip listeye yazılmazsa testler kırılır. Yeni dosyalar: storage-health.js, storage-ui.js, storage.css, storage-health.test.js. Sahibinden'e ek istek yok.
 
 ## 7.31.0 — 2026-10-27
 

@@ -386,6 +386,15 @@
     // Karışık aramada çoğu ilan "veri yok" kalır; nedenini ve çözümünü burada söyle.
     const coverage = core.dataCoverage(outcome.evaluated);
     if (coverage.hint) nodes.push(element('p', 'warning-line', `ℹ ${coverage.hint}`));
+    if (stats.dropped)
+      nodes.push(
+        element(
+          'p',
+          'warning-line',
+          `⚠ Kayıt ${core.MAX_ROWS.toLocaleString('tr-TR')} ilan sınırına ulaştığı için en uzun süredir görülmeyen ${stats.dropped} ilan düştü (takiptekiler ve numarası kayıtlılar korundu). Panel → Yöntem ve veri → Cihazdaki depolama bölümünden eski ilanları temizleyin.`
+        )
+      );
+    if (outcome.storageWarning) nodes.push(element('p', 'warning-line', `⚠ ${outcome.storageWarning}`));
     if (outcome.roomDropped)
       nodes.push(
         element(
@@ -2127,6 +2136,18 @@
       `Bu ${key.startsWith('list:') ? 'aramada' : 'ilanda'} önceki sohbetiniz kayıtlı (${turns.length} soru). Analiz edince kaldığınız yerden devam eder.`;
   }
 
+  // Analizden sonra depo %70'i geçtiyse kısa uyarı (storage-health.js). Sohbet geçmişi burada okunmaz; toplam bayt
+  // eklentinin deposundan gelir. Ölçülemezse uyarı çıkmaz, analiz etkilenmez.
+  async function storageWarning(state) {
+    const health = globalThis.OtoStorageHealth;
+    if (!health) return '';
+    try {
+      return health.warning(health.health(health.breakdown(state), await health.usage()));
+    } catch {
+      return '';
+    }
+  }
+
   async function analyze() {
     if (!activeTab) return;
     $('analyze').disabled = true;
@@ -2140,6 +2161,7 @@
       const saved = store.saveMakingRoom(outcome.state);
       outcome.state = saved.state;
       outcome.roomDropped = saved.dropped;
+      outcome.storageWarning = await storageWarning(outcome.state);
       showResult(describe(outcome, injection?.result));
       paintAlertCount(outcome.state);
       notifyDesktop(outcome.alerts, outcome.state);
@@ -2229,8 +2251,18 @@
   } catch {
     /* dinlenemezse kayıt her soruda yine yeniden okunur */
   }
-  store.onWriteError(() =>
-    showResult([element('p', '', 'Kayıt tarayıcı deposuna yazılamadı. Diskte yer açıp tekrar deneyin.')], true)
+  store.onWriteError(error =>
+    showResult(
+      [
+        element(
+          'p',
+          '',
+          globalThis.OtoStorageHealth?.writeErrorText(error) ||
+            'Kayıt tarayıcı deposuna yazılamadı. Diskte yer açıp tekrar deneyin.'
+        )
+      ],
+      true
+    )
   );
   $('analyze').addEventListener('click', analyze);
   $('forget-page').addEventListener('click', forgetPage);

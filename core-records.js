@@ -564,8 +564,12 @@
     }
     let records = [...map.values()];
     if (records.length > MAX_ROWS) {
-      // En son görülenler kalır; tarihsiz kayıtlar en eski sayılır.
-      records = records.sort((a, b) => String(b.date || '').localeCompare(String(a.date || ''))).slice(0, MAX_ROWS);
+      // Takipteki (★) ve satıcı numarası kaydedilmiş ilanlar önce korunur; sonra en son görülenler kalır.
+      // Tarihsiz kayıtlar en eski sayılır.
+      const keep = item => (item.watched || item.sellerPhone ? 1 : 0);
+      records = records
+        .sort((a, b) => keep(b) - keep(a) || String(b.date || '').localeCompare(String(a.date || '')))
+        .slice(0, MAX_ROWS);
       stats.dropped = map.size - MAX_ROWS;
     }
     return { records, stats };
