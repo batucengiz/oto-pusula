@@ -289,7 +289,17 @@
         .slice(0, 3),
       low: share(value.low),
       high: share(value.high),
-      text: value.text === true
+      text: value.text === true,
+      // Kullanıcının Gemini'ye okuttuğu rapor fotoğrafının hükmü ve tek cümlelik özeti (expertise.js photoSummary).
+      ...(value.photo && ['low', 'medium', 'high'].includes(value.photo.risk)
+        ? {
+            photo: {
+              risk: value.photo.risk,
+              note: plain(value.photo.note).slice(0, 240),
+              ...(date(value.photo.date) ? { date: date(value.photo.date) } : {})
+            }
+          }
+        : {})
     };
   }
 

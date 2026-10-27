@@ -1390,6 +1390,26 @@ test('popup: anahtar varsa ekrandaki rapor fotoğrafı tek tıkla yorumlanır; s
       .join(' '),
     /risk orta/
   );
+
+  // Raporun hükmü ilan kaydına yazılır; asistan bir sonraki soruda bunu bilir.
+  assert.match(
+    walk(answer)
+      .map(node => node.textContent)
+      .join(' '),
+    /Asistanın hafızasına alındı: rapora göre risk orta/
+  );
+  const saved = JSON.parse(storage.get('otoPusula_v1')).comparables.find(item => item.listingId === '1234567893');
+  assert.deepEqual(saved.expertise.photo, { risk: 'medium', note: 'risk orta.', date: saved.expertise.photo.date });
+  const form = walk(chat).find(node => node.tag === 'form');
+  form.children.find(node => node.tag === 'input').value = 'Bu araç alınır mı?';
+  await form.listeners.submit({ preventDefault() {} });
+  await settle();
+  const asked = requests.filter(request => request.body?.systemInstruction).at(-1);
+  assert.ok(asked, 'soru Gemini’ye gitti');
+  assert.match(
+    asked.body.systemInstruction.parts[0].text,
+    /Ekspertiz raporu fotoğrafı \(kullanıcı [\d-]+ Gemini'ye okuttu\): risk orta/
+  );
 });
 
 test('bulut hataları: model kapanınca yedek modele geçilir, sebep kullanıcıya özel yazılır', async () => {
@@ -1855,4 +1875,183 @@ test('popup: Gemini hata verince yedek cevap ve altında tanı satırı görün�
   assert.match(diag.textContent, /^Tanı: flash-latest HTTP 403/);
   assert.doesNotMatch(diag.textContent, /AIza/);
   assert.ok(walk(chat).some(node => /Yeniden sor/.test(node.textContent)));
+});
+
+test('eksper hafızası: sor → ilanı analiz et → tekrar sor; sıralama, puan ve cevap üstündeki bilgi hemen değişir', async () => {
+  const page = searchPage([
+    ['1.4 Fire Urban', 2021, '90.000', '780.000 TL'],
+    ['1.4 Fire Urban', 2021, '92.000', '840.000 TL'],
+    ['1.4 Fire Urban', 2021, '95.000', '860.000 TL'],
+    ['1.4 Fire Urban', 2021, '91.000', '900.000 TL']
+  ]);
+  const storage = new Map();
+  const systems = [];
+  const api = {
+    availability: async () => 'available',
+    create: async options => {
+      systems.push(options.initialPrompts[0].content);
+      return { prompt: async () => '**Kısa cevap:** İlan 1 en mantıklısı, sonra İlan 2.', destroy() {} };
+    }
+  };
+  const settle = async () => {
+    for (let i = 0; i < 5; i += 1) await new Promise(resolve => setImmediate(resolve));
+  };
+  const ask = async (chat, question) => {
+    const form = walk(chat).find(node => node.tag === 'form');
+    form.children.find(node => node.tag === 'input').value = question;
+    await form.listeners.submit({ preventDefault() {} });
+    await settle();
+  };
+  const firstListing = system => system.match(/- İlan 1: [^;]+;[^;]+; fiyat ([\d.]+) TL/)[1];
+  // Başka sekmede ilan sayfası analiz edildi: listing.js'in yazdığı eksper özeti kayda düşer (sahibinden'e istek yok).
+  const analyzeListing = (price, expertise) => {
+    const state = JSON.parse(storage.get('otoPusula_v1'));
+    const item = state.comparables.find(record => record.price === price);
+    item.expertise = expertise;
+    item.detailRead = true;
+    storage.set('otoPusula_v1', JSON.stringify(state));
+  };
+  const chat = await popupWithModel(api, { page, storage, history: true, expertise: true });
+  const coverage = () => walk(chat).find(node => node.className === 'chat-coverage');
+  assert.match(coverage().textContent, /Eksper yorumu 0\/4 ilanda var · 4 ilan hiç açılıp analiz edilmedi/);
+
+  await ask(chat, 'Bu listede en mantıklı 3 ilan hangisi?');
+  assert.equal(firstListing(systems[0]), '780.000', 'eksper bilgisi yokken en ucuz ilan önde');
+  assert.doesNotMatch(systems[0], /GÜNCEL EKSPER BİLGİSİ/);
+  assert.equal(walk(chat).filter(node => node.className === 'chat-note update').length, 0, 'ilk soruda güncelleme yok');
+
+  // Kullanıcı en öndeki ilanı açıp analiz etti: hatasız iddiası tutmuyor, risk yüksek.
+  analyzeListing(780000, {
+    risk: 'high',
+    claim: 'contradicted',
+    reasons: ['Hatasız denmiş ama şemada değişen var.'],
+    low: 6,
+    high: 12,
+    text: true
+  });
+  await ask(chat, 'Peki şimdi en mantıklı hangisi?');
+  assert.notEqual(firstListing(systems[1]), '780.000', 'riskli ilan ilk sıradan düştü');
+  assert.match(
+    systems[1],
+    /GÜNCEL EKSPER BİLGİSİ[\s\S]*Fiat Egea 2021 780\.000 TL: ekspertiz riski yüksek, hatasız iddiası tutmuyor; toplam puan \d+ → \d+/
+  );
+  assert.match(systems[1], /Önceki cevaplardaki sıralama, puan ve İlan numaraları ESKİDİR/);
+  assert.match(systems[1], /780\.000 TL[^\n]*ekspertiz riski yüksek, hatasız iddiası tutmuyor/);
+  const notes = walk(chat).filter(node => node.className === 'chat-note update');
+  assert.equal(notes.length, 1);
+  assert.match(
+    notes[0].textContent,
+    /^Eksper güncellendi: Fiat Egea 2021 \(İlan \d\) artık hesaba katıldı: risk yüksek, hatasız iddiası tutmuyor, puan (\d+) → (\d+)\. Sıralama buna göre yenilendi\.$/
+  );
+  const [, before, after] = notes[0].textContent.match(/puan (\d+) → (\d+)/);
+  assert.ok(Number(after) < Number(before), 'puan düştü');
+  assert.match(coverage().textContent, /Eksper yorumu 1\/[34] ilanda var/);
+  const tags = walk(chat)
+    .filter(node => node.className === 'chat-tag bad')
+    .map(node => node.textContent);
+  assert.ok(tags.includes('Eksper: risk yüksek'), 'kartta da eksper riski');
+
+  // Aynı soru yeniden: değişiklik yok, bilgi tekrar çıkmaz.
+  await ask(chat, 'Bir daha söyler misin?');
+  assert.doesNotMatch(systems[2], /GÜNCEL EKSPER BİLGİSİ/);
+  assert.equal(walk(chat).filter(node => node.className === 'chat-note update').length, 1);
+
+  // Popup kapandı; kullanıcı başka bir ilanı açıp analiz etti ve aramaya döndü. Fark sohbet kaydından bulunur.
+  analyzeListing(900000, { risk: 'low', claim: 'consistent', reasons: [], low: 0, high: 0, text: true });
+  const second = await popupWithModel(api, { page, storage, history: true, expertise: true });
+  await settle();
+  await ask(second, 'Şimdi hangisini önerirsin?');
+  assert.match(
+    systems.at(-1),
+    /GÜNCEL EKSPER BİLGİSİ[\s\S]*900\.000 TL: ekspertiz riski düşük, hatasız iddiası tutarlı/
+  );
+  const fresh = walk(second).filter(node => node.className === 'chat-note update');
+  assert.match(
+    fresh.at(-1).textContent,
+    /Fiat Egea 2021 \(İlan \d\) artık hesaba katıldı: risk düşük, hatasız iddiası tutarlı/
+  );
+});
+
+test('eksper hafızası: eski sürümde okunan ilan dürüstçe belirtilir; işaretler ve fark hesabı', () => {
+  const make = (id, extra = {}) =>
+    core.normalizeRecord(
+      {
+        id: `sh-${id}`,
+        source: 'sahibinden',
+        listingId: id,
+        brand: 'Fiat',
+        model: 'Egea',
+        year: 2021,
+        km: 90000,
+        price: 800000,
+        ...extra
+      },
+      'comparable'
+    );
+  const entry = record => ({
+    record,
+    result: { center: 850000, gap: -0.06 },
+    deal: { score: 70 },
+    advice: { flags: [] }
+  });
+  // 7.27.0 öncesi: ilan sayfası okunmuş (şema var) ama eksper özeti yazılmamış.
+  const old = entry(make('2000000001', { damage: { painted: ['Kaput'] }, detailRead: true }));
+  const fresh = entry(
+    make('2000000002', { expertise: { risk: 'low', claim: 'none', reasons: [], low: 0, high: 0, text: true } })
+  );
+  const never = entry(make('2000000003'));
+  assert.equal(assistant.oldRead(old.record), true);
+  assert.equal(assistant.oldRead(fresh.record), false);
+  assert.equal(assistant.oldRead(never.record), false);
+  const view = assistant.listContext('En mantıklı hangisi?', [old, fresh, never], new Date('2026-10-27'));
+  assert.match(view.lines.join('\n'), /eski bir sürümde okunmuş, satıcının açıklaması kaydedilmemiş/);
+  const text = assistant.coverageText(assistant.expertiseCoverage([old, fresh, never]));
+  assert.equal(
+    text,
+    'Eksper yorumu 1/3 ilanda var · 1 ilan eski sürümde okunmuş, açıklaması kaydedilmemiş (Fiat Egea 2021): bir kez daha açıp Analiz et’e basın · 1 ilan hiç açılıp analiz edilmedi.'
+  );
+
+  // İşaretler: yalnızca eksper hükmü/iddia/fotoğraf değişince fark sayılır.
+  const marks = [old, fresh, never].map(item => assistant.expertiseMark(item));
+  assert.match(marks[2], /^comparable-sh-2000000003\|-\|-\|-\|70$/);
+  assert.deepEqual(assistant.expertiseChanges(marks, [old, fresh, never]), []);
+  const priced = { ...never, deal: { score: 75 } };
+  assert.deepEqual(
+    assistant.expertiseChanges(marks, [priced]),
+    [],
+    'yalnızca puan değişimi eksper güncellemesi değildir'
+  );
+  const analyzed = entry(
+    make('2000000003', {
+      expertise: {
+        risk: 'medium',
+        claim: 'doubtful',
+        reasons: [],
+        low: 2,
+        high: 4,
+        text: true,
+        photo: { risk: 'high', note: 'Şasi işlemli.' }
+      }
+    })
+  );
+  const changes = assistant.expertiseChanges(marks, [analyzed]);
+  assert.equal(changes.length, 1);
+  assert.equal(changes[0].kind, 'new');
+  assert.equal(changes[0].after.risk, 'high', 'rapor fotoğrafının hükmü yazıdan üstündür');
+  assert.equal(
+    assistant.expertiseUpdateText(changes, () => 2),
+    'Eksper güncellendi: Fiat Egea 2021 (İlan 2) artık hesaba katıldı: risk yüksek, hatasız iddiası şüpheli, rapor fotoğrafından, puan 70 → 36. Sıralama buna göre yenilendi.'
+  );
+  assert.match(
+    assistant.compareFacts([analyzed])[0],
+    /ekspertiz riski yüksek, kaynak: Gemini'nin okuduğu ekspertiz raporu fotoğrafı \(«Şasi işlemli\.»\); ilan yazısına göre risk orta idi/
+  );
+  assert.equal(assistant.expertiseUpdateText([]), '');
+  assert.equal(assistant.expertiseUpdateRule([]), '');
+
+  // Kayıt ve sohbet geçmişi yeni alanları korur.
+  assert.deepEqual(analyzed.record.expertise.photo, { risk: 'high', note: 'Şasi işlemli.' });
+  const history = require('./chat-history.js');
+  const map = history.append({}, 'list:/fiat-egea', 'Soru', 'Cevap', Date.now(), [], { marks: [...marks, 'bozuk'] });
+  assert.deepEqual(map['list:/fiat-egea'].marks, marks);
 });

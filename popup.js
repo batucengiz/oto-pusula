@@ -441,7 +441,7 @@
             price: record.price
           });
           expertise = globalThis.OtoExpertise.lines(reading);
-          nodes.push(expertiseNodes(expertise, reading));
+          nodes.push(expertiseNodes(expertise, reading, record));
         }
       } catch {
         expertise = [];
@@ -661,7 +661,7 @@
   }
 
   // Ekspertiz yorumu kartı: ilk satır risk hükmü, altında parça parça bulgular, çelişkiler ve pazarlık etkisi.
-  function expertiseNodes(lines, reading) {
+  function expertiseNodes(lines, reading, record = null) {
     const details = element('details', `expertise ${reading.risk.level}`);
     details.open = true;
     const [head, ...rest] = lines;
@@ -699,13 +699,13 @@
         `Kaynak: ${[...reading.sources, reading.diagramKnown && 'boya/değişen şeması'].filter(Boolean).join(', ')}. Satıcı beyanıdır; aracı yine ekspertizde doğrulatın.`
       )
     );
-    details.append(...reportImageNodes(lines, reading));
+    details.append(...reportImageNodes(lines, reading, record));
     return details;
   }
 
   // Rapor yalnızca fotoğraf olarak varsa: kullanıcı fotoğrafı sahibinden'de büyütür, tek tıkla ekran görüntüsü
   // Gemini'ye yorumlatılır. Görüntü sekmeden alınır; sahibinden'e istek atılmaz, fotoğraf yeniden indirilmez.
-  function reportImageNodes(lines, reading) {
+  function reportImageNodes(lines, reading, record = null) {
     const remote = globalThis.OtoRemoteAI;
     let key = '';
     try {
@@ -752,7 +752,20 @@
             )
           );
         // Model başlıkları satır satır yazar; her başlık ayrı paragraf olsun.
-        else answer.append(...richNodes(text.replace(/\n(?=\*\*)/g, '\n\n')));
+        else {
+          answer.append(...richNodes(text.replace(/\n(?=\*\*)/g, '\n\n')));
+          // Raporun hükmü ilan kaydına yazılır: asistan bir sonraki soruda (bu ilanda da arama sayfasında da) kullanır.
+          const kept = rememberPhoto(record, text);
+          answer.append(
+            element(
+              'p',
+              kept ? 'chat-note update' : 'muted',
+              kept
+                ? `Asistanın hafızasına alındı: rapora göre risk ${RISK_TEXT[kept.risk]}. Bir sonraki soruda puan ve sıralama buna göre güncellenir.`
+                : 'Rapor yorumunda net bir risk hükmü bulunamadığı için asistanın hafızasına yazılmadı.'
+            )
+          );
+        }
       } catch (error) {
         answer.append(
           element(
@@ -770,6 +783,48 @@
     });
     box.append(note, button, answer);
     return [box];
+  }
+
+  const RISK_TEXT = { low: 'düşük', medium: 'orta', high: 'yüksek', unknown: 'bilinmiyor' };
+
+  // Rapor fotoğrafı yorumunun kısa hükmü ilanın kaydına yazılır (ekran görüntüsü ve yorumun tamamı saklanmaz).
+  function rememberPhoto(record, text) {
+    const photo = record && globalThis.OtoExpertise?.photoSummary?.(text, core.localDate());
+    if (!photo) return null;
+    try {
+      const state = store.load();
+      const index = state.comparables.findIndex(item => item.id === record.id);
+      if (index < 0) return null;
+      const item = state.comparables[index];
+      const base = item.expertise?.risk
+        ? item.expertise
+        : globalThis.OtoExpertise.forRecord(item) || {
+            risk: 'unknown',
+            claim: 'none',
+            reasons: [],
+            low: 0,
+            high: 0,
+            text: false
+          };
+      const comparables = [...state.comparables];
+      comparables[index] = { ...item, expertise: { ...base, photo } };
+      store.save({ ...state, comparables });
+      expertiseChanged();
+      return photo;
+    } catch {
+      return null;
+    }
+  }
+
+  // Kayıtlar değişince (rapor fotoğrafı okundu, panelde ya da başka pencerede ilan analiz edildi) açık sohbet
+  // kartlarını ve eksper durum satırını yeniler. Sahibinden'e istek atılmaz; yalnızca yerel kayıt yeniden okunur.
+  let liveRefresh = null;
+  function expertiseChanged() {
+    try {
+      liveRefresh?.();
+    } catch {
+      /* yenilenemese de bir sonraki soruda kayıt yeniden okunur */
+    }
   }
 
   // Kapalı gelen, tıklayınca açılan basit madde listesi.
@@ -1109,10 +1164,12 @@
           element(
             'span',
             `chat-tag ${{ high: 'bad', medium: 'warn', low: 'good' }[expertise.risk]}`,
-            `Eksper: risk ${{ high: 'yüksek', medium: 'orta', low: 'düşük' }[expertise.risk]}`
+            `${expertise.photo ? 'Eksper raporu' : 'Eksper'}: risk ${RISK_TEXT[expertise.risk]}`
           )
         );
       else tags.append(element('span', 'chat-tag muted', 'Eksper yorumu yok'));
+      // 7.27.0 öncesi okunan ilan: açıklama yorumu kaydedilmemiş, yalnızca şemadan kaba yorum var.
+      if (assistant.oldRead?.(record)) tags.append(element('span', 'chat-tag muted', 'Eski okuma: yeniden analiz et'));
       if (expertise?.claim === 'contradicted') tags.append(element('span', 'chat-tag bad', 'Hatasız iddiası tutmuyor'));
       else if (expertise?.claim === 'doubtful')
         tags.append(element('span', 'chat-tag warn', 'Hatasız iddiası şüpheli'));
@@ -1134,7 +1191,6 @@
   }
 
   function renderChat(chat, mode) {
-    const { lines } = chat;
     chatView += 1;
     let view = chatView;
     const log = element('div', 'chat-log');
@@ -1185,6 +1241,13 @@
     // Liste sohbeti: her soruda ilanlar soruya göre süzülür; modele son iki soru-cevap da verilir.
     let listView = null;
     const listTurns = [];
+    // Eksper hafızası: son cevapta modelin gördüğü ilanların eksper işaretleri (sohbet kaydında da durur). Bir sonraki
+    // soruda kayıtlar yeniden okunur; yeni analiz edilen ya da rapor fotoğrafı okunan ilan bununla fark edilir.
+    let usedMarks = null;
+    let lastChanges = [];
+    let considered = [];
+    // Tek ilan sohbetinde bu açılıştaki soru-cevaplar: eksper bilgisi değişip oturum yeniden kurulunca modele verilir.
+    const liveTurns = [];
     // Liste sohbetinin kapsamı: açık sayfa ("page") ya da eklentide kayıtlı, okunan tüm sayfalardaki ilanlar ("all",
     // varsayılan). Kayıtlı kapsamda isteğe bağlı olarak tek marka seçilir. Yalnızca yerel kayıtlar kullanılır.
     const scope = { mode: loadScopeMode(), brand: '' };
@@ -1272,6 +1335,83 @@
       }
     }
 
+    // Her soruda ilanlar yerel kayıttan yeniden okunur: bu arada başka bir ilan açılıp analiz edildiyse (eksper yorumu,
+    // rapor fotoğrafı) puan ve sıralama hemen değişir. Sahibinden'e istek atılmaz. Değişiklik varsa true döner.
+    function refreshEntries() {
+      let all;
+      try {
+        all = store.load().comparables;
+      } catch {
+        return false;
+      }
+      const byId = new Map(all.map(item => [item.id, item]));
+      const sig = item => JSON.stringify([item?.expertise ?? null, item?.damage ?? null, item?.price, item?.tramer]);
+      const fresh = entry => {
+        const stored = byId.get(entry.record.id);
+        if (!stored || sig(stored) === sig(entry.record)) return entry;
+        const result = core.estimate(stored, all);
+        return { record: stored, result, deal: core.dealScore(stored, result), advice: core.advise(stored, result) };
+      };
+      if (listMode) {
+        let changed = false;
+        chat.context.entries = chat.context.entries.map(entry => {
+          const next = fresh(entry);
+          if (next !== entry) changed = true;
+          return next;
+        });
+        return changed;
+      }
+      const stored = byId.get(recordId);
+      if (!stored || sig(stored) === sig(chat.context.record)) return false;
+      chat.context.record = stored;
+      chat.lines = assistant.facts(chat.context);
+      return true;
+    }
+    // Tek ilan sohbetinde işaretlenen ilanlar: açık ilan ve yapay zekaya kaydedilenler.
+    const singleEntries = () => [
+      {
+        record: chat.context.record,
+        result: chat.context.result,
+        deal: chat.context.deal,
+        advice: chat.context.advice
+      },
+      ...savedEntries
+    ];
+    // Bu cevabın işaretleri önde; önceki işaretlerden bu soruda görülmeyenler korunur.
+    function nextMarks(entries) {
+      const now = entries.map(entry => assistant.expertiseMark(entry));
+      const ids = new Set(now.map(mark => mark.split('|')[0]));
+      return [...now, ...(usedMarks || []).filter(mark => !ids.has(mark.split('|')[0]))].slice(0, 60);
+    }
+
+    // Listedeki ilanların eksper verisi: kaçında yorum var, hangileri eski sürümde okunmuş, kaçı hiç açılmamış.
+    const coverage = element('p', 'chat-coverage', '');
+    coverage.hidden = true;
+    function paintCoverage() {
+      if (!listMode || !assistant.coverageText) return;
+      const shown = listView?.shown?.length ? listView.shown : chat.context.entries;
+      coverage.textContent = assistant.coverageText(assistant.expertiseCoverage(shown));
+      coverage.hidden = !coverage.textContent;
+    }
+    // Açık kartlar kayıt değişince yeniden çizilir (puan, eksper etiketi).
+    const liveCards = [];
+    function repaintCards() {
+      for (const item of liveCards) {
+        try {
+          const fresh = listingCards(item.answer, entriesFor(item.ids), item.meta);
+          if (fresh) item.box.replaceChildren(...fresh.children);
+        } catch {
+          /* kart eski hâliyle kalır */
+        }
+      }
+    }
+    liveRefresh = () => {
+      if (view !== chatView) return;
+      if (!refreshEntries()) return;
+      paintCoverage();
+      repaintCards();
+    };
+
     // compact: model bağlamı kaldıramadığında kısaltılmış bilgiyle açılan oturum.
     let compact = false;
     // Son oturuma verilen metin: cevaptaki rakamlar bununla denetlenir.
@@ -1288,12 +1428,22 @@
           compact ? 8 : assistant.LIST_MAX,
           view.scope
         );
-        system = assistant.withContext(assistant.listSystemPrompt(listView.lines, view.scope), { history: listTurns });
+        const shownIds = new Set(listView.shown.map(entry => entry.record.id));
+        considered = [...listView.shown, ...view.entries.filter(entry => !shownIds.has(entry.record.id))];
+        lastChanges = assistant.expertiseChanges?.(usedMarks || [], view.entries) || [];
+        system = assistant.withContext(assistant.listSystemPrompt(listView.lines, view.scope), {
+          history: listTurns,
+          update: assistant.expertiseUpdateRule?.(lastChanges) || ''
+        });
       } else if (chatSession) return chatSession;
       else
         system = compact
-          ? assistant.systemPrompt(assistant.compactFacts(lines))
-          : assistant.withContext(assistant.systemPrompt(lines), { history: pastTurns, saved: savedFacts() });
+          ? assistant.systemPrompt(assistant.compactFacts(chat.lines))
+          : assistant.withContext(assistant.systemPrompt(chat.lines), {
+              history: [...pastTurns, ...liveTurns],
+              saved: savedFacts(),
+              update: assistant.expertiseUpdateRule?.(lastChanges) || ''
+            });
       lastSystem = system;
       if (mode.kind === 'remote') {
         // Google yoğunken istek katmanı yedek modele geçer ve bekleyip yeniden dener; kullanıcı bunu kısa bir notla görür.
@@ -1325,7 +1475,7 @@
       try {
         created = await assistant.createSession(
           assistant.languageModel(),
-          lines,
+          chat.lines,
           mode.found.options,
           loaded => {
             if (loaded > best) {
@@ -1457,6 +1607,13 @@
       const holder = typing();
       log.append(holder);
       const reply = holder.children[0];
+      // Kayıtlar yeniden okunur; tek ilan sohbetinde eksper bilgisi değiştiyse oturum yeni bilgiyle yeniden kurulur.
+      if (refreshEntries()) repaintCards();
+      if (!listMode) {
+        savedFacts();
+        lastChanges = assistant.expertiseChanges?.(usedMarks || [], singleEntries()) || [];
+        if (lastChanges.length) closeChat();
+      }
       // Bu cevabın ilan listesi, oturum hazır olunca bir kez alınır (ilk akış parçasında).
       let snap = null;
       const take = () => snap || (snap = { view: listView, saved: savedEntries, link: linksNow() });
@@ -1482,16 +1639,40 @@
         show(answer || 'Cevap üretilemedi; soruyu farklı ya da daha kısa sorun.');
         if (answer) {
           const { view, saved } = take();
+          // Bu soruda hesaba yeni katılan eksper bilgisi cevabın üstünde kısaca yazılır.
+          if (lastChanges.length) {
+            const shown = listMode ? view?.shown || [] : saved;
+            const number = entry => shown.findIndex(item => item.record.id === entry.record.id) + 1;
+            holder.prepend(element('p', 'chat-note update', assistant.expertiseUpdateText(lastChanges, number)));
+          }
+          const cardEntries = listMode ? view.shown : saved;
           const cards = listMode ? listingCards(answer, view.shown, view) : listingCards(answer, saved);
-          if (cards) holder.append(cards);
+          if (cards) {
+            holder.append(cards);
+            liveCards.push({
+              box: cards,
+              answer,
+              ids: cardEntries.map(e => e.record.id),
+              meta: listMode ? view : undefined
+            });
+          }
           holder.append(actions(answer, question));
           if (listMode) {
             listTurns.push({ q: question, a: answer });
             listTurns.splice(0, Math.max(0, listTurns.length - 2));
+          } else {
+            liveTurns.push({ q: question, a: answer });
+            liveTurns.splice(0, Math.max(0, liveTurns.length - 4));
           }
+          // Model bu cevapta ilanları bu eksper bilgisiyle gördü; sonraki soruda fark buna göre bulunur.
+          usedMarks = nextMarks(listMode ? considered : singleEntries());
+          lastChanges = [];
+          paintCoverage();
           // "İlan N" bağlantıları geri yüklenince de aynı ilanı açsın diye o cevabın ilan sırası da saklanır.
           const refs = (listMode ? view?.shown || [] : saved).map(entry => entry.record.id);
-          history?.add(chatId, question, answer, undefined, refs, chatMeta()).catch?.(() => {});
+          history
+            ?.add(chatId, question, answer, undefined, refs, { ...chatMeta(), marks: usedMarks })
+            .catch?.(() => {});
         }
         // Uydurma tutar/yüzde ya da listede olmayan ilan numarası varsa cevabın altında kısa bir uyarı çıkar.
         const note = answer
@@ -1719,10 +1900,13 @@
           listMode ? [] : history.savedIds()
         ]);
         chatId = found || chatKey;
-        pastTurns = found ? await history.load(found) : [];
+        const item = found ? await history.get(found) : null;
+        pastTurns = item?.turns || [];
+        usedMarks = item?.marks?.length ? item.marks : null;
         savedList = saved;
       } catch {
         pastTurns = [];
+        usedMarks = null;
         savedList = [];
       }
       if (!listMode) paintSaved();
@@ -1757,6 +1941,10 @@
       compact = false;
       pastTurns = [];
       listTurns.length = 0;
+      liveTurns.length = 0;
+      liveCards.length = 0;
+      usedMarks = null;
+      lastChanges = [];
       log.replaceChildren();
       status.textContent = '';
       chat.section.classList?.remove('started');
@@ -1910,7 +2098,19 @@
     });
     scopeBar.append(element('span', 'chat-scope-label', 'Kapsam'), pageButton, allButton, brandSelect);
     if (scopeChoosable()) paintScope();
-    chat.section.replaceChildren(head, scopeBar, savedStrip, ...notices, empty, log, status, composer, drawerSlot);
+    paintCoverage();
+    chat.section.replaceChildren(
+      head,
+      scopeBar,
+      savedStrip,
+      ...notices,
+      empty,
+      log,
+      coverage,
+      status,
+      composer,
+      drawerSlot
+    );
   }
 
   // Bu sayfada (ya da aynı aramada) kayıtlı bir sohbet varsa popup açılır açılmaz söylenir; analiz edince sohbet
@@ -2023,6 +2223,12 @@
   }
 
   const storeReady = store.ready().catch(() => false);
+  // Panel ya da başka bir pencere kayıt yazınca (ör. ilan analiz edildi) açık sohbet yeni bilgiyi hemen görür.
+  try {
+    store.subscribe?.(() => expertiseChanged());
+  } catch {
+    /* dinlenemezse kayıt her soruda yine yeniden okunur */
+  }
   store.onWriteError(() =>
     showResult([element('p', '', 'Kayıt tarayıcı deposuna yazılamadı. Diskte yer açıp tekrar deneyin.')], true)
   );

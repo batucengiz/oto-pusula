@@ -54,6 +54,8 @@
     if (/^https:\/\/([a-z0-9-]+\.)*sahibinden\.com\//i.test(url)) clean.url = url;
     if (item?.pinned === true) clean.pinned = true;
     if (Number(item?.opened) > 0) clean.opened = Number(item.opened);
+    const marks = cleanMarks(item?.marks);
+    if (marks.length) clean.marks = marks;
     return clean;
   }
 
@@ -68,6 +70,14 @@
       .sort((a, b) => b[1].at - a[1].at);
     return Object.fromEntries(entries);
   }
+
+  // Son cevaptaki ilanların eksper işaretleri ("kimlik|risk|iddia|fotoğraf|puan", assistant.expertiseMark): sohbete
+  // dönülünce yeni analiz edilen ilan bununla fark edilir. Yalnızca sohbetin son hâli saklanır.
+  const MAX_MARKS = 60;
+  const cleanMarks = marks =>
+    (Array.isArray(marks) ? marks : [])
+      .filter(mark => typeof mark === 'string' && mark.length <= 80 && /^[^|]+(\|[^|]*){4}$/.test(mark))
+      .slice(0, MAX_MARKS);
 
   const cleanRefs = refs =>
     (Array.isArray(refs) ? refs : []).filter(ref => typeof ref === 'string' && ref.length <= 40).slice(0, MAX_REFS);
@@ -88,7 +98,8 @@
       page: meta.page || previous.page || pageOf(id),
       title: previous.title || autoTitle(turns[0].q),
       label: meta.label || previous.label,
-      url: meta.url || previous.url
+      url: meta.url || previous.url,
+      marks: meta.marks || previous.marks
     };
     return prune({ ...current, [id]: item }, now);
   }

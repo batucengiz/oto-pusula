@@ -228,6 +228,12 @@
     expertise.forEach((line, index) =>
       lines.push(`${index ? 'Ekspertiz yorumu' : 'Ekspertiz özeti'}: ${clean(line.text, 300)}`)
     );
+    // Kullanıcının Gemini'ye okuttuğu ekspertiz raporu fotoğrafı: asıl rapor olduğu için satıcının yazısından üstündür.
+    const photo = record.expertise?.photo;
+    if (photo?.risk && RISK_WORD[photo.risk])
+      lines.push(
+        `Ekspertiz raporu fotoğrafı (kullanıcı ${photo.date || 'daha önce'} Gemini'ye okuttu): risk ${RISK_WORD[photo.risk]}${photo.note ? `. Özet: «${clean(photo.note, 240)}»` : ''}. Rapor, satıcının ilan yazısından daha güvenilirdir.`
+      );
     const reasons = offerReasons({ record, result, body, advice });
     if (advice?.offer)
       lines.push(
@@ -297,14 +303,129 @@
   const COMPARE_MAX = 5;
 
   // Ekspertiz yorumu (expertise.js): kayıttaki özet ya da satıcının şemasından yeniden kurulan yorum; yoksa null.
+  // Rapor fotoğrafı Gemini'ye okutulduysa (record.expertise.photo) asıl eksper raporu satıcının yazısından üstündür:
+  // risk fotoğraftaki hükümdür, yazıdan çıkan hüküm baseRisk olarak kalır.
   function expertiseOf(record) {
-    if (record?.expertise?.risk) return record.expertise;
-    try {
-      const expertise = root.OtoExpertise || (typeof require === 'function' ? require('./expertise.js') : null);
-      return expertise?.forRecord(record) || null;
-    } catch {
-      return null;
+    let found = null;
+    if (record?.expertise?.risk) found = record.expertise;
+    else
+      try {
+        const expertise = root.OtoExpertise || (typeof require === 'function' ? require('./expertise.js') : null);
+        found = expertise?.forRecord(record) || null;
+      } catch {
+        found = null;
+      }
+    const photo = record?.expertise?.photo;
+    if (found && photo?.risk && RISK_WORD[photo.risk])
+      return { ...found, risk: photo.risk, baseRisk: found.risk, photo };
+    return found;
+  }
+
+  // İlan sayfası okunmuş ama 7.27.0 öncesinde: eksper özeti kayda yazılmamış, satıcının açıklaması artık elde yok.
+  // Yalnızca boya/değişen şemasından kaba yorum kurulabilir; kullanıcıya ilanı bir kez daha analiz etmesi söylenir.
+  function oldRead(record) {
+    return !record?.expertise?.risk && !!(record?.detailRead || record?.damage);
+  }
+
+  // Eksper durumunun kısa işareti: "kimlik|risk|iddia|fotoğraf|puan". Sohbet her soruda bunları bir öncekiyle
+  // karşılaştırır; yeni analiz edilen ilan ya da değişen eksper yorumu böylece yakalanır.
+  function expertiseMark(entry) {
+    const sense = senseScore(entry);
+    const expertise = sense.expertise;
+    const known = expertise && expertise.risk !== 'unknown';
+    return [
+      entry.record.id,
+      known ? expertise.risk : '-',
+      known ? expertise.claim || 'none' : '-',
+      expertise?.photo?.risk || '-',
+      sense.score
+    ].join('|');
+  }
+
+  function parseMark(mark) {
+    const [id, risk, claim, photo, score] = String(mark).split('|');
+    return { id, risk, claim, photo, score: Number(score) };
+  }
+
+  // Önceki işaretlere göre eksper bilgisi yeni gelen ya da değişen ilanlar. Yalnızca puanı değişen (ör. fiyatı düşen)
+  // ilan sayılmaz; eksper hükmü, hatasız iddiası ya da rapor fotoğrafı değişmiş olmalı.
+  function expertiseChanges(previous = [], entries = []) {
+    const before = new Map(previous.map(mark => parseMark(mark)).map(item => [item.id, item]));
+    const changes = [];
+    for (const entry of entries) {
+      const old = before.get(entry.record.id);
+      if (!old) continue;
+      const now = parseMark(expertiseMark(entry));
+      if (old.risk === now.risk && old.claim === now.claim && old.photo === now.photo) continue;
+      changes.push({ entry, before: old, after: now, kind: old.risk === '-' && now.risk !== '-' ? 'new' : 'changed' });
     }
+    return changes;
+  }
+
+  const shortName = record => [record.brand, record.model, record.year].filter(Boolean).join(' ');
+
+  // Kullanıcıya cevabın üstünde gösterilen kısa bilgi. number: ilanın bu cevaptaki "İlan N" numarası (yoksa 0).
+  function expertiseUpdateText(changes, number = () => 0) {
+    if (!changes.length) return '';
+    const parts = changes.slice(0, 4).map(({ entry, before, after, kind }) => {
+      const at = number(entry) ? ` (İlan ${number(entry)})` : '';
+      const what =
+        after.risk === '-'
+          ? 'eksper yorumu kaldırıldı'
+          : `${kind === 'new' ? 'artık hesaba katıldı' : 'eksper yorumu değişti'}: risk ${RISK_WORD[after.risk]}${CLAIM_WORD[after.claim] ? `, hatasız iddiası ${CLAIM_WORD[after.claim]}` : ''}${after.photo !== '-' ? ', rapor fotoğrafından' : ''}`;
+      const score =
+        Number.isFinite(before.score) && before.score !== after.score ? `, puan ${before.score} → ${after.score}` : '';
+      return `${shortName(entry.record)}${at} ${what}${score}`;
+    });
+    const more = changes.length > 4 ? ` (+${changes.length - 4} ilan daha)` : '';
+    return `Eksper güncellendi: ${parts.join('; ')}${more}. Sıralama buna göre yenilendi.`;
+  }
+
+  // Modele verilen güncelleme notu: önceki cevaplardaki sıralama ve "İlan N" numaraları eskidir.
+  function expertiseUpdateRule(changes) {
+    if (!changes.length) return '';
+    const items = changes
+      .slice(0, 6)
+      .map(
+        ({ entry, before, after }) =>
+          `${shortName(entry.record)} ${lira(entry.record.price)}: ${after.risk === '-' ? 'eksper yorumu yok' : `ekspertiz riski ${RISK_WORD[after.risk]}${CLAIM_WORD[after.claim] ? `, hatasız iddiası ${CLAIM_WORD[after.claim]}` : ''}`}; toplam puan ${Number.isFinite(before.score) ? `${before.score} → ` : ''}${after.score}`
+      );
+    return [
+      'GÜNCEL EKSPER BİLGİSİ (önceki cevaplardan sonra kullanıcı bu ilanları açıp analiz etti):',
+      ...items.map(item => `- ${item}`),
+      'Önceki cevaplardaki sıralama, puan ve İlan numaraları ESKİDİR; yalnızca aşağıdaki güncel listeyi kullan. Cevabının başında bir cümleyle hangi ilanın eksper yorumunun artık hesaba katıldığını ve sıralamanın nasıl değiştiğini söyle.'
+    ].join('\n');
+  }
+
+  // Listedeki ilanların eksper verisi durumu: yazıdan/rapordan yorum, yalnızca şemadan, eski sürüm okuması, hiç açılmamış.
+  function expertiseCoverage(entries = []) {
+    const out = { total: entries.length, read: 0, photo: 0, schema: 0, old: [], none: 0 };
+    for (const entry of entries) {
+      const expertise = expertiseOf(entry.record);
+      if (oldRead(entry.record)) out.old.push(entry);
+      else if (!expertise || expertise.risk === 'unknown') out.none += 1;
+      else if (expertise.photo) out.photo += 1;
+      else if (expertise.text) out.read += 1;
+      else out.schema += 1;
+    }
+    return out;
+  }
+
+  function coverageText(coverage) {
+    if (!coverage.total) return '';
+    const known = coverage.read + coverage.photo + coverage.schema;
+    const parts = [
+      `Eksper yorumu ${known}/${coverage.total} ilanda var${coverage.photo ? ` (${coverage.photo} tanesi rapor fotoğrafından)` : ''}`
+    ];
+    if (coverage.old.length)
+      parts.push(
+        `${coverage.old.length} ilan eski sürümde okunmuş, açıklaması kaydedilmemiş (${coverage.old
+          .slice(0, 3)
+          .map(entry => shortName(entry.record))
+          .join(', ')}${coverage.old.length > 3 ? '…' : ''}): bir kez daha açıp Analiz et’e basın`
+      );
+    if (coverage.none) parts.push(`${coverage.none} ilan hiç açılıp analiz edilmedi`);
+    return `${parts.join(' · ')}.`;
   }
 
   const RISK_WORD = { low: 'düşük', medium: 'orta', high: 'yüksek', unknown: 'bilinmiyor' };
@@ -334,14 +455,23 @@
     return { score: Math.round(Math.max(0, Math.min(100, total))), base: Math.round(base), notes, expertise };
   }
 
-  function expertiseFact(expertise) {
+  function expertiseFact(expertise, record) {
     if (!expertise) return 'ekspertiz yorumu yok (ilan sayfası açılıp analiz edilmemiş)';
     const parts = [`ekspertiz riski ${RISK_WORD[expertise.risk]}`];
+    if (expertise.photo)
+      parts.push(
+        `kaynak: Gemini'nin okuduğu ekspertiz raporu fotoğrafı${expertise.photo.note ? ` («${clean(expertise.photo.note, 240)}»)` : ''}${expertise.baseRisk && expertise.baseRisk !== expertise.risk && expertise.baseRisk !== 'unknown' ? `; ilan yazısına göre risk ${RISK_WORD[expertise.baseRisk]} idi` : ''}`
+      );
     if (CLAIM_WORD[expertise.claim]) parts.push(`hatasız iddiası ${CLAIM_WORD[expertise.claim]}`);
     if (expertise.reasons?.length) parts.push(expertise.reasons.join(' '));
     if (expertise.high > 0)
       parts.push(`kaporta durumu fiyatı kabaca %${Math.round(expertise.low)}–%${Math.round(expertise.high)} düşürür`);
-    if (!expertise.text) parts.push('yalnızca satıcının boya/değişen şemasına göre');
+    if (!expertise.text && !expertise.photo)
+      parts.push(
+        oldRead(record)
+          ? 'ilan sayfası eski bir sürümde okunmuş, satıcının açıklaması kaydedilmemiş; yalnızca boya/değişen şemasına göre (açıklama yorumu için ilan bir kez daha analiz edilmeli)'
+          : 'yalnızca satıcının boya/değişen şemasına göre'
+      );
     return `ekspertiz yorumu: ${parts.join(', ')}`;
   }
 
@@ -360,7 +490,7 @@
           : 'piyasa tahmini yok',
         body.known ? `kaporta ${body.score}/100 (${body.label})` : 'kaporta şeması okunmadı',
         deal ? `fırsat puanı ${deal.score}/100` : 'fırsat puanı yok',
-        expertiseFact(sense.expertise),
+        expertiseFact(sense.expertise, record),
         `Oto Pusula toplam puanı ${sense.score}/100${sense.notes.length ? ` (${sense.notes.join(', ')})` : ''}`,
         record.sellerType ? `satıcı: ${record.sellerType}` : '',
         record.city || '',
@@ -587,8 +717,9 @@
   }
 
   // Önceki sohbet ve kullanıcının kaydettiği diğer ilanlar sistem talimatına eklenir (kısaltılmış).
-  function withContext(systemText, { history = [], saved = [] } = {}) {
+  function withContext(systemText, { history = [], saved = [], update = '' } = {}) {
     const parts = [systemText];
+    if (update) parts.push('', update);
     if (saved.length)
       parts.push(
         '',
@@ -1094,6 +1225,13 @@
     compareFacts,
     senseScore,
     expertiseOf,
+    oldRead,
+    expertiseMark,
+    expertiseChanges,
+    expertiseUpdateText,
+    expertiseUpdateRule,
+    expertiseCoverage,
+    coverageText,
     compareSystemPrompt,
     rankForCompare,
     MAX_QUESTION,

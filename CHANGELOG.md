@@ -2,6 +2,15 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.32.0 — 2026-10-27
+
+- **Asistanın eksper hafızası.** Arama sayfası sohbetinde her soruda ilanlar yerel kayıttan yeniden okunur. Sohbet sürerken bir ilanı açıp "Analiz et"e basarsan (ya da rapor fotoğrafını yorumlatırsan) bir sonraki soruda o ilanın eksper riski ve hatasız iddiası hesaba katılır; Oto Pusula toplam puanı (fırsat puanı + eksper riski + hatasız iddiası + ağır uyarı) ve sıralama hemen değişir.
+- **Cevabın üstünde kısa bilgi:** "Eksper güncellendi: Fiat Egea 2021 (İlan 2) artık hesaba katıldı: risk yüksek, hatasız iddiası tutmuyor, puan 72 → 32. Sıralama buna göre yenilendi." Yapay zekaya da önceki cevaplardaki sıralama ve İlan numaralarının eskidiği söylenir; eski sıralamayı tekrarlamaz.
+- **Popup kapanıp açılınca da sürer.** Son cevapta görülen ilanların eksper durumu sohbet kaydında saklanır; aramaya dönüp sohbete devam edince aradan analiz edilen ilanlar fark edilir.
+- **Rapor fotoğrafı hafızaya alınır.** "Ekrandaki rapor fotoğrafını yorumla" sonucundaki risk hükmü ve tek cümlelik özet ilan kaydına yazılır (ekran görüntüsü ve yorumun tamamı saklanmaz). Asıl rapor olduğu için satıcının yazısından üstün tutulur; ilan sohbeti de arama sohbeti de bir sonraki soruda bunu kullanır.
+- **Hangi ilanda eksper verisi var, açıkça yazar.** Sohbetin altında: "Eksper yorumu 3/15 ilanda var (1 tanesi rapor fotoğrafından) · 2 ilan eski sürümde okunmuş, açıklaması kaydedilmemiş: bir kez daha açıp Analiz et'e basın · 10 ilan hiç açılıp analiz edilmedi." 7.27.0 öncesinde okunan ilanların kartında "Eski okuma: yeniden analiz et" etiketi var; yapay zekaya da bu ilanların yorumunun yalnızca boya/değişen şemasından geldiği söylenir.
+- Açık kartlar kayıt değişince kendiliğinden yenilenir. Sahibinden'e hiçbir ek istek atılmaz; her şey bu bilgisayardaki kayıtlardan hesaplanır.
+
 ## 7.31.0 — 2026-10-27
 
 - **Asistan cevaplarındaki bozuk yerleşim düzeltildi.** 7.30.0'da sohbet başlığı için eklenen bir stil, cevabın "Kısa cevap" paragrafını da esnek kutuya çeviriyordu: metin dar sütunlara bölünüyor, "İlan 2 ↗" bağlantıları harf harf alt alta kırılıyordu. Başlık grubu artık ayrı sınıf (`chat-head-lead`) kullanıyor; cevap metni normal akışta kalıyor.
