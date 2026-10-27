@@ -225,7 +225,7 @@ Sayfanın kendi betikleri çalıştırılmaz, ağ isteği yapılmaz. `fixtures/`
 ## Yol haritası
 
 - Tamamen orijinal ve boş şemalı ilan sayfalarıyla kaporta okuyucusunun gerçek sayfa doğrulaması
-- Chrome Web Mağazası yayını (gizlilik politikası hazır: docs/GIZLILIK.md)
+- Chrome Web Mağazası yayını (şablon ve kontrol listesi hazır: docs/WEB-MAGAZASI.md; gizlilik: docs/GIZLILIK.md)
 - Mobil uyumlu popup ve koyu tema
 - arabam.com gibi başka ilan siteleri için okuyucu (aynı fiyat motoru ile)
 - Anlık bildirim, SMS/e-posta: yalnızca sahibinden ile resmî bir veri anlaşması ya da API olursa (bkz. docs/BILDIRIM-YOL-HARITASI.md)
