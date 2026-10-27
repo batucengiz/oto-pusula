@@ -120,6 +120,10 @@
     'PRESTIGE PLUS',
     // Sık görülen ek paketler (Fiat, Renault, Toyota, Hyundai, Peugeot, Opel, Ford).
     'ACTIVE PLUS',
+    // Audi ve Skoda paketleri.
+    'ATTRACTION',
+    'AMBIENTE',
+    'AMBITION',
     'DYNAMIC',
     'EMOTION',
     'MIRROR',
@@ -1071,6 +1075,171 @@
     );
   }
 
+  // Arama listesinde yakıt, vites, motor gücü/hacmi ve çekiş yazmaz; Excel'de bunlar yalnızca güvenle çıkarılabiliyorsa
+  // doldurulur. Kayıt değişmez (fiyat tahmini yalnızca ilanda yazanı kullanır); doldurulan her alan "Eksik bilgi"
+  // sütununda kaynağıyla birlikte "tahmin" olarak yazılır. Çıkarılamayan alan boş kalır.
+  //  1. Yakıt motor kodundan: TDI/dCi/HDi/CDI/Multijet/320d → Dizel, TFSI/TSI/TCe/Fire/PureTech/320i → Benzin.
+  //     LPG'ye dönüştürülmüş araç da kodu benzinli gösterir; bu yüzden not "tahmin" olarak düşülür.
+  //  2. Motor hacmi/gücü, çekiş ve (kod yoksa) yakıt: aynı marka, model ve motorlu, yılı en çok 1 farklı, ilan
+  //     sayfası açılmış en az 2 ilanın hepsi aynı değeri yazıyorsa. Tek bir farklı değer varsa boş kalır.
+  //  3. Vites ve paket ilan başlığından, yalnızca açıkça yazıyorsa ("OTOMATİK", "S-TRONIC", "ATTRACTION").
+  //     Vites ikizlerden alınmaz: aynı motor hem manuel hem otomatik satılır.
+  const DIESEL_CODES =
+    /^(TDI|TDCI|DCI|BLUEDCI|HDI|E-HDI|BLUEHDI|CDI|BLUETEC|CRDI|CDTI|MULTIJET|M\.?JET|JTD|JTDM|D-4D|D4D|TID|TTID|ECOBLUE|EBLUE|SKYACTIV-D|DIZEL|DIESEL|D)$/;
+  const PETROL_CODES =
+    /^(TFSI|TSI|FSI|TCE|SCE|VTI|THP|E-THP|PURETECH|FIRE|FIREFLY|MULTIAIR|ECOBOOST|VTEC|I-VTEC|IVTEC|MPI|GDI|T-GDI|TGDI|CVVT|D-CVVT|VVT-I|VVTI|SKYACTIV-G|DUALJET|BOOSTERJET|T-?JET|E-TORQ|ETORQ|DURATEC|BENZIN|I)$/;
+  const HYBRID_CODES = /^(HYBRID|HIBRIT|HEV|MHEV|PHEV|E-?HYBRID|E)$/;
+
+  function fuelFromEngine(engine) {
+    // "520d", "320i", "200d": BMW/Mercedes ekini ayrı kelime yap.
+    const words = norm(String(engine ?? '').replace(/(\d)([dDiIeE])$/, '$1 $2'))
+      .split(' ')
+      .filter(Boolean);
+    const kinds = new Set();
+    for (const word of words) {
+      if (HYBRID_CODES.test(word)) kinds.add('Hibrit');
+      else if (DIESEL_CODES.test(word)) kinds.add('Dizel');
+      else if (PETROL_CODES.test(word)) kinds.add('Benzin');
+      else if (word === 'LPG') return '';
+    }
+    // "40 TFSI e" benzinli şarj edilebilir hibrittir; dizel kodu ile hibrit bir arada belirsizdir, boş bırakılır.
+    if (kinds.has('Hibrit')) return kinds.has('Dizel') ? '' : 'Hibrit';
+    return kinds.size === 1 ? [...kinds][0] : '';
+  }
+
+  // "OTOMATİK KLİMA", "MANUEL KLİMA" donanımdır, vites değildir.
+  const NOT_GEARBOX = '(?! ?(KLIMA|FAR|SILECEK|BAGAJ|PARK|KATLANIR|AYNA|ISIK|CAM|KAPI|KILIT|KOLTUK|PERDE|TAVAN))';
+  const GEARBOX_TEXT = [
+    ['Yarı Otomatik', new RegExp(`\\bYARI ?OTOMATIK\\b${NOT_GEARBOX}`)],
+    [
+      'Otomatik',
+      new RegExp(
+        `(^|[^A-Z])(TAM ?)?OTOMATIK\\b${NOT_GEARBOX}|\\b(DSG|S ?-?TRONIC|X ?-?TRONIC|EDC|CVT|TIPTRONIC|STEPTRONIC|POWERSHIFT|EAT ?[68]|DCT|MULTIDRIVE)\\b`
+      )
+    ],
+    ['Manuel', new RegExp(`\\bMANUEL\\b${NOT_GEARBOX}`)]
+  ];
+
+  function gearboxFromTitle(title) {
+    const text = norm(String(title ?? '').replace(/­/g, ''))
+      .replace(/[^A-Z0-9 -]/g, ' ')
+      .replace(/\s+/g, ' ');
+    const half = GEARBOX_TEXT[0][1].test(text);
+    const found = GEARBOX_TEXT.filter(([label, pattern]) =>
+      label === 'Otomatik' && half ? pattern.test(text.replace(/YARI ?OTOMATIK/g, ' ')) : pattern.test(text)
+    ).map(([label]) => label);
+    return found.length === 1 ? found[0] : '';
+  }
+
+  // Başlıktan paket: yalnızca reklam metninde başka anlama gelmeyen paket adları ("PREMIUM TEMİZLİKTE", "İCON JANT",
+  // "SPECIAL EDITION" paket sanılmaz).
+  const TITLE_TRIMS = [
+    'URBAN PLUS',
+    'URBAN',
+    'LOUNGE',
+    'EASY',
+    'JOY PLUS',
+    'JOY',
+    'TOUCH PLUS',
+    'TOUCH',
+    'COMFORTLINE',
+    'HIGHLINE',
+    'TRENDLINE',
+    'IMPRESSION',
+    'TITANIUM',
+    'ST-LINE',
+    'ALLURE',
+    'GT LINE',
+    'R-LINE',
+    'S LINE',
+    'M SPORT',
+    'AMG',
+    'ACTIVE PLUS',
+    'PREMIO',
+    'SPORTING',
+    'SAFELINE',
+    'AUTHENTIQUE',
+    'PRIVILEGE',
+    'ESSENTIA',
+    'ATTRACTION',
+    'AMBIENTE',
+    'AMBITION'
+  ];
+
+  function trimFromTitle(title) {
+    const text = norm(String(title ?? '').replace(/­/g, ''));
+    const found = TITLE_TRIMS.find(trim => token(trim).test(text));
+    return found ? titleCase(found) : '';
+  }
+
+  const twinKey = record => [record.brand, record.model, engineLabel(record)].map(norm).join('|');
+
+  // İlan sayfası açılmış kayıtlar marka+model+motor anahtarıyla gruplanır (Excel'de bir kez kurulur).
+  function detailTwins(records) {
+    const groups = new Map();
+    for (const record of records) {
+      if (!record.detailRead || !engineLabel(record)) continue;
+      const key = twinKey(record);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(record);
+    }
+    return groups;
+  }
+
+  const TWIN_FIELDS = [
+    ['engineSize', 'motor hacmi'],
+    ['enginePower', 'motor gücü'],
+    ['drive', 'çekiş'],
+    ['fuel', 'yakıt']
+  ];
+
+  function inferSpecs(record, twins) {
+    const filled = {};
+    const notes = [];
+    const empty = field => record[field] === undefined || record[field] === '' || record[field] === null;
+    if (empty('fuel')) {
+      const fuel = engineLabel(record) === 'Elektrikli' ? '' : fuelFromEngine(engineLabel(record));
+      if (fuel) {
+        filled.fuel = fuel;
+        notes.push(`yakıt motor kodundan (${engineLabel(record)})`);
+      }
+    }
+    const peers =
+      (engineLabel(record) &&
+        twins
+          .get(twinKey(record))
+          ?.filter(other => other !== record && Math.abs((other.year || 0) - (record.year || 0)) <= 1)) ||
+      [];
+    const fromTwins = [];
+    for (const [field, label] of TWIN_FIELDS) {
+      if (!empty(field) || filled[field]) continue;
+      const values = peers
+        .map(other => other[field])
+        .filter(value => value !== undefined && value !== '' && value !== null);
+      if (values.length >= 2 && values.every(value => norm(value) === norm(values[0]))) {
+        filled[field] = values[0];
+        fromTwins.push(label);
+      }
+    }
+    if (fromTwins.length)
+      notes.push(`${fromTwins.join(', ')} aynı motorlu ${peers.length} açılmış ilandan (hepsi aynı)`);
+    if (empty('transmission')) {
+      const gearbox = gearboxFromTitle(record.title);
+      if (gearbox) {
+        filled.transmission = gearbox;
+        notes.push('vites başlıktan');
+      }
+    }
+    if (empty('trim')) {
+      const trim = trimFromTitle(record.title);
+      if (trim) {
+        filled.trim = trim;
+        notes.push('paket başlıktan');
+      }
+    }
+    return { filled, notes };
+  }
+
   function missingInfo(record) {
     const empty = DETAIL_ONLY.filter(([field]) =>
       field === 'engine' ? !engineLabel(record) : record[field] === undefined || record[field] === ''
@@ -1156,8 +1325,11 @@
           (STATUS_ORDER[a.result.status] ?? 9) - (STATUS_ORDER[b.result.status] ?? 9) ||
           a.record.price - b.record.price
       );
+    const twins = detailTwins(entries.map(entry => entry.record));
     const rows = entries.map(({ record, result, advice, change, deal }) => {
       const body = core.bodyReport(record);
+      const { filled, notes } = record.detailRead ? { filled: {}, notes: [] } : inferSpecs(record, twins);
+      const spec = { ...record, ...filled };
       // Excel HYPERLINK formülü 255 karakterle sınırlı; uzun başlıklı adreslerde kısa adres kullanılır.
       const fullUrl = core.listingUrl(record);
       const url =
@@ -1172,13 +1344,13 @@
         record.brand,
         record.model,
         engineLabel(record),
-        record.trim,
-        record.fuel,
-        record.transmission,
+        spec.trim,
+        spec.fuel,
+        spec.transmission,
         record.body,
-        record.enginePower ?? '',
-        record.engineSize ?? '',
-        record.drive || '',
+        spec.enginePower ?? '',
+        spec.engineSize ?? '',
+        spec.drive || '',
         record.color || '',
         record.year,
         record.km,
@@ -1211,7 +1383,7 @@
         // sahibinden'deki ilan tarihi ya da ilk görülme (hangisi eskiyse); yeniden yayınlanan araçta ilk ilanınki.
         core.daysSince(listedSince(record), today) ?? '',
         record.detailRead ? 'İlan sayfası' : 'Arama listesi',
-        missingInfo(record).join('; '),
+        [...missingInfo(spec), ...(notes.length ? [`tahmin: ${notes.join(', ')}`] : [])].join('; '),
         record.listingId,
         url ? { link: url, text: record.title || [record.brand, record.model].join(' ') } : record.title
       ];
@@ -1362,7 +1534,10 @@
     pageRecordIds,
     forgetPage,
     contactWhatsApp,
-    marketTable
+    marketTable,
+    inferSpecs,
+    fuelFromEngine,
+    gearboxFromTitle
   };
   root.OtoListing = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
