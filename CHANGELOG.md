@@ -2,6 +2,14 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.33.0 — 2026-10-27
+
+- **Tam sayfa düğmesi.** Popup başlığındaki **⤢ Tam sayfa** aynı ekranı eklentinin kendi sekmesinde geniş düzende açar: solda analiz, silme, Excel, fırsatlar, bildirimler ve panel düğmeleri; sağda analiz sonucu, ekspertiz yorumu, pazarlık önerisi ve asistan. Dar popup'ta sıkışan sohbet ve ilan kartları rahatlar: konuşma ekran yüksekliğini kullanır, ilan kartları iki sütuna yayılır, ☰ Sohbetler paneli de uzar. 860 px'ten dar pencerede tek sütuna döner. Koyu ve açık tema.
+- **Analiz durumu aynen taşınır.** Popup'ta ekranda duran sonuç yeni sekmeye devredilir; sahibinden sayfası yeniden okunmaz, ek istek atılmaz ("1 yeni", "son ziyaretten beri" gibi bilgiler kaybolmaz). Devir yalnızca o sekme için, bir kez ve 10 dakika içinde geçerlidir.
+- **Sohbet kaldığı yerden sürer.** Sohbetler ortak depoda olduğu için popup ile tam sayfa aynı sohbeti, aynı ☰/✎ geçmişini gösterir.
+- **Hangi sekme okunur?** Tam sayfadaki "Bu sayfayı analiz et", popup'ın açıldığı sahibinden sekmesini okur (adreste taşınır), yine yalnızca düğmeye basınca. O sekme kapanmış ya da başka sayfaya geçmişse ne yapılacağı yazılır. "Ekrandaki rapor fotoğrafını yorumla" tam sayfada önce sahibinden sekmesine geçip görüntüyü alır, sonra geri döner.
+- Tam sayfadaki düğmeler sekmeyi kapatmaz; ilan bağlantıları yine ortak açılış sınırından (5 sn ara, 2 dakikada en fazla 5) geçer. Yeni dosyalar: fullpage.js, popup-full.css, fullpage.test.js.
+
 ## 7.32.0 — 2026-10-27
 
 - **Cihazdaki depolama göstergesi.** Panelde **Yöntem ve veri → Cihazdaki depolama**: Oto Pusula'nın bu bilgisayarda ne kadar yer kullandığı, doluluk çubuğu (Rahat / Doluyor / Dolmak üzere) ve bölüm bölüm kırılım (kayıtlı ilanlar, fiyat geçmişi, galeri stoğu, sohbetler, kayıtlı aramalar ve bildirimler, okunan sayfalar, kâr hesapları, kayıt defterleri). Doluluk; toplam boyut (25 MB pratik bütçe), sınırlı bölümlerin sayısı (5.000 ilan, 5.000 stok, 200 sohbet, 500 kâr hesabı) ve tarayıcının diskteki alanından en yüksek olanıdır.

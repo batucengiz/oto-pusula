@@ -468,6 +468,9 @@ small {
 }
 
 /* Kayıtlı aramalar ve bildirimler */
+.alert-count[hidden] {
+  display: none;
+}
 .alert-count {
   display: inline-block;
   min-width: 18px;
