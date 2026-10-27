@@ -1733,14 +1733,7 @@
         if (backup) {
           reply.className = 'chat-ai chat-rich';
           reply.replaceChildren(...richNodes(backup, take().link));
-          holder.replaceChildren(
-            element(
-              'p',
-              'chat-note',
-              `${assistant.errorText(error, mode.kind)} Eklentinin kendi hesaplarıyla cevap verildi.`
-            ),
-            reply
-          );
+          holder.replaceChildren(element('p', 'chat-note', assistant.fallbackNote(error, mode.kind)), reply);
         } else {
           reply.textContent = assistant.errorText(error, mode.kind);
           reply.className = 'chat-ai chat-error';

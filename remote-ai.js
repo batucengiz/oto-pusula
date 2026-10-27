@@ -7,8 +7,9 @@
   const KEY_STORAGE = 'otoPusula_aiKey';
   const BASE = 'https://generativelanguage.googleapis.com/v1beta';
   // Google model adlarını zamanla kapatabilir; sırayla denenir, çalışan oturum boyunca hatırlanır. Hiçbiri yoksa
-  // Google'a "hangi modeller var?" diye sorulup en yeni flash modeli seçilir.
-  const MODELS = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+  // Google'a "hangi modeller var?" diye sorulup en yeni flash modeli seçilir. Yoğunluk (503) model başınadır ve
+  // lite modeller çok daha az yoğundur; bu yüzden en iyi modelden hemen sonra güncel lite model denenir.
+  const MODELS = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
   const MODEL = MODELS[0];
   const MODEL_URL = `${BASE}/models/${MODEL}`;
   const ENDPOINT = `${MODEL_URL}:generateContent`;
@@ -167,9 +168,10 @@
   // Bir model hedgeMs içinde cevap vermezse beklemesi sürerken sıradaki model de paralel denenir; önce gelen
   // cevap kullanılır, diğeri iptal edilir (takılan tek model bütün süreyi yiyip "zamanında cevap vermedi" dedirtmez).
   // 404 (model kapanmış) modeli bir gün denetmez; yoğun, takılan ya da kotası dolan model bir süre sona alınır.
+  // Google'ın yoğunluğu çoğu zaman birkaç saniye sürer: 4 tur, turlar arasında artan bekleme (≈1, 2, 4 sn).
   const POLICY = {
-    rounds: 3,
-    baseMs: 900,
+    rounds: 4,
+    baseMs: 1000,
     maxWaitMs: 6000,
     tryMs: 30000,
     hedgeMs: 15000,

@@ -2,6 +2,11 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.39.0 — 2026-10-27
+
+- **Gemini'de "Google çok yoğun (HTTP 503)" hatası çok daha seyrek.** Yoğunluk model başınadır ve hafif (lite) modeller nadiren dolar: en iyi model doluysa artık hemen Google'ın güncel hafif modeli (`gemini-flash-lite-latest`) denenir, sonra diğer iki yedek. Hepsi doluysa 3 yerine 4 tur, artan beklemeyle (≈1, 2, 4 sn) yeniden denenir; toplam bekleme yine en fazla ~55 sn.
+- **Yoğunlukta gösterilen not sadeleşti.** Yedek cevap verildiğinde uzun hata yerine "Google şu an meşgul; bu cevabı eklentinin kendi hesabı verdi. Birazdan “Yeniden sor” ile tekrar deneyebilirsiniz." yazar.
+
 ## 7.38.0 — 2026-10-27
 
 - **Piyasa ilanlarında "Fiyat durumu" iki ayrı bilgi gösterir.** Asıl rozet genel piyasaya göre durumdur; "az veri" yalnızca piyasada kayıtlı benzer ilan sayısı 4'ten azken yazar ve artık altında "(piyasa: 2 benzer ilan, en az 4 gerekir)" diye nedeni görünür. Stoğunuza bağlı değildir. Altında ayrıca "(stok: uygun, %7 ucuz)" yazar: ilanın fiyatı, stoğunuzdaki aynı marka-model (±3 yıl) araçların ortanca fiyatıyla kıyaslanır; üzerine gelince stoktaki araç sayısı ve ortanca fiyat çıkar. Stoğunuzda aynı model yoksa "(stok: aynı modelde araç yok)" yazar.

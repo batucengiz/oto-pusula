@@ -1195,7 +1195,17 @@
       : 'Yapay zeka şu an cevap veremedi. Biraz sonra tekrar deneyin.';
   }
 
+  // Yapay zeka düşüp yedek cevap gösterildiğinde üstteki kısa not. Google'ın geçici yoğunluğu (5xx, zaman aşımı)
+  // kullanıcının hatası değildir; uzun bir hata mesajı yerine sakin bir bilgi verilir.
+  function fallbackNote(error, mode) {
+    const status = Number(error?.status) || 0;
+    if (error?.name === 'RemoteAIError' && (status >= 500 || status === 408))
+      return 'Google şu an meşgul; bu cevabı eklentinin kendi hesabı verdi. Birazdan “Yeniden sor” ile tekrar deneyebilirsiniz.';
+    return `${errorText(error, mode)} Eklentinin kendi hesaplarıyla cevap verildi.`;
+  }
+
   const api = {
+    fallbackNote,
     fallbackIntent,
     fallbackAnswer,
     listFallbackAnswer,

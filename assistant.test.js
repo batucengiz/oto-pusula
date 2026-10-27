@@ -1425,9 +1425,9 @@ test('bulut hataları: model kapanınca yedek modele geçilir, sebep kullanıcı
     return /gemini-flash-latest/.test(url) ? { ok: false, status: 404 } : ok;
   });
   assert.equal(await session.prompt('soru'), 'Merhaba.');
-  assert.match(urls[1], /gemini-2\.5-flash:generateContent/);
+  assert.match(urls[1], /gemini-flash-lite-latest:generateContent/);
   await session.prompt('bir daha');
-  assert.match(urls.at(-1), /gemini-2\.5-flash:generateContent/, 'çalışan model hatırlanır');
+  assert.match(urls.at(-1), /gemini-flash-lite-latest:generateContent/, 'çalışan model hatırlanır');
 
   const gone = remoteAI.createSession(key + 'x', 'S', async url => {
     if (url.includes('/models?'))
@@ -1484,10 +1484,10 @@ test('dayanıklı istek: 503’te aynı istekte yedek modele geçer, yoğun mode
   );
   assert.equal(await session.prompt('soru'), 'Yedekten cevap.');
   assert.equal(urls.length, 2, 'bekleme olmadan ikinci modele geçilir');
-  assert.match(urls[1], /gemini-2\.5-flash:/);
+  assert.match(urls[1], /gemini-flash-lite-latest:/);
   assert.deepEqual(notes, ['busy'], 'popup’a kısa durum bildirilir');
   await session.prompt('ikinci soru');
-  assert.match(urls.at(-1), /gemini-2\.5-flash:/, 'yoğun model bir süre denenmez');
+  assert.match(urls.at(-1), /gemini-flash-lite-latest:/, 'yoğun model bir süre denenmez');
   assert.equal(urls.length, 3);
 });
 
@@ -2054,4 +2054,16 @@ test('eksper hafızası: eski sürümde okunan ilan dürüstçe belirtilir; işa
   const history = require('./chat-history.js');
   const map = history.append({}, 'list:/fiat-egea', 'Soru', 'Cevap', Date.now(), [], { marks: [...marks, 'bozuk'] });
   assert.deepEqual(map['list:/fiat-egea'].marks, marks);
+});
+
+test('Google yoğunken yedek cevabın notu sakin; lite model en iyi modelden hemen sonra denenir', () => {
+  const busy = Object.assign(new Error('x'), { name: 'RemoteAIError', status: 503 });
+  assert.match(assistant.fallbackNote(busy, 'remote'), /Google şu an meşgul/);
+  assert.doesNotMatch(assistant.fallbackNote(busy, 'remote'), /HTTP/);
+  const slow = Object.assign(new Error('x'), { name: 'RemoteAIError', status: 408 });
+  assert.match(assistant.fallbackNote(slow, 'remote'), /meşgul/);
+  const key = Object.assign(new Error('API anahtarı kabul edilmedi.'), { name: 'RemoteAIError', status: 403 });
+  assert.match(assistant.fallbackNote(key, 'remote'), /anahtarı kabul edilmedi.*kendi hesaplarıyla/);
+  assert.equal(remoteAI.MODELS[1], 'gemini-flash-lite-latest');
+  assert.ok(remoteAI.POLICY.rounds >= 4);
 });

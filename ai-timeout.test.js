@@ -57,7 +57,7 @@ test('anahtar denemesi: Google yavaşsa anahtar ayrıca hızlıca denetlenir ve 
   assert.equal(result.verified, true);
   assert.match(result.note, /yavaş/);
   assert.ok(seen.includes('GET'));
-  assert.match(remote.traceLine(result.trace), /flash-latest zaman aşımı/);
+  assert.match(remote.traceLine(result.trace), /flash-lite-latest zaman aşımı/);
 
   // Yavaşlıkta da yanlış anahtar yine reddedilir.
   await assert.rejects(
@@ -116,14 +116,14 @@ test('çalışan model ve anahtar biçimi eklenti deposunda hatırlanır; popup 
   };
   assert.equal(await window.OtoRemoteAI.createSession(key, 'S', fetcher).prompt('soru'), 'Tamam.');
   const saved = JSON.parse(window.localStorage.getItem('otoPusula_aiModels'));
-  assert.equal(saved.preferred, 'gemini-2.5-flash');
+  assert.equal(saved.preferred, 'gemini-flash-lite-latest');
   assert.doesNotMatch(window.localStorage.getItem('otoPusula_aiModels'), /AIza/, 'anahtar depoya bu yolla yazılmaz');
   const log = JSON.parse(window.localStorage.getItem('otoPusula_aiLog'));
   assert.deepEqual(
     log.map(item => [item.model, item.status]),
     [
       ['gemini-flash-latest', 503],
-      ['gemini-2.5-flash', 'ok']
+      ['gemini-flash-lite-latest', 'ok']
     ]
   );
 
@@ -133,7 +133,7 @@ test('çalışan model ve anahtar biçimi eklenti deposunda hatırlanır; popup 
   assert.equal(await window.OtoRemoteAI.createSession(key, 'S', fetcher).prompt('soru'), 'Tamam.');
   assert.deepEqual(
     urls.map(url => /models\/([\w.-]+):/.exec(url)[1]),
-    ['gemini-2.5-flash']
+    ['gemini-flash-lite-latest']
   );
 
   // Başka bir anahtar eski hafızayı kullanmaz.
