@@ -2,6 +2,15 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.32.0 — 2026-10-27
+
+- **Cihazdaki depolama göstergesi.** Panelde **Yöntem ve veri → Cihazdaki depolama**: Oto Pusula'nın bu bilgisayarda ne kadar yer kullandığı, doluluk çubuğu (Rahat / Doluyor / Dolmak üzere) ve bölüm bölüm kırılım (kayıtlı ilanlar, fiyat geçmişi, galeri stoğu, sohbetler, kayıtlı aramalar ve bildirimler, okunan sayfalar, kâr hesapları, kayıt defterleri). Doluluk; toplam boyut (25 MB pratik bütçe), sınırlı bölümlerin sayısı (5.000 ilan, 5.000 stok, 200 sohbet, 500 kâr hesabı) ve tarayıcının diskteki alanından en yüksek olanıdır.
+- **Önce uyarı, sessiz silme yok.** Depo %70'i geçince panel açılışında bir kez uyarır ve menüde "Yöntem ve veri" yanında nokta çıkar; %90'da "dolmak üzere" der. Popup da analizden sonra aynı uyarıyı yazar. Hiçbir veri kendiliğinden silinmez.
+- **Yedek indir ve temizle.** Seçmeli temizlik: 180 günden uzun süredir görülmeyen ilanlar, bir yıldan eski fiyat geçmişini aylığa indirme (ilk, son ve her ayın son fiyatı kalır), 30 günden eski sohbetler, silinmiş ilanların kâr hesapları. Her seçenek kaç kaydı etkilediğini ve ne kadar yer açacağını yazar. Temizlikten önce tüm verilerin yedeği (oto-pusula-temizlik-oncesi-….json) iner; işlem "Geri al" ile geri alınır. Takipteki (★) ve numarası kayıtlı ilanlar, yapay zekaya kaydedilenler, galeri stoğu ve sabitlenen sohbetler temizlenmez.
+- **5.000 ilan sınırında takiptekiler korunur.** Önceden sınır aşılınca en eski ilanlar takipte olsa bile düşüyordu ve bu söylenmiyordu. Artık takipteki ve numarası kayıtlı ilanlar önce korunur, kaç ilanın düştüğü popup'ta yazar.
+- **Yazma hatası açık.** Depo ya da disk doluysa "Kayıt yazılamadı: depo ya da disk dolu…" denir ve nereden temizleneceği söylenir.
+- **Her depolama anahtarı yedekte.** backup.js yedeğe giren ve girmeyen (geçici sayaç/tanı günlüğü) anahtarları sebebiyle listeler; yeni bir anahtar eklenip listeye yazılmazsa testler kırılır. Yeni dosyalar: storage-health.js, storage-ui.js, storage.css, storage-health.test.js. Sahibinden'e ek istek yok.
+
 ## 7.31.0 — 2026-10-27
 
 - **Asistan cevaplarındaki bozuk yerleşim düzeltildi.** 7.30.0'da sohbet başlığı için eklenen bir stil, cevabın "Kısa cevap" paragrafını da esnek kutuya çeviriyordu: metin dar sütunlara bölünüyor, "İlan 2 ↗" bağlantıları harf harf alt alta kırılıyordu. Başlık grubu artık ayrı sınıf (`chat-head-lead`) kullanıyor; cevap metni normal akışta kalıyor.

@@ -45,9 +45,9 @@
       state = next;
       render();
       return true;
-    } catch {
+    } catch (error) {
       notice(
-        'Yerel depolama dolu olabilir. Önce yedek indirin (Yöntem ve veri → Yedek indir); bu değişiklik kaydedilmedi.',
+        `${globalThis.OtoStorageHealth?.writeErrorText(error) || 'Yerel depolama dolu olabilir. Önce yedek indirin.'} Bu değişiklik kaydedilmedi.`,
         true
       );
       return false;
@@ -56,6 +56,8 @@
 
   // Bildirim kendiliğinden kaybolur: kısa bilgi 4 sn, hata en az 8 sn, uzun mesaj okunacak kadar. Tıklayınca hemen kapanır.
   let noticeTimer = null;
+  // Depolama bölümü (storage-ui.js); showView ilk çizimde de çağrıldığı için en başta tanımlanır.
+  let storageUI = null;
   // action ({ label, run }) verilirse mesajın yanında bir düğme çıkar (ör. "Geri al"); bildirim daha uzun kalır.
   function notice(message, error = false, action = null) {
     const box = $('notice');
@@ -120,6 +122,7 @@
     });
     $('view-title').textContent = titles[view][0];
     $('view-subtitle').textContent = titles[view][1];
+    if (view === 'method') storageUI?.refresh();
   }
 
   function renderOverview() {
@@ -1165,6 +1168,13 @@
   }
   const exportBackup = () => backupUI?.openExport();
 
+  // Cihazdaki depolama göstergesi ve temizlik (storage-ui.js); depo %70'i geçerse açılışta bir kez uyarır.
+  try {
+    storageUI = globalThis.OtoStorageUI?.mount({ save, notice, element, backupUI, showView });
+  } catch {
+    /* depolama bölümü açılamazsa panelin geri kalanı etkilenmez */
+  }
+
   document
     .querySelectorAll('.nav-button')
     .forEach(button => button.addEventListener('click', () => showView(button.dataset.view)));
@@ -1437,7 +1447,13 @@
     state = store.load();
     render();
   });
-  store.onWriteError(() => notice('Değişiklik tarayıcı deposuna yazılamadı. Diskte yer açın ve yedek indirin.', true));
+  store.onWriteError(error =>
+    notice(
+      globalThis.OtoStorageHealth?.writeErrorText(error) ||
+        'Değişiklik tarayıcı deposuna yazılamadı. Diskte yer açın ve yedek indirin.',
+      true
+    )
+  );
   $('print-report').addEventListener('click', () => {
     if (selectedVehicle) window.print();
   });
