@@ -2,6 +2,14 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.35.0 — 2026-10-27
+
+- **Excel'de boş Yakıt, Vites, Paket, Motor gücü/hacmi ve Çekiş sütunları dolar.** Sebep: sahibinden'in arama listesinde bu bilgiler hiç yazmaz, yalnızca ilan sayfasında yazar. Bu yüzden yalnızca açılıp "Analiz et"e basılan ilanlarda doluydu. Artık arama listesinden gelen ilanlarda yalnızca güvenle çıkarılabilenler doldurulur, kayıt ve fiyat tahmini değişmez:
+  - **Yakıt motor kodundan:** TDI, dCi, HDi, CDI, CRDi, Multijet, 320d → Dizel; TFSI, TSI, TCe, Fire, PureTech, 320i → Benzin; Hybrid, "40 TFSI e" → Hibrit. Kodsuz motorda ("1.6", "1.33") ya da LPG yazıyorsa boş kalır.
+  - **Motor hacmi, gücü, çekiş:** aynı marka, model ve motorlu, yılı en çok bir farklı, ilan sayfası açılmış en az 2 ilanın hepsi aynı değeri yazıyorsa (ör. A3 1.6 TDI → 1598 cc, 110 hp, Önden Çekiş). Tek bir farklı değer varsa boş kalır.
+  - **Vites ve paket başlıktan,** yalnızca açıkça yazıyorsa ("OTOMATİK", "S-TRONIC", "DSG", "MANUEL", "ATTRACTION"). "Otomatik klima" vites, "premium temizlikte" paket sayılmaz. Vites aynı motorlu ilanlardan alınmaz, çünkü aynı motor hem manuel hem otomatik satılır.
+- Doldurulan her alan "Eksik bilgi" sütununda kaynağıyla yazar: "tahmin: yakıt motor kodundan (1.6 TDI), motor hacmi, motor gücü, çekiş aynı motorlu 5 açılmış ilandan (hepsi aynı), vites başlıktan". Çıkarılamayan alan için yine "ilanı açıp analiz edin" denir. Sahibinden'e ek istek atılmaz.
+
 ## 7.34.0 — 2026-10-27
 
 - **Asistanın eksper hafızası.** Arama sayfası sohbetinde her soruda ilanlar yerel kayıttan yeniden okunur. Sohbet sürerken bir ilanı açıp "Analiz et"e basarsan (ya da rapor fotoğrafını yorumlatırsan) bir sonraki soruda o ilanın eksper riski ve hatasız iddiası hesaba katılır; Oto Pusula toplam puanı (fırsat puanı + eksper riski + hatasız iddiası + ağır uyarı) ve sıralama hemen değişir.

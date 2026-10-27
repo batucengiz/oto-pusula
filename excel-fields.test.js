@@ -251,3 +251,95 @@ test('arama listesi: Audi güç kodu ("40 TDI") motor olarak okunur; satırda ya
   assert.equal(record.brand, 'Audi');
   assert.equal(record.engine, '40 TDI');
 });
+
+test('Excel: arama listesinden gelen ilanda yakıt/vites/paket/hacim/güç/çekiş güvenle tamamlanır, uydurulmaz', () => {
+  const base = { brand: 'Audi', model: 'A3', engine: '1.6 TDI', body: 'Sedan', km: 230000, source: 'sahibinden' };
+  const make = (id, extra) =>
+    core.normalizeRecord(
+      { ...base, id: `sh-${id}`, listingId: id, year: 2015, price: 1000000 + Number(id.slice(-2)) * 1000, ...extra },
+      'comparable'
+    );
+  const opened = extra => ({
+    fuel: 'Dizel',
+    transmission: 'Otomatik',
+    trim: 'Attraction',
+    enginePower: 110,
+    engineSize: 1598,
+    drive: 'Önden Çekiş',
+    detailRead: true,
+    ...extra
+  });
+  const comparables = [
+    make('1344000071', opened()),
+    make('1344000072', opened({ year: 2016, transmission: 'Manuel' })),
+    make('1344000073', opened({ year: 2014, trim: 'Ambiente' })),
+    make('1344000074', { title: 'AUDİ A3 SEDAN 1.6 TDI ATTRACTİON S-TRONİC' }),
+    make('1344000075', { title: 'HATASIZ OTOMATİK KLİMA CAM TAVAN' }),
+    make('1344000076', { title: 'A3 MANUEL VİTES', year: 2010 }),
+    make('1344000077', { title: 'A3 TEMİZ', engine: '1.4 TFSI' }),
+    make('1344000078', { title: 'A3 PREMIUM TEMİZLİKTE OTO­MATİK', engine: '1.33' })
+  ];
+  const table = listing.marketTable({ comparables }, new Date('2026-10-27'));
+  const col = title => table.columns.findIndex(column => column.title === title);
+  const row = id => {
+    const cells = table.rows.find(item => item[col('İlan no')] === id);
+    return Object.fromEntries(table.columns.map((column, index) => [column.title, cells[index]]));
+  };
+
+  const full = row('1344000074');
+  assert.equal(full['Yakıt'], 'Dizel', 'TDI → Dizel');
+  assert.equal(full['Vites'], 'Otomatik', 'S-Tronic başlıkta yazıyor');
+  assert.equal(full['Paket'], 'Attraction', 'başlıkta yazıyor');
+  assert.equal(full['Motor hacmi (cc)'], 1598, 'aynı motorlu 3 açılmış ilanın hepsi 1598');
+  assert.equal(full['Motor gücü (hp)'], 110);
+  assert.equal(full['Çekiş'], 'Önden Çekiş');
+  assert.match(full['Eksik bilgi'], /tahmin: yakıt motor kodundan \(1\.6 TDI\)/);
+  assert.match(full['Eksik bilgi'], /motor hacmi, motor gücü, çekiş aynı motorlu 3 açılmış ilandan/);
+  assert.match(full['Eksik bilgi'], /vites başlıktan, paket başlıktan/);
+  assert.doesNotMatch(full['Eksik bilgi'], /yakıt, vites/, 'doldurulan alan eksik sayılmaz');
+
+  const klima = row('1344000075');
+  assert.equal(klima['Vites'], '', '"otomatik klima" vites değildir');
+  assert.equal(klima['Paket'], '', 'açılmış ilanların paketi farklı, başlıkta yok: boş');
+  assert.match(klima['Eksik bilgi'], /vites.*ilan sayfasında yazar/);
+
+  const old = row('1344000076');
+  assert.equal(old['Vites'], 'Manuel');
+  assert.equal(old['Motor gücü (hp)'], '', '2010 aracın yılına yakın açılmış ilan yok: güç uydurulmaz');
+  assert.equal(old['Yakıt'], 'Dizel');
+
+  const tfsi = row('1344000077');
+  assert.equal(tfsi['Yakıt'], 'Benzin', 'TFSI → Benzin');
+  assert.equal(tfsi['Motor hacmi (cc)'], '', 'farklı motorlu ilanlardan alınmaz');
+
+  const unknown = row('1344000078');
+  assert.equal(unknown['Yakıt'], '', 'kodsuz motor (1.33): yakıt boş');
+  assert.equal(unknown['Vites'], 'Otomatik', 'yumuşak tire ile bölünmüş OTO­MATİK');
+  assert.equal(unknown['Paket'], '', '"premium temizlikte" paket değildir');
+
+  const detail = row('1344000072');
+  assert.equal(detail['Vites'], 'Manuel', 'ilan sayfasında yazan değişmez');
+  assert.doesNotMatch(detail['Eksik bilgi'], /tahmin/);
+});
+
+test('yakıt motor kodundan, vites başlıktan: belirsizse boş', () => {
+  assert.equal(listing.fuelFromEngine('520d'), 'Dizel');
+  assert.equal(listing.fuelFromEngine('200 d'), 'Dizel');
+  assert.equal(listing.fuelFromEngine('320i'), 'Benzin');
+  assert.equal(listing.fuelFromEngine('1.5 dCi'), 'Dizel');
+  assert.equal(listing.fuelFromEngine('1.4 Fire'), 'Benzin');
+  assert.equal(listing.fuelFromEngine('1.3 Multijet'), 'Dizel');
+  assert.equal(listing.fuelFromEngine('40 TFSI e'), 'Hibrit');
+  assert.equal(listing.fuelFromEngine('1.8 Hybrid'), 'Hibrit');
+  assert.equal(listing.fuelFromEngine('1.6'), '');
+  assert.equal(listing.fuelFromEngine('200'), '');
+  assert.equal(listing.fuelFromEngine('1.4 TSI LPG'), '');
+  assert.equal(listing.gearboxFromTitle('2017 OTOMATİK NAVİGASYON'), 'Otomatik');
+  assert.equal(listing.gearboxFromTitle('A7 40 TDI Quattro S-Tronic'), 'Otomatik');
+  assert.equal(listing.gearboxFromTitle('Clio 1.0 Tce X-Tronic'), 'Otomatik');
+  assert.equal(listing.gearboxFromTitle('Galeriden Manuel Benzin'), 'Manuel');
+  assert.equal(listing.gearboxFromTitle('YARI OTOMATİK VİTES'), 'Yarı Otomatik');
+  assert.equal(listing.gearboxFromTitle('OTOMATİK KLİMA, MANUEL VİTES'), 'Manuel');
+  assert.equal(listing.gearboxFromTitle('OTOMATİK DEĞİL MANUEL'), '', 'çelişkili: boş');
+  assert.equal(listing.gearboxFromTitle('1.5BLUEDCI OTO 150 BİN KM'), '', '"OTO" kısaltması belirsiz');
+});
