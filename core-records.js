@@ -567,9 +567,9 @@
     }
     let records = [...map.values()];
     if (records.length > MAX_ROWS) {
-      // Takipteki (★) ve satıcı numarası kaydedilmiş ilanlar önce korunur; sonra en son görülenler kalır.
+      // Takipteki (★), satıcı numarası ve eksper yorumu kaydedilmiş ilanlar önce korunur; sonra en son görülenler kalır.
       // Tarihsiz kayıtlar en eski sayılır.
-      const keep = item => (item.watched || item.sellerPhone ? 1 : 0);
+      const keep = item => (item.watched || item.sellerPhone || item.expertise?.risk ? 1 : 0);
       records = records
         .sort((a, b) => keep(b) - keep(a) || String(b.date || '').localeCompare(String(a.date || '')))
         .slice(0, MAX_ROWS);

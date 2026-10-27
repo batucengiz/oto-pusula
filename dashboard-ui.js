@@ -95,6 +95,32 @@
     return box;
   }
 
+  const expertKinds = { low: 'good', medium: 'warn', high: 'bad' };
+  // Eksper yorumu: ilan sayfası analiz edildiğinde çıkar ve ilanla birlikte kaydedilir; analiz edilmemişse nedeni yazar.
+  function expertCell(record) {
+    const expertise = globalThis.OtoExpertise;
+    const box = element('span', 'body-cell');
+    const item = expertise?.verdict(record) || { has: false, source: 'none' };
+    if (item.has) {
+      const node = element(
+        'span',
+        `badge ${expertKinds[item.risk] || 'neutral'}`,
+        `${expertise.RISK_LABEL[item.risk]} risk`
+      );
+      node.title =
+        item.note || 'Eksper yorumu satıcının ilanından ya da rapor fotoğrafından çıkarıldı; ekspertiz yerine geçmez.';
+      box.append(node, element('span', 'vehicle-meta', expertise.SOURCE_LABEL[item.source]));
+    } else {
+      const none = element('span', 'badge neutral', 'Yok');
+      none.title =
+        item.source === 'old'
+          ? 'Bu ilan eski sürümde okunmuş; açıklaması kaydedilmediği için eksper yorumu çıkarılamadı. İlanı bir kez daha açıp “Bu sayfayı analiz et”e basın.'
+          : 'Eksper yorumu ilan sayfası analiz edilince çıkar ve ilanla birlikte kaydedilir. İlanı açıp “Bu sayfayı analiz et”e basın.';
+      box.append(none);
+    }
+    return box;
+  }
+
   // Fırsat puanı: fiyat + kaporta + güven, 100 üzerinden. Puanlanmayan ilanda nedeni üzerine gelince görünür.
   function dealCell(deal) {
     const box = element('span', 'body-cell');
@@ -171,6 +197,7 @@
     bodyKinds,
     bodyTitle,
     bodyCell,
+    expertCell,
     dealCell,
     dealTitle,
     percent,

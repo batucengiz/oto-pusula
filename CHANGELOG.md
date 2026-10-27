@@ -2,6 +2,12 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.43.0 — 2026-10-27
+
+- **"Eksper yorumlananların arasından seç" artık gerçekten yalnızca eksper yorumu olan ilanlardan seçer.** Sohbete "eksper yorumlananlardan", "eksper yaptıklarımdan", "eksper raporu olanlardan" gibi yazınca yalnızca yorumu çıkmış ilanlar değerlendirilir (ilan yazısından, rapor fotoğrafından ya da satıcının boya/değişen şemasından). "Bu sayfa" kapsamındayken sayfada az, kayıtlıda daha çok yorumlu ilan varsa kapsam o soru için kendiliğinden kayıtlı ilanlara genişler. Hiç yorumlu ilan yoksa sohbet bunu açıkça söyler, yorumsuz ilanlardan seçim yapmaz. Sohbet önerilerine "Eksper yorumlananların arasından en mantıklı 3'ünü seç" eklendi.
+- **Eksper yorumu panelde ve Excel'de her yerde görünür.** Piyasa ilanları tablosunda yeni "Eksper yorumu" sütunu (düşük/orta/yüksek risk ve kaynağı: ilan yazısı, rapor fotoğrafı, yalnızca şema; yoksa nedeni), "Göster" menüsünde "Eksper yorumlananlar" ve "Eksper yorumu olmayanlar" süzgeçleri, ilan sayısının yanında yorumlu ilan sayısı, ilan detayında "Eksper yorumu" bölümü, Excel'de "Eksper yorumu" sütunu. Eksper yorumu çıkan ilan 5.000 kayıt sınırında silinecekler arasında en sona bırakılır.
+- Hatırlatma: ilan sayfasını açıp "Bu sayfayı analiz et" demediğiniz ilanın eksper yorumu çıkarılamaz (eklenti sahibinden'e kendiliğinden istek atmaz; IP korumanız için bilerek böyledir). Bir kez analiz edilen ilanın yorumu kaydedilir, tekrar analiz gerekmez. "Eksik bilgili ilanı aç" düğmesi bu işi sırayla kolaylaştırır.
+
 ## 7.42.0 — 2026-10-27
 
 - **"Eksik bilgili ilanı aç" düğmesi** (Piyasa ilanları, üstte). Yakıt, vites, kasa, motor gücü ve çekiş sahibinden'in arama listesinde yazmaz; yalnızca ilan sayfasını açıp "Bu sayfayı analiz et" dediğinizde Excel'e dolar. Düğme ilan sayfası henüz okunmamış ilanları (fırsatlar önce) her basışta bir tane yeni sekmede açar ve kalan sayıyı gösterir; sayfayı gezmek yine sizdedir, eklenti kendiliğinden sahibinden'e istek atmaz. Açılışlar ortak sınırdan geçer (en az 5 sn arayla, 2 dakikada en fazla 5).

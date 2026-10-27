@@ -894,6 +894,16 @@
     });
   }
 
+  // Excel'deki "Eksper yorumu" hücresi: risk ve kaynağı; ilan analiz edilmediyse nedeni.
+  function expertText(record) {
+    const expertise = root.OtoExpertise || (typeof require === 'function' ? require('./expertise.js') : null);
+    try {
+      return expertise ? expertise.verdictText(record) : '';
+    } catch {
+      return '';
+    }
+  }
+
   // Ekspertiz yorumunun kısa özeti kayda yazılır: arama sayfasındaki sohbet "en mantıklı ilan" sorusunda bu ilanın
   // eksper riskini ve hatasız iddiası kontrolünü de tartabilsin. Yorum yapılamazsa kayıt yine okunur.
   function expertiseOf({ raw, title, tramer, price }) {
@@ -1286,6 +1296,7 @@
       { title: 'Uyarılar', width: 26 },
       { title: 'Kaporta (satıcı şeması)', width: 20 },
       { title: 'Kaporta puanı', width: 13 },
+      { title: 'Eksper yorumu', width: 26 },
       { title: 'Değişen parçalar', width: 28 },
       { title: 'Boyalı parçalar', width: 34 },
       { title: 'Lokal boyalı', width: 22 },
@@ -1368,6 +1379,7 @@
         advice.flags.map(flag => flag.label).join(', '),
         body.known ? body.label : 'bilinmiyor',
         body.known ? body.score : '',
+        expertText(record),
         body.known ? body.changed.join(', ') : '',
         body.known ? body.painted.join(', ') : '',
         body.known ? body.local.join(', ') : '',

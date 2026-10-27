@@ -14,6 +14,7 @@
     conditionLabels,
     bodyKinds,
     bodyCell,
+    expertCell,
     dealCell,
     dealTitle,
     percent,
@@ -495,6 +496,8 @@
     return node;
   }
 
+  const hasExpertise = record => !!globalThis.OtoExpertise?.verdict(record).has;
+
   function renderMarket() {
     const body = $('market-body');
     body.replaceChildren();
@@ -525,11 +528,15 @@
                       ? entry.record.watched
                       : filter === 'phone'
                         ? !!entry.record.sellerPhone
-                        : filter === 'warn'
-                          ? hasWarning(entry)
-                          : filter === 'stale'
-                            ? (core.daysSince(entry.record.date) ?? 0) >= 30
-                            : true
+                        : filter === 'expert'
+                          ? hasExpertise(entry.record)
+                          : filter === 'no-expert'
+                            ? !hasExpertise(entry.record)
+                            : filter === 'warn'
+                              ? hasWarning(entry)
+                              : filter === 'stale'
+                                ? (core.daysSince(entry.record.date) ?? 0) >= 30
+                                : true
       );
     const gapOf = entry => (entry.record.condition === 'riskli' ? 1e6 : entry.result.center ? entry.result.gap : 2e6);
     // Kaporta puanı sıralamadan önce bir kez hesaplanır (karşılaştırma başına değil).
@@ -548,7 +555,9 @@
                 ? core.compareDeals(a.deal, b.deal) || gapOf(a) - gapOf(b)
                 : gapOf(a) - gapOf(b)
     );
-    $('market-count').textContent = `${entries.length}/${all.length} ilan gösteriliyor`;
+    const expertTotal = all.filter(entry => hasExpertise(entry.record)).length;
+    $('market-count').textContent =
+      `${entries.length}/${all.length} ilan gösteriliyor` + (expertTotal ? ` · eksper yorumu olan ${expertTotal}` : '');
     updateNextDealButton();
     updateNextMissingButton();
     // Fiyatı hesaplanamayan ilan çoksa (ör. karışık arama) nedeni ve çözümü tablonun üstünde yazar.
@@ -639,6 +648,7 @@
       cell(row, result.center ? percent(result.gap) : '—', 'money');
       cell(row, age === null ? '—' : age === 0 ? 'bugün' : `${age} gün`);
       cell(row, bodyCell(record, isDeal(entry)));
+      cell(row, expertCell(record));
       cell(row, priceStatusCell(entry));
       cell(row, dealCell(entry.deal));
       row.addEventListener('click', () => showDetail(record));
@@ -1048,6 +1058,27 @@
             'p',
             'detail-text',
             'Bu ilanın boya/değişen şeması henüz okunmadı. İlanı sahibinden’de açıp eklentide “Bu sayfayı analiz et”e basın; parça bilgisi bu kayda eklenir.'
+          )
+        );
+      }
+    }
+    if (isListing) {
+      content.append(element('h3', '', 'Eksper yorumu'));
+      const verdict = globalThis.OtoExpertise?.verdict(vehicle);
+      const head = element('p', 'detail-text');
+      head.append(expertCell(vehicle));
+      content.append(head);
+      if (verdict?.has) {
+        const reasons = (vehicle.expertise?.reasons || []).filter(Boolean);
+        const list = element('ul', 'detail-list');
+        if (verdict.note) list.append(element('li', '', `Rapor fotoğrafı: ${verdict.note}`));
+        reasons.forEach(reason => list.append(element('li', '', reason)));
+        if (list.children.length) content.append(list);
+        content.append(
+          element(
+            'p',
+            'detail-text',
+            'Yorum satıcının ilanından ve/veya yüklediğiniz rapor fotoğrafından çıkarıldı; ekspertiz yerine geçmez. Bu ilan için bir kez çıkar, kaydedilir; sohbet, karşılaştırma ve Excel aynı yorumu kullanır.'
           )
         );
       }

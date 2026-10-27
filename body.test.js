@@ -185,6 +185,7 @@ test('Excel çıktısında kaporta sütunları var; bilinmeyen kaporta "bilinmiy
   const byId = id => table.rows.find(row => row[col('İlan no')] === id);
   assert.equal(byId('1234567804')[col('Kaporta (satıcı şeması)')], '1 değişen · 1 boyalı');
   assert.equal(byId('1234567804')[col('Kaporta puanı')], 91);
+  assert.match(byId('1234567804')[col('Eksper yorumu')], /^yok \(/);
   assert.equal(byId('1234567804')[col('Değişen parçalar')], 'Sol Ön Kapı');
   assert.equal(byId('1234567805')[col('Kaporta (satıcı şeması)')], 'bilinmiyor');
 });

@@ -2085,3 +2085,72 @@ test('eksper hafızası: eski sürümde okunan ilan dürüstçe belirtilir; işa
   const map = history.append({}, 'list:/fiat-egea', 'Soru', 'Cevap', Date.now(), [], { marks: [...marks, 'bozuk'] });
   assert.deepEqual(map['list:/fiat-egea'].marks, marks);
 });
+
+test('"eksper yorumlananlardan seç" yalnızca eksper yorumu olan ilanları değerlendirir; olmayanı sorusu süzme sayılmaz', () => {
+  const withExpertise = id =>
+    record({
+      id: `sh-${id}`,
+      listingId: id,
+      expertise: { risk: 'low', claim: 'none', reasons: [], low: 0, high: 0, text: true }
+    });
+  const photo = record({
+    id: 'sh-2000000002',
+    listingId: '2000000002',
+    expertise: {
+      risk: 'medium',
+      claim: 'none',
+      reasons: [],
+      low: 0,
+      high: 0,
+      text: false,
+      photo: { risk: 'high', note: 'Şasi onarımı' }
+    }
+  });
+  const never = record({ id: 'sh-2000000003', listingId: '2000000003' });
+  const old = record({
+    id: 'sh-2000000004',
+    listingId: '2000000004',
+    damage: { painted: ['Kaput'] },
+    detailRead: true
+  });
+  const records = [withExpertise('2000000001'), photo, never, old];
+
+  for (const question of [
+    'Eksper yorumlananların arasından en mantıklı 3 ilanı seç',
+    'eksper yaptıklarım arasından seç',
+    'Eksper raporu olanlardan en iyisi hangisi?',
+    'sadece ekspertiz yorumu çıkanlar'
+  ])
+    assert.equal(assistant.wantsExpertise(question), true, question);
+  for (const question of [
+    'Eksper yorumu olmayan ilanlar hangileri?',
+    'Bu listede en mantıklı 3 ilan hangisi?',
+    'Eksper riski düşük hangisi?'
+  ])
+    assert.equal(assistant.wantsExpertise(question), false, question);
+
+  assert.equal(assistant.hasExpertise(records[0]), true);
+  assert.equal(assistant.hasExpertise(photo), true);
+  assert.equal(assistant.hasExpertise(never), false);
+  assert.equal(assistant.hasExpertise(old), false);
+
+  const narrowed = assistant.narrowRecords('Eksper yorumlananlardan seç', records);
+  assert.equal(narrowed.matched, 2);
+  assert.equal(narrowed.total, 4);
+  assert.deepEqual(narrowed.records.map(item => item.listingId).sort(), ['2000000001', '2000000002']);
+
+  const entries = records.map(item => ({
+    record: item,
+    result: { center: 850000, gap: -0.05 },
+    deal: { score: 70 },
+    advice: { flags: [] }
+  }));
+  const view = assistant.listContext('Eksper yorumlananların arasından seç', entries, new Date('2026-10-27'));
+  assert.equal(view.matched, 2);
+  assert.match(view.lines.join('\n'), /eksper yorumu olanlar/);
+  assert.equal(view.shown.length, 2);
+
+  const empty = assistant.listContext('Eksper yorumlananlardan seç', entries.slice(2), new Date('2026-10-27'));
+  assert.equal(empty.noMatch, true);
+  assert.match(empty.lines.join('\n'), /Eksper yorumu çıkarılmış ilan yok/);
+});

@@ -1304,10 +1304,18 @@
     // Modele verilecek ilanlar: kapsama göre sayfadakiler ya da kayıtlı havuzdan soruya göre daraltılmış ve
     // değerlendirilmiş olanlar.
     function scopedEntries(question) {
-      if (effectiveMode() === 'page') return { entries: chat.context.entries, scope: assistant.PAGE_SCOPE };
+      // "Eksper yorumlananlardan seç" sayfadakilerden çok kayıtlı ilanda eksper yorumu varsa kapsam bu soru için
+      // kayıtlı ilanlara genişler; eksper yorumu çıkarılan ilanlar her yerde kayıtlıdır, tek tek açmak gerekmez.
+      const withExpertise = items => items.filter(item => assistant.hasExpertise?.(item.record || item)).length;
+      const widen =
+        effectiveMode() === 'page' &&
+        scopeChoosable() &&
+        !!assistant.wantsExpertise?.(question) &&
+        withExpertise(savedListings()) > withExpertise(chat.context.entries);
+      if (effectiveMode() === 'page' && !widen) return { entries: chat.context.entries, scope: assistant.PAGE_SCOPE };
       let records = savedListings();
       const groups = core.listingGroups(records);
-      const group = groups.find(item => item.key === scope.brand);
+      const group = widen ? null : groups.find(item => item.key === scope.brand);
       if (group) records = records.filter(item => group.ids.includes(item.id));
       const narrowed = assistant.narrowRecords(question, records);
       const all = store.load().comparables;
