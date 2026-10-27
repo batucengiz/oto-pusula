@@ -29,3 +29,40 @@ test('stoğa göre durum: aynı modelde stok yoksa, yıl 3 yıldan uzaksa ya da 
   // Kendisi sayılmaz.
   assert.equal(core.stockView(stock[0], stock), null);
 });
+
+test('az veri: aralık hesaplanmışsa eğilim ayrıca verilir (Excel Durum ve panel), güvenilir sonuçta eğilim yoktur', () => {
+  const comparables = Array.from({ length: 3 }, (_, i) => ({
+    id: `c${i}`,
+    type: 'comparable',
+    source: 'sahibinden',
+    brand: 'Ford',
+    model: 'Focus',
+    year: 2018,
+    km: 100000 + i * 5000,
+    price: 1000000 + i * 10000,
+    date: '2026-10-20'
+  }));
+  const cheap = {
+    id: 'x',
+    type: 'comparable',
+    source: 'sahibinden',
+    brand: 'Ford',
+    model: 'Focus',
+    year: 2018,
+    km: 102000,
+    price: 800000
+  };
+  const result = core.estimate(cheap, comparables);
+  assert.equal(result.status, 'az veri');
+  assert.equal(result.trend, 'düşük fiyat');
+  const damaged = core.estimate({ ...cheap, condition: 'riskli' }, comparables);
+  assert.equal(damaged.status, 'hasar riski');
+  assert.equal(damaged.trend, '');
+  const listing = require('./listing.js');
+  const table = listing.marketTable({ stock: [], comparables: [...comparables, cheap] });
+  const durum = table.columns.findIndex(column => column.title === 'Durum');
+  assert.ok(
+    table.rows.some(row => row[durum] === 'az veri (eğilim: düşük fiyat)'),
+    table.rows.map(r => r[durum]).join()
+  );
+});

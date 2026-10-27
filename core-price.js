@@ -168,15 +168,26 @@
     return byModel.get(id);
   }
 
-  function statusFor(vehicle, confidence, gap) {
-    // Ağır hasar beyanlı aracın düşük fiyatı fırsat değil, hasarın karşılığıdır.
-    if (vehicle.condition === 'riskli') return 'hasar riski';
-    if (confidence === 'düşük') return 'az veri';
+  function gapStatus(gap) {
     if (gap <= -0.1) return 'düşük fiyat';
     if (gap <= -0.05) return 'uygun';
     if (gap < 0.05) return 'aralıkta';
     if (gap < 0.1) return 'biraz yüksek';
     return 'yüksek fiyat';
+  }
+
+  function statusFor(vehicle, confidence, gap) {
+    // Ağır hasar beyanlı aracın düşük fiyatı fırsat değil, hasarın karşılığıdır.
+    if (vehicle.condition === 'riskli') return 'hasar riski';
+    if (confidence === 'düşük') return 'az veri';
+    return gapStatus(gap);
+  }
+
+  // "az veri" durumunda da hesaplanan aralık varsa fiyatın o aralığa göre eğilimi ("uygun", "yüksek fiyat"…)
+  // ayrıca verilir; kesin hüküm değildir, güvenilirlik düşük olduğu için yalnızca bilgi içindir (puan ve grafikte
+  // kullanılmaz).
+  function trendFor(vehicle, confidence, gap) {
+    return vehicle.condition !== 'riskli' && confidence === 'düşük' && Number.isFinite(gap) ? gapStatus(gap) : '';
   }
 
   const pct = value => `%${(value * 100).toLocaleString('tr-TR', { maximumFractionDigits: 1 })}`;
@@ -199,6 +210,7 @@
       baseCenter: result.center,
       grade: grade.label,
       status: statusFor(vehicle, result.confidence, gap),
+      trend: trendFor(vehicle, result.confidence, gap),
       reason: `${result.reason} Kondisyon “${grade.label}” seçildi: ${grade.text}; hedef bu banda göre gösterildi (ortalama araç için piyasa ortası ${Math.round(result.center).toLocaleString('tr-TR')} TL).`
     };
   }
@@ -421,6 +433,7 @@
       spread,
       gap,
       status: statusFor(vehicle, confidence, gap),
+      trend: trendFor(vehicle, confidence, gap),
       // Karşılaştırılan ilanların kaçta kaçı (düzeltilmiş) bu araçtan ucuz: 0 = en ucuzu.
       position: used.length ? cheaper / used.length : null,
       learned: model ? { yearRate, kmRate, n: model.n } : null,
@@ -511,6 +524,7 @@
       spread: model.sd,
       gap,
       status: statusFor(vehicle, confidence, gap),
+      trend: trendFor(vehicle, confidence, gap),
       position: null,
       learned: { yearRate: model.yearRate, kmRate: model.kmRate, n: model.n, sd: model.sd, r2: model.r2 },
       comparables: [],
