@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="negotiation.css" />
     <link rel="stylesheet" href="flip.css" />
     <link rel="stylesheet" href="backup.css" />
+    <link rel="stylesheet" href="storage.css" />
   </head>
   <body>
     <div class="app-shell">
@@ -29,7 +30,9 @@
           </button>
           <button class="nav-button" data-view="stock" type="button">Araç stoğu</button>
           <button class="nav-button" data-view="comparables" type="button">Karşılaştırmalar</button>
-          <button class="nav-button" data-view="method" type="button">Yöntem ve veri</button>
+          <button class="nav-button" data-view="method" type="button">
+            Yöntem ve veri <span class="storage-dot" id="storage-dot" hidden title="Depo doluyor"></span>
+          </button>
         </nav>
         <div class="sidebar-foot">
           <span class="online-dot"></span><span class="foot-text">Yerel · veri gönderilmez</span
@@ -520,6 +523,37 @@
               </p>
             </article>
           </div>
+          <section class="panel storage-panel" id="storage-panel" aria-labelledby="storage-title">
+            <div class="storage-head">
+              <h3 id="storage-title">Cihazdaki depolama</h3>
+              <span class="storage-badge" id="storage-badge">Ölçülüyor…</span>
+            </div>
+            <div
+              class="storage-meter"
+              id="storage-meter"
+              role="meter"
+              aria-label="Depo doluluğu"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="0"
+            >
+              <span id="storage-fill"></span>
+            </div>
+            <p class="storage-summary" id="storage-summary"></p>
+            <ul class="storage-breakdown" id="storage-breakdown"></ul>
+            <h4>Temizlik</h4>
+            <p class="storage-note">
+              Hiçbir veri kendiliğinden silinmez. Seçtikleriniz temizlenmeden önce tüm verilerin yedeği iner ve işlem
+              “Geri al” ile geri alınabilir. Takipteki (★) ve numarası kayıtlı ilanlar, galeri stoğu ve sabitlenen
+              sohbetler temizlenmez.
+            </p>
+            <ul class="storage-cleanup" id="storage-cleanup"></ul>
+            <div class="policy-actions">
+              <button class="button button-primary" id="storage-clean" type="button" disabled>
+                Yedek indir ve temizle</button
+              ><button class="button button-secondary" id="storage-refresh" type="button">Yeniden ölç</button>
+            </div>
+          </section>
           <div class="panel policy-panel">
             <h3>Veri ve kullanım sınırı</h3>
             <p>
@@ -760,8 +794,10 @@
     <script src="report.js"></script>
     <script src="remote-ai.js"></script>
     <script src="chat-history.js"></script>
+    <script src="storage-health.js"></script>
     <script src="backup.js"></script>
     <script src="backup-ui.js"></script>
+    <script src="storage-ui.js"></script>
     <script src="compare-ui.js"></script>
     <script src="brand-manage.js"></script>
     <script src="alerts-ui.js"></script>

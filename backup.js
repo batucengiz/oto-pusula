@@ -20,6 +20,22 @@
   // Galeri kâr hesabında ilan başına girilen değerler (flip.js).
   const FLIP_KEY = 'otoPusula_flip';
   const MAX_FLIP = 500;
+  // Eklentinin kullandığı her depolama anahtarı ya yedeğe girer ya da neden girmediği burada yazar. Yeni anahtar
+  // eklenince bu iki listeden birine eklenmelidir (storage-health.test.js tüm kaynakları tarayıp denetler).
+  const BACKED_UP = Object.freeze([
+    store.KEY,
+    history.KEY,
+    history.SAVED_KEY,
+    FLIP_KEY,
+    SETTINGS.theme,
+    SETTINGS.chatScope,
+    KEY_STORAGE
+  ]);
+  const NOT_BACKED_UP = Object.freeze({
+    otoPusula_tabOpens: 'Son 2 dakikadaki sekme açılışları; hız sınırı için geçici sayaç.',
+    otoPusula_aiModels: 'Gemini modellerinin geçici durumu; cihaza ve anahtara özgü, kendiliğinden yenilenir.',
+    otoPusula_aiLog: 'Son 20 yapay zeka denemesinin tanı günlüğü; geçici.'
+  });
 
   const isObject = value => !!value && typeof value === 'object' && !Array.isArray(value);
 
@@ -353,6 +369,8 @@
     MAX_BYTES,
     SETTINGS,
     KEY_STORAGE,
+    BACKED_UP,
+    NOT_BACKED_UP,
     create,
     parse,
     summarize,

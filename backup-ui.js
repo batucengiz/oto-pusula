@@ -174,7 +174,11 @@
 
     return {
       openExport: () => openExport().catch(error => notice(`Yedek hazırlanamadı: ${error.message}`, true)),
-      openRestore: () => $('backup-file').click()
+      openRestore: () => $('backup-file').click(),
+      // Depolama temizliği (storage-ui.js) aynı yedek dosyasını ve okuma/yazmayı kullanır.
+      bundle: currentBundle,
+      saveCopy: (bundle, label) => writeFile(bundle, { label }),
+      writeExtras: bundle => backup.writeExtras(bundle, storage)
     };
   }
 
