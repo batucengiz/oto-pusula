@@ -820,6 +820,29 @@
     };
   }
 
+  // Gemini'nin okuduğu rapor fotoğrafının kayda yazılan kısası: "**Özet:**" satırındaki risk hükmü ve tek cümle.
+  // Hüküm bulunamazsa (model başlığı yazmadıysa) kaydedilmez; uydurma risk yazılmaz.
+  function photoSummary(text, date = '') {
+    const plain = String(text ?? '')
+      .replace(/[*_`#>]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!plain || /^RAPOR_YOK/.test(plain)) return null;
+    // Özet başlığının satırı; model başlıkları aynı satıra yazdıysa bir sonraki başlıkta kesilir.
+    const line = String(text)
+      .split('\n')
+      .map(item => item.replace(/[*_`#>]/g, '').trim())
+      .find(item => /^Özet:/i.test(item));
+    const note = (line || '')
+      .replace(/^Özet:\s*/i, '')
+      .split(/\s(?:Kaporta|Şasi ve yapı|Mekanik|İlanla karşılaştırma|Pazarlık):/i)[0]
+      .trim();
+    const word = note.match(/risk(?:i)?\s*(?::|-)?\s*(düşük|orta|yüksek)|(düşük|orta|yüksek)\s*risk/i);
+    if (!word) return null;
+    const level = { düşük: 'low', orta: 'medium', yüksek: 'high' }[(word[1] || word[2]).toLocaleLowerCase('tr-TR')];
+    return { risk: level, note: note.slice(0, 240), ...(/^\d{4}-\d{2}-\d{2}$/.test(date) ? { date } : {}) };
+  }
+
   // Kayıttaki özet; yoksa (eski kayıt) yalnızca satıcının şeması ve tramer beyanından aynı yorum yeniden kurulur.
   // Arama listesinden gelen, ilan sayfası hiç açılmamış kayıtta ikisi de yoktur: null döner.
   function forRecord(record) {
@@ -836,6 +859,7 @@
   const api = {
     interpret,
     summary,
+    photoSummary,
     forRecord,
     lines,
     readText,
