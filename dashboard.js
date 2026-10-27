@@ -467,6 +467,32 @@
       );
   }
 
+  // Fiyat durumu: asıl rozet genel piyasaya göre (benzer ilan sayısı parantezde), altında stoğunuza göre durum.
+  function priceStatusCell({ record, result }) {
+    const node = element('span');
+    const status = result.status || 'veri yok';
+    node.append(badge(status));
+    const note = (text, title) => {
+      const line = element('span', 'vehicle-meta', text);
+      if (title) line.title = title;
+      node.append(line);
+    };
+    if (status === 'az veri' || status === 'veri yok')
+      note(
+        `(piyasa: ${result.count || 0} benzer ilan, en az 4 gerekir)`,
+        'Piyasa durumu, kayıtlı benzer ilan sayısına göre hesaplanır; stoğunuza bağlı değildir.'
+      );
+    const stock = core.stockView(record, state.stock);
+    if (stock) {
+      const sign = stock.gap < 0 ? 'ucuz' : 'pahalı';
+      note(
+        `(stok: ${stock.status}, ${Math.round(Math.abs(stock.gap) * 100)}% ${sign})`,
+        `Stoğunuzdaki ${stock.count} benzer araç: ortanca fiyat ${lira(stock.median)}.`
+      );
+    } else note('(stok: aynı modelde araç yok)');
+    return node;
+  }
+
   function renderMarket() {
     const body = $('market-body');
     body.replaceChildren();
@@ -608,7 +634,7 @@
       cell(row, result.center ? percent(result.gap) : '—', 'money');
       cell(row, age === null ? '—' : age === 0 ? 'bugün' : `${age} gün`);
       cell(row, bodyCell(record, isDeal(entry)));
-      cell(row, badge(result.status || 'veri yok'));
+      cell(row, priceStatusCell(entry));
       cell(row, dealCell(entry.deal));
       row.addEventListener('click', () => showDetail(record));
       row.addEventListener('keydown', event => {
