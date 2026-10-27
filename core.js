@@ -66,7 +66,8 @@
     familyModel: parts.familyModel,
     summary: parts.summary,
     modelPace: parts.modelPace,
-    paceLines: parts.paceLines
+    paceLines: parts.paceLines,
+    stockView: parts.stockView
   };
   root.OtoCore = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

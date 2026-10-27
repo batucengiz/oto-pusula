@@ -2,6 +2,10 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.38.0 — 2026-10-27
+
+- **Piyasa ilanlarında "Fiyat durumu" iki ayrı bilgi gösterir.** Asıl rozet genel piyasaya göre durumdur; "az veri" yalnızca piyasada kayıtlı benzer ilan sayısı 4'ten azken yazar ve artık altında "(piyasa: 2 benzer ilan, en az 4 gerekir)" diye nedeni görünür. Stoğunuza bağlı değildir. Altında ayrıca "(stok: uygun, %7 ucuz)" yazar: ilanın fiyatı, stoğunuzdaki aynı marka-model (±3 yıl) araçların ortanca fiyatıyla kıyaslanır; üzerine gelince stoktaki araç sayısı ve ortanca fiyat çıkar. Stoğunuzda aynı model yoksa "(stok: aynı modelde araç yok)" yazar.
+
 ## 7.37.0 — 2026-10-27
 
 - **Kaynağı olmayan paket ve motor adları katalogdan çıkarıldı.** 7.36.0 öneriyi modele ve yıla bağladı ama diğer markaların paket ve motor adları kaynaksız yazılmıştı. Artık paket/motor yalnızca kaynağı olan modellerde var: Egea, Egea Cross, Tipo, Linea, Albea, Palio (üretici/ikinci el sayfaları ve ilan başlıkları), Corolla (Toyota 2026 kataloğu) ve kaydedilmiş sahibinden sayfalarında görülen gerçek sürümler (Clio, Megane, Symbol, Fluence, Talisman, Yaris, i10, i20, Accent Blue, Astra, 301, C-Elysee, Scala, A3, C/E Serisi, CLA, 5 Serisi, Golf, Passat). Diğer ~356 modelde bu alanlar boştur; orada yalnızca kendi ilanlarınızdaki adlar "ilanlarınızdan" etiketiyle önerilir.

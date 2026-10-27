@@ -611,7 +611,40 @@
     return lines;
   }
 
-  const api = { fuelSet, estimate, familyModel, summary, modelPace, paceLines };
+  // --- Stoğa göre fiyat durumu ---
+  // Piyasa ilanının fiyatı, kullanıcının kendi stoğundaki aynı marka-model (±3 yıl) araçlarla kıyaslanır. Piyasa
+  // durumu ("az veri" dahil) yalnızca piyasadaki benzer ilan sayısına bakar; stoğunuzda aynı model yoksa bu kıyas
+  // yoktur (null). Medyan kullanılır: tek uç fiyat ortalamayı bozmasın.
+  const STOCK_YEARS = 3;
+
+  function stockView(vehicle, stock) {
+    const same = (stock || []).filter(
+      item =>
+        item.id !== vehicle.id &&
+        item.price > 0 &&
+        brandKey(item.brand) === brandKey(vehicle.brand) &&
+        key(item.model) === key(vehicle.model) &&
+        Math.abs(item.year - vehicle.year) <= STOCK_YEARS
+    );
+    if (!same.length || !(vehicle.price > 0)) return null;
+    const prices = same.map(item => item.price).sort((x, y) => x - y);
+    const mid = Math.floor(prices.length / 2);
+    const median = prices.length % 2 ? prices[mid] : (prices[mid - 1] + prices[mid]) / 2;
+    const gap = (vehicle.price - median) / median;
+    const status =
+      gap <= -0.1
+        ? 'düşük fiyat'
+        : gap <= -0.05
+          ? 'uygun'
+          : gap < 0.05
+            ? 'aralıkta'
+            : gap < 0.1
+              ? 'biraz yüksek'
+              : 'yüksek fiyat';
+    return { count: same.length, median: Math.round(median), gap, status };
+  }
+
+  const api = { fuelSet, estimate, familyModel, summary, modelPace, paceLines, stockView };
   root.OtoCorePrice = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);
