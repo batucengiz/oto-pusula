@@ -34,7 +34,8 @@
   const NOT_BACKED_UP = Object.freeze({
     otoPusula_tabOpens: 'Son 2 dakikadaki sekme açılışları; hız sınırı için geçici sayaç.',
     otoPusula_aiModels: 'Gemini modellerinin geçici durumu; cihaza ve anahtara özgü, kendiliğinden yenilenir.',
-    otoPusula_aiLog: 'Son 20 yapay zeka denemesinin tanı günlüğü; geçici.'
+    otoPusula_aiLog: 'Son 20 yapay zeka denemesinin tanı günlüğü; geçici.',
+    otoPusula_fullHandoff: 'Popup’tan tam sayfaya devredilen analiz sonucu; 10 dakikalık, bir kez okunan geçici kayıt.'
   });
 
   const isObject = value => !!value && typeof value === 'object' && !Array.isArray(value);

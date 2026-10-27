@@ -2,7 +2,7 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
-## 7.33.0 — 2026-10-27
+## 7.34.0 — 2026-10-27
 
 - **Asistanın eksper hafızası.** Arama sayfası sohbetinde her soruda ilanlar yerel kayıttan yeniden okunur. Sohbet sürerken bir ilanı açıp "Analiz et"e basarsan (ya da rapor fotoğrafını yorumlatırsan) bir sonraki soruda o ilanın eksper riski ve hatasız iddiası hesaba katılır; Oto Pusula toplam puanı (fırsat puanı + eksper riski + hatasız iddiası + ağır uyarı) ve sıralama hemen değişir.
 - **Cevabın üstünde kısa bilgi:** "Eksper güncellendi: Fiat Egea 2021 (İlan 2) artık hesaba katıldı: risk yüksek, hatasız iddiası tutmuyor, puan 72 → 32. Sıralama buna göre yenilendi." Yapay zekaya da önceki cevaplardaki sıralama ve İlan numaralarının eskidiği söylenir; eski sıralamayı tekrarlamaz.
@@ -10,6 +10,14 @@ Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-p
 - **Rapor fotoğrafı hafızaya alınır.** "Ekrandaki rapor fotoğrafını yorumla" sonucundaki risk hükmü ve tek cümlelik özet ilan kaydına yazılır (ekran görüntüsü ve yorumun tamamı saklanmaz). Asıl rapor olduğu için satıcının yazısından üstün tutulur; ilan sohbeti de arama sohbeti de bir sonraki soruda bunu kullanır.
 - **Hangi ilanda eksper verisi var, açıkça yazar.** Sohbetin altında: "Eksper yorumu 3/15 ilanda var (1 tanesi rapor fotoğrafından) · 2 ilan eski sürümde okunmuş, açıklaması kaydedilmemiş: bir kez daha açıp Analiz et'e basın · 10 ilan hiç açılıp analiz edilmedi." 7.27.0 öncesinde okunan ilanların kartında "Eski okuma: yeniden analiz et" etiketi var; yapay zekaya da bu ilanların yorumunun yalnızca boya/değişen şemasından geldiği söylenir.
 - Açık kartlar kayıt değişince kendiliğinden yenilenir. Sahibinden'e hiçbir ek istek atılmaz; her şey bu bilgisayardaki kayıtlardan hesaplanır.
+
+## 7.33.0 — 2026-10-27
+
+- **Tam sayfa düğmesi.** Popup başlığındaki **⤢ Tam sayfa** aynı ekranı eklentinin kendi sekmesinde geniş düzende açar: solda analiz, silme, Excel, fırsatlar, bildirimler ve panel düğmeleri; sağda analiz sonucu, ekspertiz yorumu, pazarlık önerisi ve asistan. Dar popup'ta sıkışan sohbet ve ilan kartları rahatlar: konuşma ekran yüksekliğini kullanır, ilan kartları iki sütuna yayılır, ☰ Sohbetler paneli de uzar. 860 px'ten dar pencerede tek sütuna döner. Koyu ve açık tema.
+- **Analiz durumu aynen taşınır.** Popup'ta ekranda duran sonuç yeni sekmeye devredilir; sahibinden sayfası yeniden okunmaz, ek istek atılmaz ("1 yeni", "son ziyaretten beri" gibi bilgiler kaybolmaz). Devir yalnızca o sekme için, bir kez ve 10 dakika içinde geçerlidir.
+- **Sohbet kaldığı yerden sürer.** Sohbetler ortak depoda olduğu için popup ile tam sayfa aynı sohbeti, aynı ☰/✎ geçmişini gösterir.
+- **Hangi sekme okunur?** Tam sayfadaki "Bu sayfayı analiz et", popup'ın açıldığı sahibinden sekmesini okur (adreste taşınır), yine yalnızca düğmeye basınca. O sekme kapanmış ya da başka sayfaya geçmişse ne yapılacağı yazılır. "Ekrandaki rapor fotoğrafını yorumla" tam sayfada önce sahibinden sekmesine geçip görüntüyü alır, sonra geri döner.
+- Tam sayfadaki düğmeler sekmeyi kapatmaz; ilan bağlantıları yine ortak açılış sınırından (5 sn ara, 2 dakikada en fazla 5) geçer. Yeni dosyalar: fullpage.js, popup-full.css, fullpage.test.js.
 
 ## 7.32.0 — 2026-10-27
 

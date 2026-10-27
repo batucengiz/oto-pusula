@@ -1005,7 +1005,7 @@
 .chat-note.warn {
   color: var(--ai-warn);
 }
-/* Eksper hafızası (7.33): yeni analiz edilen ilan hesaba katılınca cevabın üstünde kısa bilgi. */
+/* Eksper hafızası (7.34): yeni analiz edilen ilan hesaba katılınca cevabın üstünde kısa bilgi. */
 .chat-note.update {
   padding: 6px 9px;
   border-left: 3px solid var(--ai-accent);

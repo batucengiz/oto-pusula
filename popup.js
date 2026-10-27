@@ -10,6 +10,19 @@
   const $ = id => document.getElementById(id);
   const lira = value => `₺${Math.round(value).toLocaleString('tr-TR')}`;
   let activeTab = null;
+  // Tam sayfa (fullpage.js): aynı popup eklentinin sekmesinde geniş düzende açılır; okunacak sahibinden sekmesi adreste.
+  const fullPage = globalThis.OtoFullPage;
+  const view = fullPage ? fullPage.params(location.search) : { full: false, tabId: null };
+  if (view.full) {
+    document.body.classList.add('full');
+    document.title = 'Oto Pusula · Tam sayfa';
+  }
+  // Ekranda duran analiz sonucu; "Tam sayfa" bunu yeni sekmeye devreder.
+  let shownAnalysis = null;
+  // Popup bir sayfa açınca kapanır; tam sayfa kendi sekmesi olduğu için açık kalır.
+  const leave = () => {
+    if (!view.full) window.close();
+  };
 
   function element(tag, className, text) {
     const node = document.createElement(tag);
@@ -23,6 +36,7 @@
     box.replaceChildren(...nodes);
     box.className = error ? 'result error' : 'result';
     box.hidden = false;
+    shownAnalysis = null;
   }
 
   function isSahibinden(url) {
@@ -750,7 +764,7 @@
       button.textContent = 'Rapor okunuyor…';
       answer.replaceChildren();
       try {
-        const image = await chrome.tabs.captureVisibleTab({ format: 'jpeg', quality: 85 });
+        const image = await captureSourceTab();
         const text = await remote.describeImage(key, { image, ...globalThis.OtoExpertise.imagePrompt(lines) });
         if (!text || /^RAPOR_YOK/.test(text))
           answer.append(
@@ -833,6 +847,20 @@
       liveRefresh?.();
     } catch {
       /* yenilenemese de bir sonraki soruda kayıt yeniden okunur */
+    }
+  }
+
+  // Popup'ta görünen sekme zaten sahibinden'dir. Tam sayfada görünen sekme bu sayfa olduğu için önce sahibinden
+  // sekmesine geçilir, görüntü alınır, sonra geri dönülür (yalnızca sekme değişir, sayfa yeniden yüklenmez).
+  async function captureSourceTab() {
+    if (!view.full || !activeTab) return chrome.tabs.captureVisibleTab({ format: 'jpeg', quality: 85 });
+    const self = await chrome.tabs.getCurrent();
+    await chrome.tabs.update(activeTab.id, { active: true });
+    await new Promise(resolve => setTimeout(resolve, 350));
+    try {
+      return await chrome.tabs.captureVisibleTab(activeTab.windowId, { format: 'jpeg', quality: 85 });
+    } finally {
+      if (self) chrome.tabs.update(self.id, { active: true });
     }
   }
 
@@ -2163,6 +2191,7 @@
       outcome.roomDropped = saved.dropped;
       outcome.storageWarning = await storageWarning(outcome.state);
       showResult(describe(outcome, injection?.result));
+      shownAnalysis = { outcome, raw: injection?.result };
       paintAlertCount(outcome.state);
       notifyDesktop(outcome.alerts, outcome.state);
     } catch (error) {
@@ -2174,7 +2203,7 @@
             '',
             quota
               ? 'Yerel depolama dolu. Panelden yedek indirip eski kayıtları temizleyin.'
-              : error.message || 'Sayfa okunamadı.'
+              : (view.full && fullPage.accessMessage(error)) || error.message || 'Sayfa okunamadı.'
           )
         ],
         true
@@ -2238,7 +2267,10 @@
       showResult(nodes);
     } catch (error) {
       pendingForget = null;
-      showResult([element('p', '', error.message || 'Sayfa okunamadı.')], true);
+      showResult(
+        [element('p', '', (view.full && fullPage.accessMessage(error)) || error.message || 'Sayfa okunamadı.')],
+        true
+      );
     } finally {
       button.disabled = false;
     }
@@ -2290,11 +2322,11 @@
   });
   $('open-deals').addEventListener('click', () => {
     chrome.tabs.create({ url: chrome.runtime.getURL('dashboard.html#firsat') });
-    window.close();
+    leave();
   });
   $('open-alerts').addEventListener('click', () => {
     openAlertsPage();
-    window.close();
+    leave();
   });
   // Sohbet geçmişi analiz etmeden de açılır. Açık sayfanın sohbeti seçilirse sayfa analiz edilir ve sohbet sürer;
   // başka sayfanın sohbeti okunur, "Sayfayı aç" ile o sayfaya gidilir.
@@ -2325,24 +2357,60 @@
   });
   $('open-dashboard').addEventListener('click', () => {
     chrome.tabs.create({ url: chrome.runtime.getURL('dashboard.html') });
-    window.close();
+    leave();
   });
+  // Tam sayfa: eklentinin kendi sayfası açılır (sahibinden'e gitmez, istek atmaz). Ekrandaki analiz sonucu devredilir;
+  // sohbet ortak depodan aynı yerden sürer.
+  $('open-full').addEventListener('click', () => {
+    if (!fullPage) return;
+    fullPage.save(localStorage, { tabId: activeTab?.id, ...(shownAnalysis || {}) });
+    chrome.tabs.create({ url: fullPage.pageUrl(chrome.runtime.getURL('popup.html'), activeTab?.id) });
+    leave();
+  });
+
+  // Popup'tan devredilen sonuç yeniden okunmadan, güncel kayıtlarla çizilir. Sekme yenilenirse aynı sonuç bu sekmenin
+  // kendi deposundan (sessionStorage) gelir.
+  function showHandoff() {
+    const handoff = fullPage.take(localStorage, view.tabId) || fullPage.take(sessionStorage, view.tabId);
+    if (!handoff) return false;
+    fullPage.save(sessionStorage, { tabId: view.tabId, ...handoff });
+    const outcome = { ...handoff.outcome, state: store.load() };
+    showResult(describe(outcome, handoff.raw));
+    shownAnalysis = { outcome, raw: handoff.raw };
+    return true;
+  }
+
+  // Tam sayfada okunacak sekme adresteki sekmedir; popup'ta penceredeki etkin sekme.
+  async function sourceTab() {
+    if (!view.full) return (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
+    if (!view.tabId) return null;
+    return chrome.tabs.get(view.tabId).catch(() => null);
+  }
 
   // Kayıtlar eklenti deposundan okunmadan analiz düğmesi açılmaz; eski localStorage kaydı burada aktarılır.
   storeReady
     .then(() => {
       paintAlertCount();
-      return chrome.tabs.query({ active: true, currentWindow: true });
+      return sourceTab();
     })
-    .then(([tab]) => {
+    .then(tab => {
       activeTab = tab && isSahibinden(tab.url) ? tab : null;
+      const handedOff = view.full && showHandoff();
       $('analyze').disabled = !activeTab;
       $('forget-page').disabled = !activeTab;
       $('page-hint').textContent = activeTab
         ? new URL(tab.url).pathname.startsWith('/ilan/')
           ? 'İlan sayfası: fiyat ve satıcı açıklaması okunacak.'
           : 'Arama sonucu: listedeki ilanlar okunacak.'
-        : 'sahibinden.com’da bir arama sonucu veya ilan sayfası açın.';
+        : view.full && view.tabId
+          ? 'Sahibinden sekmesi kapanmış ya da değişmiş. O sekmede Oto Pusula simgesine basıp “Tam sayfa”yı yeniden seçin.'
+          : 'sahibinden.com’da bir arama sonucu veya ilan sayfası açın.';
+      if (handedOff && activeTab) {
+        $('analyze').textContent = 'Sayfayı yeniden analiz et';
+        $('page-hint').textContent =
+          'Popup’taki analiz sonucu burada. Güncellemek için sayfayı yeniden okuyabilirsiniz.';
+        return null;
+      }
       return activeTab ? resumeHint(activeTab.url) : null;
     })
     .catch(() => {

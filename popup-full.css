@@ -1,0 +1,190 @@
+/* ===== Tam sayfa (v7.33) — popup.html eklentinin kendi sekmesinde açılınca (body.full) =====
+   Solda dar denetim sütunu (analiz, Excel, panel), sağda geniş sonuç ve sohbet alanı.
+   Popup görünümü değişmez; buradaki kurallar header'daki "Tam sayfa" düğmesi dışında yalnızca .full altında çalışır. */
+
+/* Popup başlığındaki küçük "Tam sayfa" düğmesi */
+header .full-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: auto;
+  margin-left: auto;
+  padding: 6px 9px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-size: 11.5px;
+  font-weight: 650;
+}
+header .full-toggle:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+header .full-toggle svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.full header .full-toggle {
+  display: none;
+}
+
+/* Geniş düzen */
+/* Zemin tüm pencereyi kaplar (popup'ta body'deydi; burada body ortalanmış bir sütun). */
+html:has(body.full) {
+  min-height: 100%;
+  background:
+    radial-gradient(900px 500px at 100% 0%, rgba(99, 102, 241, 0.28), transparent 60%),
+    linear-gradient(180deg, #0b1220, #0f2a3a) fixed;
+}
+body.full {
+  box-sizing: border-box;
+  width: auto;
+  max-width: 1240px;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 28px 32px;
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  grid-template-rows: auto auto 1fr;
+  column-gap: 32px;
+  align-content: start;
+  font-size: 14px;
+}
+/* Açık/koyu temanın body zeminini (popup-theme.css) kaldırır; zemin html'de. */
+:root body.full,
+:root[data-theme] body.full {
+  background: transparent;
+}
+.full .side {
+  grid-column: 1;
+}
+.full .side-top {
+  grid-row: 1;
+}
+.full .side-bottom {
+  grid-row: 2;
+}
+.full header {
+  margin-bottom: 18px;
+}
+.full h1 {
+  font-size: 22px;
+}
+/* Sonuç kendi içinde kayar; soldaki düğmeler hep görünür kalır. */
+.full #result {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  align-self: start;
+  position: sticky;
+  top: 28px;
+  box-sizing: border-box;
+  max-height: calc(100vh - 56px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  margin-top: 0;
+  padding: 20px 22px;
+  border-radius: 16px;
+}
+/* Sonuç yokken sağ taraf boş kalmaz: ne yapılacağı yazılır. İçerik gizli kalır, kapatılan sonuç görünmez. */
+.full #result[hidden] {
+  min-height: 220px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: #94a3b8;
+}
+.full #result[hidden] > * {
+  display: none;
+}
+.full #result[hidden]::before {
+  content: 'Analiz sonucu, ekspertiz yorumu, pazarlık önerisi ve asistan burada geniş görünür. Soldan “Bu sayfayı analiz et”e basın ya da sohbet geçmişini açın.';
+  max-width: 420px;
+  line-height: 1.6;
+}
+
+/* Asistan: konuşma ekranın yüksekliğini kullanır, ilan kartları iki sütuna yayılır */
+.full .chat {
+  margin: 18px 0 0;
+  padding: 18px 20px 16px;
+  font-size: 14px;
+}
+.full .chat-standalone {
+  margin-top: 0;
+}
+.full .chat-log {
+  max-height: max(380px, calc(100vh - 320px));
+}
+.full .drawer-body {
+  max-height: max(400px, calc(100vh - 260px));
+}
+.full .drawer-log {
+  max-height: max(340px, calc(100vh - 300px));
+}
+.full .chat-me {
+  max-width: 70%;
+}
+.full .chat-picks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+.full .chat-picks > .chat-criteria {
+  grid-column: 1 / -1;
+}
+
+/* Dar pencere: tek sütun, denetimler üstte */
+@media (max-width: 860px) {
+  body.full {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    padding: 18px 16px 32px;
+  }
+  .full .side,
+  .full .side-top,
+  .full .side-bottom,
+  .full #result {
+    grid-column: 1;
+    grid-row: auto;
+  }
+  .full #result {
+    position: static;
+    max-height: none;
+    overflow: visible;
+    margin-top: 14px;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  html:has(body.full):not([data-theme='dark']) {
+    background:
+      radial-gradient(900px 500px at 100% 0%, rgba(20, 184, 166, 0.14), transparent 60%),
+      linear-gradient(180deg, #ffffff, #eef6f5) fixed;
+  }
+  :root:not([data-theme='dark']) header .full-toggle {
+    border-color: #cbd5e1;
+  }
+  :root:not([data-theme='dark']) header .full-toggle:hover {
+    background: rgba(15, 23, 42, 0.05);
+  }
+  :root:not([data-theme='dark']) .full #result[hidden] {
+    color: #64748b;
+  }
+}
+html[data-theme='light']:has(body.full) {
+  background:
+    radial-gradient(900px 500px at 100% 0%, rgba(20, 184, 166, 0.14), transparent 60%),
+    linear-gradient(180deg, #ffffff, #eef6f5) fixed;
+}
+:root[data-theme='light'] header .full-toggle {
+  border-color: #cbd5e1;
+}
+:root[data-theme='light'] header .full-toggle:hover {
+  background: rgba(15, 23, 42, 0.05);
+}
+:root[data-theme='light'] .full #result[hidden] {
+  color: #64748b;
+}
