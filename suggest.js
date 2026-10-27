@@ -5,13 +5,18 @@
   // hatasında "bunu mu demek istediniz" der. Fiyat hesabı marka ve modeli yazıya göre eşleştirdiği için ("Corola" ile
   // "Corolla" farklı sayılır), yanlış yazım "veri yok" sonucu verirdi. Öneriler önce kullanıcının kendi kayıtlarından,
   // sonra gömülü bilinen listeden (catalog.js) gelir; liste kapalı değildir, listede olmayan ad yine kaydedilir.
+  // Paket, motor ve kasa yalnızca yazılan modelin (yıl yazıldıysa o yılın kuşağının) adlarıdır; marka genelinden ya da
+  // başka modelden ad önerilmez.
   // Hiçbir istek atılmaz; her şey cihazdaki kayıtlarla yapılır.
   const core = root.OtoCore || require('./core.js');
   const catalog = root.OtoCatalog || require('./catalog.js');
   const { key, brandKey, similar } = core;
 
   const FIELDS = ['brand', 'model', 'body', 'trim', 'engine', 'fuel', 'transmission'];
+  const YEAR_FIELDS = ['year', 'yearMin', 'yearMax'];
   const MAX_SUGGESTIONS = 8;
+  // Katalogda kuşağı bilinmeyen modelde kullanıcının kayıtlarından yalnızca bu kadar yıl yakın olanlar önerilir.
+  const YEAR_SLACK = 4;
 
   const text = value => String(value ?? '').trim();
 
@@ -40,6 +45,52 @@
     if (!wanted) return null;
     const name = Object.keys(catalog.BRANDS).find(item => brandKey(item) === wanted);
     return name ? { name, ...catalog.BRANDS[name] } : null;
+  }
+
+  // Formdaki yıl (stok formu) ya da yıl aralığı (kayıtlı arama formu). Yazılmadıysa null: tüm kuşaklar önerilir.
+  function yearRange(ctx = {}) {
+    const read = value => {
+      const year = Number(text(value));
+      return Number.isInteger(year) && year >= 1950 && year <= 2100 ? year : null;
+    };
+    const year = read(ctx.year);
+    if (year) return { from: year, to: year };
+    const low = read(ctx.yearMin);
+    const high = read(ctx.yearMax);
+    if (!low && !high) return null;
+    return { from: Math.min(low || high, high || low), to: Math.max(low || high, high || low) };
+  }
+
+  const covers = (gen, from, to) => gen.from <= to && (gen.to || 9999) >= from;
+
+  // Modelin katalogdaki kuşakları; yıl verildiyse yalnızca o yılı kapsayanlar. Model katalogda yoksa null.
+  function generations(known, model, range) {
+    const modelKey = key(model);
+    const found = Object.entries(known?.series || {}).find(([name]) => key(name) === modelKey)?.[1];
+    if (!found) return null;
+    return range ? found.filter(gen => covers(gen, range.from, range.to)) : found;
+  }
+
+  // Paket, motor ve kasa için katalog adayları. Model yazıldıysa yalnızca o modelin (yıl yazıldıysa o yılın
+  // kuşağının) adları gelir; başka modelin ya da markanın genel listesinden ad önerilmez. Model katalogda yoksa ya da
+  // o kuşakta ad yazılmamışsa liste boştur: yalnızca kullanıcının kendi kayıtları önerilir.
+  function catalogValues(field, known, model, range) {
+    if (!known) return [];
+    const plural = field === 'body' ? 'bodies' : `${field}s`;
+    if (model) return (generations(known, model, range) || []).flatMap(gen => gen[plural]);
+    return Object.keys(known.series).flatMap(name => generations(known, name, range).flatMap(gen => gen[plural]));
+  }
+
+  // Kullanıcının kayıtlarından yalnızca aynı modelin aynı kuşağındakiler (kuşak bilinmiyorsa yılı yakın olanlar).
+  function sameGeneration(records, known, model, range) {
+    if (!range) return records;
+    const gens = generations(known, model, range);
+    return records.filter(item => {
+      const year = Number(item?.year);
+      if (!Number.isFinite(year) || !year) return true;
+      if (gens) return gens.some(gen => covers(gen, year, year));
+      return year >= range.from - YEAR_SLACK && year <= range.to + YEAR_SLACK;
+    });
   }
 
   // Kasa adı tek biçime çevrilir: ilan sayfası "Hatchback 5 kapı", başlık "Station" yazabilir; öneride "Hatchback" ve
@@ -90,13 +141,19 @@
     const brand = text(ctx.brand);
     const model = text(ctx.model);
     const known = catalogBrand(brand);
+    const range = yearRange(ctx);
     const keyOf = field === 'brand' ? brandKey : key;
+    const perModel = field === 'trim' || field === 'engine' || field === 'body';
     let mine = records;
     if (field !== 'brand' && brand) mine = mine.filter(item => brandKey(item.brand) === brandKey(brand));
-    if ((field === 'trim' || field === 'engine' || field === 'body') && model) {
-      const sameModel = mine.filter(item => key(item.model) === key(model));
-      if (sameModel.length) mine = sameModel;
-    }
+    // Paket, motor ve kasa yalnızca aynı modelin kayıtlarından gelir: başka modelin paketi bu modele önerilmez.
+    if (perModel && model)
+      mine = sameGeneration(
+        mine.filter(item => key(item.model) === key(model)),
+        known,
+        model,
+        range
+      );
     const own = tally(
       mine.map(item => (field === 'body' ? bodyName(item.body) : item[field])),
       keyOf
@@ -105,7 +162,11 @@
     if (field === 'brand') fromCatalog.push(...Object.keys(catalog.BRANDS));
     else if (field === 'fuel') fromCatalog.push(...catalog.FUELS);
     else if (field === 'transmission') fromCatalog.push(...catalog.TRANSMISSIONS);
-    else if (field === 'body') fromCatalog.push(...bodyVariants(brand, model), ...catalog.BODY_TYPES);
+    else if (field === 'body') {
+      // Modelin kuşakları biliniyorsa yalnızca onların kasaları; bilinmiyorsa genel kasa listesi.
+      const gens = model ? generations(known, model, null) : null;
+      fromCatalog.push(...(gens ? catalogValues('body', known, model, range) : catalog.BODY_TYPES));
+    } else if (field === 'trim' || field === 'engine') fromCatalog.push(...catalogValues(field, known, model, range));
     else if (known) fromCatalog.push(...known[`${field}s`]);
     else if (!brand) {
       for (const data of Object.values(catalog.BRANDS)) fromCatalog.push(...data[`${field}s`]);
@@ -165,15 +226,21 @@
     return wanted.length >= 3 && similar(query, [item.text], 1).length ? 4 : -1;
   }
 
-  function suggest(field, query, ctx = {}, limit = MAX_SUGGESTIONS) {
+  // Öneriler kaynağıyla: user true ise kullanıcının kendi kayıtlarından (sahibinden'den okunan ilanlar), değilse
+  // gömülü katalogdan.
+  function suggestItems(field, query, ctx = {}, limit = MAX_SUGGESTIONS) {
     const list = candidates(field, ctx);
-    if (!key(query)) return list.slice(0, limit).map(item => item.text);
+    if (!key(query)) return list.slice(0, limit);
     return list
       .map((item, order) => ({ item, order, rank: score(item, query) }))
       .filter(entry => entry.rank >= 0)
       .sort((a, b) => a.rank - b.rank || Number(b.item.user) - Number(a.item.user) || a.order - b.order)
       .slice(0, limit)
-      .map(entry => entry.item.text);
+      .map(entry => entry.item);
+  }
+
+  function suggest(field, query, ctx = {}, limit = MAX_SUGGESTIONS) {
+    return suggestItems(field, query, ctx, limit).map(item => item.text);
   }
 
   // Yazılan değerin durumu: listede aynen var mı (farklı yazılışla), değilse en yakın adaylar neler.
@@ -264,7 +331,8 @@
     const doc = form.ownerDocument || document;
     const inputs = Object.fromEntries(FIELDS.map(name => [name, form.elements[name]]).filter(([, input]) => input));
     const values = () => Object.fromEntries(FIELDS.map(name => [name, inputs[name]?.value ?? '']));
-    const context = () => ({ ...values(), records: getRecords() });
+    const years = () => Object.fromEntries(YEAR_FIELDS.map(name => [name, form.elements[name]?.value ?? '']));
+    const context = () => ({ ...values(), ...years(), records: getRecords() });
     const note = doc.createElement('p');
     note.className = 'suggest-note';
     note.hidden = true;
@@ -335,15 +403,19 @@
         });
       };
       const open = () => {
-        items = suggest(name, input.value, context());
+        const found = suggestItems(name, input.value, context());
+        items = found.map(item => item.text);
         // Yazılan değer listedeki tek öneriyle aynıysa listeyi göstermeye gerek yok.
         if (!items.length || (items.length === 1 && key(items[0]) === key(input.value))) return close();
         list.replaceChildren(
-          ...items.map((value, index) => {
+          ...found.map(({ text: value, user }, index) => {
             const node = doc.createElement('li');
             node.id = `${listId}-${index}`;
             node.setAttribute('role', 'option');
             node.textContent = value;
+            // Kaynak: kayıtlarınızdaki ilanlar ya da gömülü katalog (etiket CSS ile gösterilir, metne girmez).
+            node.dataset.source = user ? 'kayit' : 'katalog';
+            node.title = user ? 'Kayıtlarınızdaki ilanlardan' : 'Bilinen model listesinden';
             node.addEventListener('mousedown', event => {
               event.preventDefault();
               choose(value);
@@ -426,8 +498,10 @@
     FIELDS,
     bodyName,
     bodyVariants,
+    yearRange,
     candidates,
     suggest,
+    suggestItems,
     resolve,
     splitVariant,
     marketNote,

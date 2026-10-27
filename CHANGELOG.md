@@ -2,6 +2,14 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.36.0 — 2026-10-27
+
+- **Araç formundaki paket, motor ve kasa önerileri artık ezber değil.** Sebep: paket ve motor listesi marka geneliydi ve yıla bakmıyordu; 1997 Fiat Tipo için Egea'nın Easy, Urban, Lounge, Street, Cross paketleri ve Sedan/Pick-up kasası çıkıyordu. Artık her model kuşak kuşak (yıl aralığı) tutulur ve öneriler yalnızca yazılan modelin, yıl yazıldıysa o yılın kuşağının adlarıdır. 1997 Tipo: paket S, SX, SX A.K.; motor 1.4, 1.6; kasa Hatchback. 2020 Egea'da eski Tipo paketi çıkmaz.
+- **Doğrulanamayan ad önerilmez.** Bir kuşağın paket ya da motor adından emin olunamayan modellerde (ör. Kia Rio, Toyota C-HR, Hyundai i30) katalog liste vermez; yalnızca sizin kayıtlarınızdaki (sahibinden'den okunan) adlar gelir. Katalogda olmayan modelde marka genelinden ad önerilmez.
+- **Kayıtlarınızdan gelen öneriler de modele ve kuşağa göre süzülür:** başka modelin ya da başka kuşağın ilanındaki paket önerilmez; listede "ilanlarınızdan" etiketiyle önce gelir. Kayıtlı arama formunda yıl aralığı da kuşağı seçer.
+- **Düzeltilen yanlış girdiler:** Tofaş'ta "Slx" model, "Kartal" paket sayılıyordu (SLX Doğan/Kartal paketidir; Murat eklendi); Renault'da Duster (Türkiye'de Dacia) çıkarıldı, R 9 ve R 19 eklendi; eski Tipo Sedan/Station Wagon, Jetta Station Wagon, Civic Coupe, Yaris Sedan, Elantra Hatchback, Honda Jazz Crossover, Sandero Crossover gibi kasalar kaldırıldı. Passat Variant ayrı seri olarak kaldı.
+- Yeni test dosyası catalog.test.js: her marka ve modelin her kuşağı için önerilerde başka model ya da kuşak adı çıkmadığı, kaydedilmiş gerçek sahibinden sayfalarındaki 30 sürümün doğru model ve yılda önerildiği denetlenir. Sahibinden'e hiçbir istek atılmaz.
+
 ## 7.35.0 — 2026-10-27
 
 - **Excel'de boş Yakıt, Vites, Paket, Motor gücü/hacmi ve Çekiş sütunları dolar.** Sebep: sahibinden'in arama listesinde bu bilgiler hiç yazmaz, yalnızca ilan sayfasında yazar. Bu yüzden yalnızca açılıp "Analiz et"e basılan ilanlarda doluydu. Artık arama listesinden gelen ilanlarda yalnızca güvenle çıkarılabilenler doldurulur, kayıt ve fiyat tahmini değişmez:
