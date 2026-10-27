@@ -477,6 +477,8 @@
       if (title) line.title = title;
       node.append(line);
     };
+    if (status === 'az veri' && result.trend)
+      note(`(eğilim: ${result.trend})`, 'Az veriyle hesaplandığı için kesin değil.');
     if (status === 'az veri' || status === 'veri yok')
       note(
         `(piyasa: ${result.count || 0} benzer ilan, en az 4 gerekir)`,

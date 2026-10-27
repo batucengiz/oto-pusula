@@ -2,6 +2,11 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.40.0 — 2026-10-27
+
+- **"Az veri" artık eğilimi de söyler.** Piyasada 4'ten az benzer ilan varken kesin fiyat durumu verilemez; yine de eldeki ilanlara göre yön belli oluyorsa Excel'in "Durum" sütununda "az veri (eğilim: uygun)" ve panelde "(eğilim: …) Az veriyle hesaplandığı için kesin değil" yazar. Durum sütunu bu yüzden genişletildi.
+- **Excel'deki boş sütunlar (Yakıt, Vites, Kasa, Motor gücü/hacmi, Çekiş):** bu bilgiler sahibinden arama listesinde yoktur, yalnızca ilan sayfasında bulunur. Eklenti kendiliğinden sahibinden'e istek atmadığı için ilan sayfasını açıp "Analiz et" dediğiniz ilanlarda dolar; emin olunamayan alanlar tahminle doldurulmaz ve "Eksik bilgi" sütununda yazılır.
+
 ## 7.39.0 — 2026-10-27
 
 - **Yapay zekada "çok yoğun (HTTP 503)" hatası azaldı.** Google'ın ücretsiz anahtarda yoğunluk ve kotası model başınadır; bu yüzden yedek model sayısı 3'ten 5'e çıktı (gemini-flash-lite-latest ve gemini-2.0-flash eklendi, kapanmış model 404'te kendiliğinden elenir). Yeniden deneme turu 3'ten 4'e, toplam süre 55 sn'den 80 sn'ye çıktı. Bekleme sırasında sohbetin altında hangi tur olduğu yazar: "Google yoğun; yedek modelle yeniden deneniyor… (tur 2/4)". Hepsi yine de dolarsa eskisi gibi eklentinin kendi hesabıyla cevap verilir.

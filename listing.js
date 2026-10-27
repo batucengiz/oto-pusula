@@ -1257,7 +1257,7 @@
     // Sütunlar konuya göre gruplanır: değerlendirme → araç → fiyat → kaporta/hasar → satıcı → tarih → kaynak.
     const columns = [
       { title: 'İlana git', width: 11 },
-      { title: 'Durum', width: 14 },
+      { title: 'Durum', width: 24 },
       { title: 'Fırsat puanı', width: 12 },
       { title: 'Fırsat', width: 14 },
       { title: 'Marka', width: 13 },
@@ -1338,7 +1338,7 @@
           : fullUrl;
       return [
         url ? { link: url, text: 'İlana git' } : '',
-        result.status || 'veri yok',
+        result.status === 'az veri' && result.trend ? `az veri (eğilim: ${result.trend})` : result.status || 'veri yok',
         deal ? deal.score : '',
         deal?.label || '',
         record.brand,
