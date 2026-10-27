@@ -9,28 +9,39 @@
     <link rel="stylesheet" href="popup-theme.css" />
     <link rel="stylesheet" href="chat.css" />
     <link rel="stylesheet" href="negotiation.css" />
+    <link rel="stylesheet" href="popup-full.css" />
   </head>
   <body>
-    <header>
-      <span class="mark" aria-hidden="true"></span>
-      <div>
-        <h1>Oto Pusula</h1>
-        <p>İlan fiyat analizi</p>
-      </div>
-    </header>
-    <p id="page-hint" class="hint">Sayfa kontrol ediliyor…</p>
-    <button id="analyze" class="primary" type="button" disabled>Bu sayfayı analiz et</button>
-    <button id="forget-page" class="danger" type="button" disabled>Bu sayfadaki ilanları sil</button>
+    <div class="side side-top">
+      <header>
+        <span class="mark" aria-hidden="true"></span>
+        <div>
+          <h1>Oto Pusula</h1>
+          <p>İlan fiyat analizi</p>
+        </div>
+        <button id="open-full" class="full-toggle" type="button" title="Tam sayfada aç" aria-label="Tam sayfada aç">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" />
+          </svg>
+          <span>Tam sayfa</span>
+        </button>
+      </header>
+      <p id="page-hint" class="hint">Sayfa kontrol ediliyor…</p>
+      <button id="analyze" class="primary" type="button" disabled>Bu sayfayı analiz et</button>
+      <button id="forget-page" class="danger" type="button" disabled>Bu sayfadaki ilanları sil</button>
+    </div>
     <section id="result" class="result" aria-live="polite" hidden></section>
-    <button id="export-excel" class="secondary" type="button">Excel’e aktar</button>
-    <button id="open-deals" class="secondary" type="button">Fırsat arabalar →</button>
-    <button id="open-alerts" class="secondary" type="button">
-      Bildirimler ve aramalarım <span class="alert-count" id="alert-count" hidden></span> →
-    </button>
-    <button id="open-chats" class="secondary" type="button">Sohbet geçmişi →</button>
-    <button id="open-dashboard" class="secondary" type="button">Paneli aç →</button>
-    <small>Yalnızca düğmeye bastığınızda okur. Veriler bu bilgisayarda kalır.</small>
-    <small class="credit">Geliştiren: Batuhan Cengiz</small>
+    <div class="side side-bottom">
+      <button id="export-excel" class="secondary" type="button">Excel’e aktar</button>
+      <button id="open-deals" class="secondary" type="button">Fırsat arabalar →</button>
+      <button id="open-alerts" class="secondary" type="button">
+        Bildirimler ve aramalarım <span class="alert-count" id="alert-count" hidden></span> →
+      </button>
+      <button id="open-chats" class="secondary" type="button">Sohbet geçmişi →</button>
+      <button id="open-dashboard" class="secondary" type="button">Paneli aç →</button>
+      <small>Yalnızca düğmeye bastığınızda okur. Veriler bu bilgisayarda kalır.</small>
+      <small class="credit">Geliştiren: Batuhan Cengiz</small>
+    </div>
     <script src="core-records.js"></script>
     <script src="core-csv.js"></script>
     <script src="core-price.js"></script>
@@ -52,6 +63,7 @@
     <script src="storage-health.js"></script>
     <script src="chat-list-ui.js"></script>
     <script src="alerts-ui.js"></script>
+    <script src="fullpage.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>
