@@ -2009,6 +2009,19 @@ a.compare-ref:focus-visible {
   background: var(--brand-soft);
   color: var(--brand-strong);
 }
+/* Kaynak etiketi: kullanıcının kendi kayıtlarındaki ilanlardan gelen öneri (katalogdan gelenler etiketsiz). */
+.suggest-list li[data-source='kayit'] {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.suggest-list li[data-source='kayit']::after {
+  content: 'ilanlarınızdan';
+  color: var(--subtle);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
 .suggest-hint {
   color: var(--subtle);
   font-size: 12px;
