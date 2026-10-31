@@ -49,26 +49,38 @@
         Linea: [[2007, 2016, 'Sedan', '1.3 Multijet', 'Emotion Plus']],
         Albea: [[2002, 2012, 'Sedan', '1.2, 1.6', 'Active']],
         Palio: [[1997, 2011, 'Hatchback, Station Wagon', '1.2', 'S']],
-        Punto: [[1993, 2018, 'Hatchback', '', '']],
-        'Grande Punto': [[2006, 2012, 'Hatchback', '', '']],
+        Punto: [[1993, 2018, 'Hatchback', '1.2, 1.3 Multijet, 1.4, 1.4 Multiair', 'Pop, Easy, Lounge, Dynamic']],
+        'Grande Punto': [[2006, 2012, 'Hatchback', '1.3 Multijet, 1.4 Fire, 1.4 Starjet', 'Active, Dynamic, Emotion']],
         Tipo: [[1988, 2000, 'Hatchback', '1.4, 1.6', 'S, SX, SX A.K.']],
-        Tempra: [[1990, 1999, 'Sedan, Station Wagon', '', '']],
-        Marea: [[1996, 2002, 'Sedan, Station Wagon', '', '']],
+        Tempra: [[1990, 1999, 'Sedan, Station Wagon', '1.6, 2.0', 'SX, SLX']],
+        Marea: [[1996, 2002, 'Sedan, Station Wagon', '1.6, 1.9 JTD, 2.0', 'SX, ELX, HLX']],
         Bravo: [
-          [1995, 2001, 'Hatchback', '', ''],
-          [2007, 2014, 'Hatchback', '', '']
+          [1995, 2001, 'Hatchback', '1.6, 2.0', 'SX, HGT'],
+          [
+            2007,
+            2014,
+            'Hatchback',
+            '1.4, 1.4 T-Jet, 1.6 Multijet',
+            'Active, Active Plus, Dynamic, Dynamic Plus, Emotion, Sport, Sports Style'
+          ]
         ],
-        Stilo: [[2001, 2008, 'Hatchback, Station Wagon', '', '']],
+        Stilo: [[2001, 2008, 'Hatchback, Station Wagon', '1.6, 2.4', 'Active, Actual, Dynamic, Abarth']],
         Doblo: [
-          [2001, 2010, 'MPV, Panelvan', '', ''],
-          [2010, 2022, 'MPV, Panelvan', '', ''],
-          [2022, 0, 'MPV, Panelvan', '', '']
+          [2001, 2010, 'MPV, Panelvan', '1.3 Multijet, 1.9 JTD, 1.9 Multijet', 'Active, Dynamic, Premio, SX, VIP'],
+          [
+            2010,
+            2022,
+            'MPV, Panelvan',
+            '1.3 Multijet, 1.6 Multijet',
+            'Easy, Urban, Premio, Premio Plus, Safeline, 20. Yıl Özel Seri'
+          ],
+          [2022, 0, 'MPV, Panelvan', '1.5', 'Easy, Urban, Premio, Premio Plus']
         ],
-        Fiorino: [[2008, 2024, 'MPV, Panelvan', '', '']],
-        '500L': [[2012, 2022, 'MPV', '', '']],
-        '500X': [[2015, 0, 'Crossover', '', '']],
-        Panda: [[2003, 0, 'Hatchback', '', '']],
-        Uno: [[1983, 2003, 'Hatchback', '', '']],
+        Fiorino: [[2008, 2024, 'MPV, Panelvan', '1.3 Multijet', 'Pop, Emotion, Premio, Safeline, Plus']],
+        '500L': [[2012, 2022, 'MPV', '1.3 Multijet, 1.4, 1.6 Multijet', 'Popstar, Rockstar, Lounge']],
+        '500X': [[2015, 0, 'Crossover', '1.4, 1.6 Multijet', 'Cross, Cross Plus']],
+        Panda: [[2003, 0, 'Hatchback', '0.9 TwinAir, 1.2, 1.3 Multijet', 'Pop, Lounge']],
+        Uno: [[1983, 2003, 'Hatchback', '1.0, 1.4', 'SX']],
         Fullback: [[2016, 2019, 'Pick-up', '', '']]
       }
     },
@@ -139,7 +151,15 @@
         Kadjar: [[2015, 2022, 'SUV', '1.2, 1.5 dCi, 1.6 dCi', 'Icon, Touch']],
         Austral: [[2023, 0, 'SUV', '1.2 E-Tech, 1.3', 'Esprit Alpine, Evolution, Techno']],
         Talisman: [[2016, 2022, 'Sedan', '1.6 dCi', 'Touch, Icon']],
-        Kangoo: [[1997, 0, 'MPV, Panelvan', '', '']],
+        Kangoo: [
+          [
+            1997,
+            0,
+            'MPV, Panelvan',
+            '1.3, 1.4, 1.5, 1.5 dCi',
+            'RL, RNA, RTA, RTE, Authentique, Expression, Joy, Touch, Extrem, Iconic'
+          ]
+        ],
         Twingo: [[1993, 0, 'Hatchback', '', '']],
         Laguna: [
           [
@@ -161,11 +181,12 @@
         ],
         Koleos: [[2008, 0, 'SUV', '1.6 dCi, 2.0 dCi', 'Icon, Touch']],
         Zoe: [[2013, 0, 'Hatchback', '', '']],
-        Express: [[2021, 0, 'MPV, Panelvan', '', '']],
+        Express: [[2021, 0, 'MPV, Panelvan', '1.5', 'Joy, Touch']],
         Trafic: [[1980, 0, 'Panelvan, Minivan', '', '']],
-        'R 9': [[1983, 1999, 'Sedan', '', '']],
+        'R 9': [[1983, 1999, 'Sedan', '1.4', 'RL, RN, Broadway']],
         'R 12': [[1971, 2000, 'Sedan, Station Wagon', '', '']],
-        'R 19': [[1988, 2000, 'Sedan, Hatchback', '', '']]
+        'R 19': [[1988, 2000, 'Sedan, Hatchback', '1.6, 1.7, 1.9', 'Europa, RL, RN, RNE, Alize']],
+        Rafale: [[2024, 0, 'SUV', '1.2', 'Esprit Alpine']]
       }
     },
     Volkswagen: {
@@ -251,28 +272,43 @@
           [2005, 2010, 'Sedan', '1.4 TSI, 1.6, 1.6 FSI, 1.9 TDI, 2.0 TDI', 'Comfortline, Midline, Tour, Primeline'],
           [2010, 2018, 'Sedan', '1.2 TSI, 1.4 TSI, 1.6 TDI', 'Comfortline, Highline, Trendline']
         ],
-        Bora: [[1998, 2005, 'Sedan, Station Wagon', '', '']],
+        Bora: [[1998, 2005, 'Sedan, Station Wagon', '1.6', 'Basic, Comfortline, Pacific']],
         Tiguan: [
           [2007, 2016, 'SUV', '1.4 TSI, 2.0 TDI', 'Fun&Function, Sport&Style'],
           [2016, 2024, 'SUV', '1.4 TSI, 1.6 TDI, 2.0 TDI', 'Comfortline, Highline, Trendline'],
           [2024, 0, 'SUV', '1.5, 2.0, 2.0 TDI', 'Elegance, Life, R-Line']
         ],
         'T-Roc': [[2018, 0, 'Crossover, Cabrio', '1.5 TSI', 'Highline']],
-        'T-Cross': [[2019, 0, 'Crossover', '', '']],
+        'T-Cross': [[2019, 0, 'Crossover', '1.0', 'Life, Style, R-Line']],
         Taigo: [[2022, 0, 'Crossover', '1.0, 1.5', 'Life, R-Line, Style']],
         Caddy: [[1996, 0, 'MPV, Panelvan', '1.6 TDI, 2.0 TDI', 'Comfortline, Cross, Sportline, Team, Trendline']],
-        Transporter: [[1990, 0, 'Panelvan, Minivan', '', '']],
+        Transporter: [
+          [1990, 2008, 'Panelvan, Minivan', '', ''],
+          [2009, 0, 'Panelvan, Minivan', '2.0 TDI', '']
+        ],
         Touran: [[2003, 0, 'MPV', '', '']],
         Sharan: [[1995, 0, 'MPV', '', '']],
         Scirocco: [[2008, 2017, '', '1.4 TSI, 2.0 TFSI, 2.0 TSI', 'Sportline']],
         Beetle: [[1998, 2019, 'Hatchback, Cabrio', '', '']],
-        Touareg: [[2002, 0, 'SUV', '', '']],
-        Amarok: [[2010, 0, 'Pick-up', '', '']],
+        Touareg: [
+          [2002, 2017, 'SUV', '', ''],
+          [2018, 0, 'SUV', '3.0', 'Elegance, R-Line']
+        ],
+        Amarok: [
+          [
+            2010,
+            0,
+            'Pick-up',
+            '2.0 TDI, 2.0 BiTDI, 3.0 TDI',
+            'Highline, Canyon, Exclusive, Life, Style, Style Plus, PanAmericana, Aventura'
+          ]
+        ],
         Crafter: [[2006, 0, 'Panelvan, Minivan', '', '']],
         Caravelle: [[1990, 0, 'Minivan', '', '']],
         Multivan: [[2003, 0, 'Minivan', '', '']],
         Lupo: [[1998, 2005, 'Hatchback', '', '']],
-        Up: [[2012, 2023, 'Hatchback', '', '']]
+        Up: [[2012, 2023, 'Hatchback', '', '']],
+        'ID.4': [[2021, 0, 'SUV', '', 'Pure']]
       }
     },
     Ford: {
@@ -336,22 +372,34 @@
           [2013, 2019, 'SUV', '1.5, 2.0 TDCi', 'Selective, Titanium, Trend X'],
           [2020, 0, 'SUV', '1.5 EcoBlue', 'ST-Line, Style, Titanium']
         ],
-        Courier: [[2014, 0, 'MPV, Panelvan', '', '']],
-        Connect: [[2002, 0, 'MPV, Panelvan', '', '']],
+        Courier: [[2014, 0, 'MPV, Panelvan', '1.0, 1.5, 1.5 TDCi, 1.6 TDCi', 'Trend, Deluxe, Titanium, Titanium Plus']],
+        Connect: [[2002, 0, 'MPV, Panelvan', '1.5 TDCi, 1.6 TDCi', 'Deluxe, Titanium']],
         Transit: [[1986, 0, 'Panelvan, Minivan', '', '']],
-        Custom: [[2012, 0, 'Panelvan, Minivan', '', '']],
+        Custom: [
+          [2012, 2023, 'Panelvan, Minivan', '', ''],
+          [2024, 0, 'Panelvan, Minivan', '2.0', 'Deluxe, Titanium, Titanium Plus']
+        ],
         Puma: [[2020, 0, 'Crossover', '1.0', 'ST-Line, Style']],
-        Ranger: [[1998, 0, 'Pick-up', '', '']],
-        Ecosport: [[2013, 2022, 'Crossover', '', '']],
+        Ranger: [[1998, 0, 'Pick-up', '2.2 TDCi, 3.2 TDCi', 'XLT, Wildtrak']],
+        Ecosport: [
+          [2013, 2017, 'Crossover', '', ''],
+          [2018, 2022, 'Crossover', '1.0', 'ST-Line, Style']
+        ],
         'C-Max': [[2003, 2019, 'MPV', '1.6 SCTi EcoBoost, 1.6 TDCi, 1.6 Ti-VCT', 'Titanium, Trend']],
         'B-Max': [[2012, 2017, 'MPV', '1.0 GTDI EcoBoost, 1.4, 1.5 TDCi, 1.6, 1.6 TDCi', 'Titanium, Trend']],
         Galaxy: [[1995, 0, 'MPV', '', '']],
         'S-Max': [[2006, 0, 'MPV', '', '']],
-        Fusion: [[2002, 2012, 'Hatchback', '', '']],
-        Escort: [[1990, 2000, 'Sedan, Hatchback, Station Wagon', '', '']],
-        Ka: [[1996, 2016, 'Hatchback', '', '']],
+        Fusion: [[2002, 2012, 'Hatchback', '1.4 TDCi, 1.6 TDCi, 1.6', 'Comfort, Urbanite, Lux']],
+        Escort: [[1990, 2000, 'Sedan, Hatchback, Station Wagon', '1.4, 1.8', 'Classic, CLX, XR3i']],
+        Ka: [
+          [1996, 2007, 'Hatchback', '1.3', 'City'],
+          [2008, 2016, 'Hatchback', '1.2', 'Titanium']
+        ],
         Mustang: [[1964, 0, 'Coupe, Cabrio', '', '']],
-        Explorer: [[1990, 0, 'SUV', '', '']]
+        Explorer: [
+          [1990, 2024, 'SUV', '', ''],
+          [2025, 0, 'SUV', '', 'Premium, Select']
+        ]
       }
     },
     Toyota: {
@@ -383,7 +431,7 @@
             'Dream, Dream X-Pack, Flame X-Pack, Vision Plus, Passion X-Pack, Flame, Passion, Vision'
           ]
         ],
-        'Corolla Cross': [[2022, 0, 'SUV', '', '']],
+        'Corolla Cross': [[2022, 0, 'SUV', '1.8 Hybrid', 'Flame, Passion, Passion X-Pack']],
         Yaris: [
           [
             1999,
@@ -401,7 +449,7 @@
           ],
           [2020, 0, 'Hatchback', '1.0, 1.5', 'Vision, Dream, Dream X-Pack, Flame, Flame X-Pack']
         ],
-        'Yaris Cross': [[2021, 0, 'Crossover', '', '']],
+        'Yaris Cross': [[2021, 0, 'Crossover', '1.5 Hybrid', 'Flame, Flame X-Pack, Passion X-Pack']],
         Auris: [
           [2007, 2012, 'Hatchback', '1.33, 1.4 D-4D, 1.6', 'Life, Active, Advance, Premium, Touch'],
           [2012, 2018, 'Hatchback, Station Wagon', '1.33, 1.4 D-4D, 1.6', 'Life, Active, Advance, Premium, Touch']
@@ -410,8 +458,14 @@
         RAV4: [[1994, 0, 'SUV', '2.0, 2.2 D-4D', 'Elegance, Premium, Premium Plus, Cross Sport, Sol, Sol Plus']],
         Hilux: [[1990, 0, 'Pick-up', '', 'Active, Adventure, Hi-Cruiser']],
         Avensis: [[1997, 2018, 'Sedan, Station Wagon', '1.6, 2.0, 2.0 D-4D', 'Elegant, Elegant Extra, Premium']],
-        Camry: [[1990, 0, 'Sedan', '', '']],
-        'Land Cruiser': [[1990, 0, 'SUV', '', '']],
+        Camry: [
+          [1990, 2023, 'Sedan', '', ''],
+          [2024, 0, 'Sedan', '', 'Passion']
+        ],
+        'Land Cruiser': [
+          [1990, 2023, 'SUV', '', ''],
+          [2024, 0, 'SUV', '2.8', '']
+        ],
         Proace: [[2013, 0, 'Panelvan, Minivan', '', '']],
         Verso: [[2009, 2018, 'MPV', '', 'Comfort Extra, Premium']],
         'Corolla Verso': [[2001, 2009, 'MPV', '', '']],
@@ -460,7 +514,8 @@
             'Elegance Lifestyle Techno, Executive, Executive Techno, Elegance, Executive Plus'
           ]
         ],
-        'HR-V': [[1999, 0, 'Crossover', '1.5', 'Executive']]
+        'HR-V': [[1999, 0, 'Crossover', '1.5', 'Executive']],
+        'CR-Z': [[2010, 2016, 'Coupe', '1.5', 'Sport, GT']]
       }
     },
     Hyundai: {
@@ -500,7 +555,10 @@
         ],
         Kona: [[2018, 0, 'Crossover', '1.0, 1.6, 1.6 CRDi', 'Style, Elite, N-Line']],
         Bayon: [[2021, 0, 'Crossover', '1.0, 1.4', 'Style, Elite, Jump']],
-        'Santa Fe': [[2000, 0, 'SUV', '', '']],
+        'Santa Fe': [
+          [2000, 2023, 'SUV', '', ''],
+          [2024, 0, 'SUV', '1.6', 'Progressive']
+        ],
         Ioniq: [[2016, 0, 'Hatchback', '', '']],
         Getz: [
           [
@@ -603,9 +661,9 @@
         Crossland: [[2021, 0, 'Crossover', '1.2', 'Edition, Elegance, Essential']],
         'Crossland X': [[2017, 2020, 'Crossover', '', '']],
         Grandland: [[2021, 0, 'SUV', '1.2', 'Edition, Elegance, Ultimate']],
-        'Grandland X': [[2017, 2020, 'SUV', '', '']],
+        'Grandland X': [[2017, 2020, 'SUV', '1.2, 1.5 CDTi', 'Enjoy, Excellence, Ultimate, 120. Yıl Özel Seri']],
         Combo: [[1994, 0, 'MPV, Panelvan', '1.3 CDTI, 1.6 CDTI', 'City, City Plus']],
-        Tigra: [[1994, 2009, 'Coupe, Cabrio', '', '']],
+        Tigra: [[1994, 2009, 'Coupe, Cabrio', '1.4, 1.8', 'Sport']],
         Adam: [[2013, 2019, 'Hatchback', '', '']],
         Agila: [[2000, 2014, 'Hatchback', '', '']],
         Omega: [[1986, 2003, 'Sedan, Station Wagon', '', '']],
@@ -618,8 +676,8 @@
       models:
         '206, 207, 208, 301, 308, 307, 407, 408, 508, 2008, 3008, 5008, 106, 108, 107, 405, 406, Partner, Rifter, Expert, Traveller, Boxer, Bipper, 807',
       series: {
-        106: [[1991, 2003, 'Hatchback', '', '']],
-        107: [[2005, 2014, 'Hatchback', '', '']],
+        106: [[1991, 2003, 'Hatchback', '1.1, 1.4, 1.6', 'XN, Quicksilver, GTI']],
+        107: [[2005, 2014, 'Hatchback', '1.0', 'Trendy, Urban Move']],
         108: [[2014, 2021, 'Hatchback', '', '']],
         206: [
           [
@@ -702,10 +760,11 @@
         5008: [[2009, 0, 'SUV', '1.5 BlueHDi, 1.6', 'Allure, GT-Line']],
         Partner: [[1996, 0, 'MPV, Panelvan', '1.6 HDi', 'Access, Active, Allure, Outdoor, Zenith']],
         Rifter: [[2018, 0, 'MPV', '1.5 BlueHDi, 1.6 BlueHDi', 'Active, Allure, Comfort, GT-Line']],
-        Bipper: [[2008, 2017, 'MPV, Panelvan', '', '']],
+        Bipper: [[2008, 2017, 'MPV, Panelvan', '1.3 HDi', 'Comfort, Comfort Plus']],
         Expert: [[1995, 0, 'Panelvan, Minivan', '', '']],
-        Traveller: [[2016, 0, 'Minivan', '', '']],
-        Boxer: [[1994, 0, 'Panelvan, Minivan', '', '']]
+        Traveller: [[2016, 0, 'Minivan', '2.0', 'Allure']],
+        Boxer: [[1994, 0, 'Panelvan, Minivan', '', '']],
+        408: [[2023, 0, 'Crossover', '1.2', 'Allure, GT']]
       }
     },
     Citroen: {
@@ -761,7 +820,7 @@
         ],
         'Sandero Stepway': [
           [2009, 2020, 'Crossover', '', ''],
-          [2021, 0, 'Crossover', '', '']
+          [2021, 0, 'Crossover', '1.2', 'Expression, Extreme']
         ],
         Duster: [
           [2010, 2017, 'SUV', '1.5 dCi, 1.6', 'Adventure, Ambiance, Laureate'],
@@ -813,8 +872,47 @@
           ],
           [2017, 0, 'Sedan, Station Wagon', '520d, 520i, 530i', 'Special Edition, Luxury, M Sport']
         ],
-        '6 Serisi': [[2003, 2019, 'Coupe, Cabrio, Sedan', '', '']],
-        '7 Serisi': [[1990, 0, 'Sedan', '', '']]
+        '6 Serisi': [
+          [2003, 2016, 'Coupe, Cabrio, Sedan', '', ''],
+          [2017, 2024, 'Hatchback', '630i', 'Luxury Line, M Sport']
+        ],
+        '7 Serisi': [
+          [1990, 2022, 'Sedan', '', ''],
+          [2023, 0, 'Sedan', '740d', '']
+        ],
+        X1: [
+          [2009, 2015, 'SUV', 'sDrive20i, sDrive20d, xDrive20d', 'Comfort, Premium, M Sport'],
+          [2015, 2022, 'SUV', 'sDrive16d, sDrive18i, xDrive20d', ''],
+          [2022, 0, 'SUV', 'sDrive18i, sDrive20i, xDrive25e', 'X-Line']
+        ],
+        X2: [
+          [2018, 2023, 'SUV', '', ''],
+          [2024, 0, 'SUV', 'sDrive20i', '']
+        ],
+        X3: [
+          [2003, 2010, 'SUV', '', ''],
+          [2010, 2017, 'SUV', 'sDrive20i, xDrive20d', 'Comfort'],
+          [2017, 2024, 'SUV', 'sDrive20i, xDrive20d', ''],
+          [2024, 0, 'SUV', '', 'X-Line']
+        ],
+        X5: [
+          [1999, 2006, 'SUV', '', ''],
+          [2007, 2013, 'SUV', '', ''],
+          [2013, 2018, 'SUV', 'xDrive25d, xDrive30d', ''],
+          [2018, 0, 'SUV', 'xDrive40d', '']
+        ],
+        X6: [
+          [2008, 2014, 'SUV', '', ''],
+          [2014, 2019, 'SUV', '', ''],
+          [2019, 0, 'SUV', 'xDrive40d', '']
+        ],
+        X4: [[2014, 0, 'SUV', '', '']],
+        X7: [[2019, 0, 'SUV', 'xDrive40d', '']],
+        Z4: [
+          [2002, 2018, 'Roadster, Coupe', '', ''],
+          [2019, 0, 'Roadster', 'sDrive30i', '']
+        ],
+        iX: [[2021, 0, 'SUV', 'xDrive60', '']]
       }
     },
     'Mercedes-Benz': {
@@ -876,14 +974,34 @@
           [2016, 2023, 'Sedan, Station Wagon, Coupe, Cabrio', 'E 180, E 220 d, E 300, E 350 d', 'AMG, Avantgarde'],
           [2023, 0, 'Sedan', 'E 180, E 220 d', 'AMG, Exclusive']
         ],
-        'S Serisi': [[1990, 0, 'Sedan, Coupe', '', '']],
+        'S Serisi': [
+          [1990, 2020, 'Sedan, Coupe', '', ''],
+          [2021, 0, 'Sedan', 'S 450 d', '']
+        ],
         CLA: [[2013, 0, 'Sedan, Station Wagon', '', 'AMG']],
         CLK: [[1997, 2010, 'Coupe, Cabrio', '', '']],
         SLK: [[1996, 2016, 'Roadster', '', '']],
-        Vito: [[1996, 0, 'Panelvan, Minivan', '', '']],
+        Vito: [
+          [1996, 2014, 'Panelvan, Minivan', '', ''],
+          [2015, 0, 'Panelvan, Minivan', '1.6 CDI, 2.2 CDI', 'Base, Base Plus, Select, Select Plus']
+        ],
         Sprinter: [[1995, 0, 'Panelvan, Minivan', '', '']],
         Viano: [[2003, 2014, 'Minivan', '', '']],
-        'V Serisi': [[2014, 0, 'Minivan', '', '']]
+        'V Serisi': [[2014, 0, 'Minivan', '', '']],
+        GLA: [
+          [2014, 2019, 'SUV', 'GLA 180 d, GLA 200', 'Comfort'],
+          [2020, 0, 'SUV', 'GLA 200', 'AMG']
+        ],
+        GLC: [
+          [2015, 2022, 'SUV, Coupe', '', ''],
+          [2023, 0, 'SUV, Coupe', 'GLC 180, GLC 300 d, GLC 400', 'AMG']
+        ],
+        GLB: [[2019, 0, 'SUV', 'GLB 200', 'Plus']],
+        CLS: [
+          [2004, 2010, 'Coupe', '', ''],
+          [2011, 2017, 'Coupe, Station Wagon', 'CLS 250 d', 'Sport'],
+          [2018, 0, 'Coupe', 'CLS 300 d, CLS 400 d', 'AMG']
+        ]
       }
     },
     Audi: {
@@ -916,7 +1034,26 @@
             ''
           ]
         ],
-        TT: [[1998, 2023, 'Coupe, Roadster', '', '']]
+        TT: [[1998, 2023, 'Coupe, Roadster', '', '']],
+        Q2: [[2016, 0, 'SUV', '35 TFSI', '']],
+        Q3: [
+          [2011, 2018, 'SUV', '', ''],
+          [2018, 0, 'SUV', '1.5 TFSI', '']
+        ],
+        Q5: [
+          [2008, 2016, 'SUV', '', ''],
+          [2016, 0, 'SUV', '40 TDI, 45 TFSI, 2.0 TFSI', '']
+        ],
+        Q7: [
+          [2006, 2015, 'SUV', '', ''],
+          [2015, 0, 'SUV', '45 TFSI', '']
+        ],
+        Q8: [[2018, 0, 'SUV', '45 TFSI', '']],
+        Q4: [[2021, 0, 'SUV', '40 e-tron', '']],
+        A7: [
+          [2010, 2017, 'Hatchback', '', ''],
+          [2018, 0, 'Hatchback', '40 TDI, 50 TDI', '']
+        ]
       }
     },
     Skoda: {
@@ -978,8 +1115,9 @@
         Roomster: [
           [2006, 2015, 'MPV', '1.2, 1.2 TSI, 1.4, 1.6, 1.9 TDI', 'Active, Comfort, Dynamic, Scout, Sport, Style']
         ],
-        Citigo: [[2012, 2020, 'Hatchback', '', '']],
-        Felicia: [[1994, 2001, 'Hatchback, Station Wagon', '', '']]
+        Citigo: [[2012, 2020, 'Hatchback', '1.0', 'Ambition, Elegance']],
+        Felicia: [[1994, 2001, 'Hatchback, Station Wagon', '', '']],
+        Enyaq: [[2021, 0, 'SUV, Coupe', '', 'e-Sportline']]
       }
     },
     Seat: {
@@ -1029,7 +1167,7 @@
           [1993, 2009, 'Sedan, Station Wagon', '1.4, 1.9 TDI', 'Basic, Reference, Signo, Stella, Stylance, Sport']
         ],
         Altea: [[2004, 2015, 'MPV', '1.4 TFSI, 1.4 TSI, 1.6, 1.9 TDI, 2.0 FSI, 2.0 TDI', 'Reference, Style, Stylance']],
-        Tarraco: [[2019, 0, 'SUV', '', '']],
+        Tarraco: [[2019, 0, 'SUV', '1.5', 'FR, Xperience']],
         Exeo: [[2009, 2013, 'Sedan, Station Wagon', '', '']],
         Alhambra: [[1996, 2020, 'MPV', '', '']],
         Mii: [[2012, 2021, 'Hatchback', '', '']]
@@ -1058,14 +1196,25 @@
           ]
         ],
         'X-Trail': [[2001, 0, 'SUV', '2.0, 2.0 dCi', 'LE, Platinum, SE, XE']],
-        Navara: [[1997, 0, 'Pick-up', '', '']],
+        Navara: [
+          [1997, 2004, 'Pick-up', '', ''],
+          [2005, 2015, 'Pick-up', '2.5 dCi', 'SE, LE, New Edition, Platinum'],
+          [2016, 0, 'Pick-up', '2.3 dCi', 'Visia, Tekna, Platinum']
+        ],
         Almera: [[1995, 2006, 'Sedan, Hatchback', '', '']],
-        Primera: [[1990, 2008, 'Sedan, Hatchback, Station Wagon', '', '']],
+        Primera: [
+          [1990, 2001, 'Sedan, Hatchback, Station Wagon', '', ''],
+          [2002, 2008, 'Sedan, Hatchback, Station Wagon', '1.6, 2.0', 'Visia, Tekna']
+        ],
         Sunny: [[1986, 2000, 'Sedan, Hatchback', '', '']],
         Leaf: [[2011, 0, 'Hatchback', '', '']],
-        Pulsar: [[2014, 2018, 'Hatchback', '', '']],
+        Pulsar: [[2014, 2018, 'Hatchback', '1.2, 1.5 dCi', 'Visia, N-Tec, Tekna']],
         Patrol: [[1990, 0, 'SUV', '', '']],
-        Murano: [[2003, 0, 'SUV', '', '']]
+        Murano: [[2003, 0, 'SUV', '', '']],
+        Note: [
+          [2006, 2012, 'MPV', '', ''],
+          [2013, 2017, 'Hatchback', '1.2, 1.5 dCi', 'Visia, Tekna, Platinum']
+        ]
       }
     },
     Kia: {
@@ -1092,12 +1241,16 @@
           [2009, 2018, 'Sedan', '1.6', 'Comfort, Concept SR, Cool']
         ],
         Sorento: [[2002, 0, 'SUV', '2.2 CRDi', 'XM1, XM2']],
-        Niro: [[2016, 0, 'Crossover', '', '']],
+        Niro: [
+          [2016, 2021, 'Crossover', '', ''],
+          [2022, 0, 'Crossover', '', 'Elegance, Prestige']
+        ],
         Optima: [[2010, 2020, 'Sedan, Station Wagon', '', '']],
         Soul: [[2009, 0, 'Crossover', '', '']],
-        Venga: [[2010, 2019, 'MPV', '', '']],
+        Venga: [[2010, 2019, 'MPV', '1.4 CRDi, 1.6 CRDi, 1.6', 'Panaroma, Panaroma Plus']],
         Carens: [[1999, 2019, 'MPV', '', '']],
-        XCeed: [[2019, 0, 'Crossover', '1.6 CRDi', 'Prestige Design Pack']]
+        XCeed: [[2019, 0, 'Crossover', '1.6 CRDi', 'Prestige Design Pack']],
+        EV6: [[2021, 0, 'Crossover', '', 'Elegance, Prestige, GT-Line, GT']]
       }
     },
     Mazda: {
@@ -1116,9 +1269,12 @@
         Mazda3: [[2003, 0, 'Sedan, Hatchback', '1.6, 2.3', 'Comfort, Impressive, Mirai, Touring, MPS']],
         Mazda6: [[2002, 0, 'Sedan, Hatchback, Station Wagon', '2.0, 2.2 D', 'Sport, Power, Power Sense']],
         Mazda2: [[2002, 0, 'Hatchback', '', '']],
-        'CX-3': [[2015, 0, 'Crossover', '', '']],
+        'CX-3': [[2015, 0, 'Crossover', '1.5 Sky-D', 'Reflex, Motion, Power, Power Sense']],
         'CX-30': [[2019, 0, 'Crossover', '', '']],
-        'CX-5': [[2012, 0, 'SUV', '2.0, 2.2 CDi', 'Power']],
+        'CX-5': [
+          [2012, 2017, 'SUV', '2.0, 2.2 CDi', 'Power'],
+          [2017, 0, 'SUV', '', '']
+        ],
         'CX-7': [[2006, 2012, 'SUV', '', '']],
         'MX-5': [[1989, 0, 'Roadster', '', '']]
       }
@@ -1131,20 +1287,23 @@
           [2005, 2017, 'Hatchback', '1.3, 1.5', 'Sport'],
           [2017, 0, 'Hatchback', '1.2', 'GLX']
         ],
-        SX4: [[2006, 2014, 'Hatchback, Sedan', '', '']],
-        'SX4 S-Cross': [[2013, 0, 'Crossover', '', '']],
+        SX4: [[2006, 2014, 'Hatchback, Sedan', '1.6, 1.6 DDiS', 'GL, GLX']],
+        'SX4 S-Cross': [[2013, 0, 'Crossover', '1.4, 1.6 DDiS', 'GL, GL Plus, Elegance']],
         Vitara: [[1988, 0, 'SUV', '1.4, 1.6', 'GL Plus, GLX']],
         'Grand Vitara': [[1998, 2015, 'SUV', '', '']],
-        Jimny: [[1998, 0, 'SUV', '', '']],
+        Jimny: [
+          [1998, 2017, 'SUV', '', ''],
+          [2018, 0, 'SUV', '1.5', 'GLX']
+        ],
         Baleno: [
           [1995, 2002, 'Sedan, Hatchback, Station Wagon', '', ''],
-          [2016, 2019, 'Hatchback', '', '']
+          [2016, 2019, 'Hatchback', '1.2', 'GL, Techno']
         ],
         Liana: [[2001, 2007, 'Sedan, Hatchback', '', '']],
         Ignis: [[2000, 0, 'Hatchback', '', '']],
         Celerio: [[2014, 0, 'Hatchback', '', '']],
-        Alto: [[1994, 2014, 'Hatchback', '', '']],
-        Splash: [[2008, 2015, 'Hatchback', '', '']]
+        Alto: [[1994, 2014, 'Hatchback', '1.0, 1.1', 'GL']],
+        Splash: [[2008, 2015, 'Hatchback', '1.2', 'GLS']]
       }
     },
     Mitsubishi: {
@@ -1155,32 +1314,38 @@
           [2008, 2017, 'Sedan, Hatchback', '1.5, 1.6, 1.8', 'Inform, Invite, Intense']
         ],
         ASX: [[2010, 0, 'Crossover', '1.6', 'Instyle, Intense, Invite']],
-        L200: [[1996, 0, 'Pick-up', '', '']],
+        L200: [
+          [1996, 2015, 'Pick-up', '', ''],
+          [2016, 0, 'Pick-up', '2.2', 'Tornado, Storm, Blizzard, Premium']
+        ],
         Colt: [[1996, 2012, 'Hatchback, Cabrio', '1.1, 1.3, 1.5, 1.5 DI-D', 'Inform, Invite']],
         Galant: [[1992, 2012, 'Sedan, Station Wagon', '', '']],
         Carisma: [[1995, 2004, 'Sedan, Hatchback', '', '']],
         Outlander: [[2001, 0, 'SUV', '', '']],
         Pajero: [[1990, 2021, 'SUV', '', '']],
         'Eclipse Cross': [[2018, 0, 'SUV', '', '']],
-        'Space Star': [[2013, 0, 'Hatchback', '', '']]
+        'Space Star': [[2013, 0, 'Hatchback', '1.2', 'Intense']]
       }
     },
     Chevrolet: {
       models: 'Aveo, Cruze, Captiva, Spark, Lacetti, Kalos, Epica, Matiz, Camaro, Trax, Orlando',
       series: {
         Aveo: [
-          [2005, 2011, 'Sedan, Hatchback', '', ''],
-          [2011, 2015, 'Sedan, Hatchback', '', '']
+          [2005, 2011, 'Sedan, Hatchback', '1.2, 1.4', 'S, SE, SX'],
+          [2011, 2015, 'Sedan, Hatchback', '1.2, 1.3 D', 'LS, LT, LTZ']
         ],
-        Cruze: [[2009, 2016, 'Sedan, Hatchback, Station Wagon', '', '']],
-        Lacetti: [[2004, 2011, 'Sedan, Hatchback, Station Wagon', '', '']],
+        Cruze: [[2009, 2016, 'Sedan, Hatchback, Station Wagon', '1.6', 'LT, Sport, Sport Plus']],
+        Lacetti: [[2004, 2011, 'Sedan, Hatchback, Station Wagon', '1.4, 1.6', 'SE, SX, CDX, WTCC']],
         Kalos: [[2002, 2008, 'Sedan, Hatchback', '', '']],
-        Captiva: [[2006, 2018, 'SUV', '', '']],
+        Captiva: [[2006, 2018, 'SUV', '2.0', 'LT, LTZ, High']],
         Spark: [[2010, 2016, 'Hatchback', '', '']],
         Epica: [[2006, 2011, 'Sedan', '', '']],
         Matiz: [[1998, 2010, 'Hatchback', '', '']],
-        Camaro: [[1967, 0, 'Coupe, Cabrio', '', '']],
-        Trax: [[2013, 2019, 'Crossover', '', '']],
+        Camaro: [
+          [1967, 2008, 'Coupe, Cabrio', '', ''],
+          [2009, 0, 'Coupe, Cabrio', '', 'SS']
+        ],
+        Trax: [[2013, 2019, 'Crossover', '1.4 T, 1.6', 'LS, LT']],
         Orlando: [[2011, 2018, 'MPV', '', '']]
       }
     },
@@ -1196,8 +1361,11 @@
         S90: [[2016, 0, 'Sedan', '2.0 D4, 2.0 D5, 2.0 T6', 'Inscription Plus, Inscription, Momentum, R-Design']],
         V40: [[2012, 2019, 'Hatchback', '1.5 T3, 1.6 D2, 2.0 D4, 2.0 T5', 'Advance, Premium, R-Design, Ocean Race']],
         V50: [[2004, 2012, 'Station Wagon', '', '']],
-        V60: [[2010, 0, 'Station Wagon', '', '']],
-        V90: [[2016, 0, 'Station Wagon', '', '']],
+        V60: [
+          [2010, 2017, 'Station Wagon', '', ''],
+          [2018, 0, 'Station Wagon', 'B5', 'Plus, Ultimate']
+        ],
+        V90: [[2016, 0, 'Station Wagon', 'B5, B6', 'Plus']],
         XC40: [[2018, 0, 'SUV', '1.5 T3, 2.0 T4', 'Momentum, R-Design']],
         XC60: [[2008, 0, 'SUV', '2.0 D4, 2.2 D4, 2.4 D5', 'Advance, Ocean Race, Premium, R-Design']],
         XC70: [[2000, 2016, 'Station Wagon', '', '']],
@@ -1210,7 +1378,7 @@
       models: 'Model 3, Model Y, Model S, Model X',
       series: {
         'Model 3': [[2017, 0, 'Sedan', '', '']],
-        'Model Y': [[2020, 0, 'SUV', '', '']],
+        'Model Y': [[2020, 0, 'SUV', '', 'SR, LR, Performance']],
         'Model S': [[2012, 0, 'Sedan', '', '']],
         'Model X': [[2015, 0, 'SUV', '', '']]
       }
@@ -1218,19 +1386,29 @@
     Togg: {
       models: 'T10X, T10F',
       series: {
-        T10X: [[2023, 0, 'SUV', '', '']],
-        T10F: [[2025, 0, 'Sedan', '', '']]
+        T10X: [[2023, 0, 'SUV', '', 'V1 Standart Menzil, V1 Uzun Menzil, V2 Uzun Menzil, V2 4More']],
+        T10F: [[2025, 0, 'Sedan', '', 'V1 Standart Menzil, V1 Uzun Menzil, V2 Uzun Menzil, V2 4More']]
       }
     },
     Jeep: {
       models: 'Renegade, Compass, Cherokee, Grand Cherokee, Wrangler, Avenger, Gladiator',
       series: {
-        Renegade: [[2015, 0, 'SUV', '', '']],
-        Compass: [[2017, 0, 'SUV', '', '']],
-        Cherokee: [[1984, 0, 'SUV', '', '']],
-        'Grand Cherokee': [[1993, 0, 'SUV', '', '']],
+        Renegade: [[2015, 0, 'SUV', '1.3, 1.5', 'Longitude, Limited, Summit']],
+        Compass: [
+          [2017, 2024, 'SUV', '', ''],
+          [2025, 0, 'SUV', '1.2', 'Limited, Summit']
+        ],
+        Cherokee: [
+          [1984, 2013, 'SUV', '', ''],
+          [2014, 0, 'SUV', '2.0, 2.0 TD', 'Longitude, Limited']
+        ],
+        'Grand Cherokee': [
+          [1993, 2010, 'SUV', '', ''],
+          [2011, 2021, 'SUV', '3.0', 'Limited, Overland, Summit'],
+          [2022, 0, 'SUV', '', '']
+        ],
         Wrangler: [[1987, 0, 'SUV', '', '']],
-        Avenger: [[2023, 0, 'SUV', '', '']],
+        Avenger: [[2023, 0, 'SUV', '1.2', 'Summit, Overland']],
         Gladiator: [[2020, 0, 'Pick-up', '', '']]
       }
     },
@@ -1238,11 +1416,17 @@
       models:
         'Discovery, Discovery Sport, Defender, Freelander, Range Rover, Range Rover Evoque, Range Rover Sport, Range Rover Velar',
       series: {
-        Discovery: [[1989, 0, 'SUV', '', '']],
-        'Discovery Sport': [[2015, 0, 'SUV', '', '']],
+        Discovery: [
+          [1989, 2016, 'SUV', '', ''],
+          [2017, 0, 'SUV', '2.0', 'Dynamic SE, Dynamic HSE']
+        ],
+        'Discovery Sport': [[2015, 0, 'SUV', '1.5', 'S, Dynamic SE, Dynamic HSE']],
         Defender: [[1983, 0, 'SUV', '', '']],
         Freelander: [[1997, 2015, 'SUV', '', '']],
-        'Range Rover': [[1970, 0, 'SUV', '', '']],
+        'Range Rover': [
+          [1970, 2021, 'SUV', '', ''],
+          [2022, 0, 'SUV', '3.0', 'Signature']
+        ],
         'Range Rover Evoque': [[2011, 0, 'SUV', '', '']],
         'Range Rover Sport': [[2005, 0, 'SUV', '', '']],
         'Range Rover Velar': [[2017, 0, 'SUV', '', '']]
@@ -1251,10 +1435,16 @@
     Mini: {
       models: 'Cooper, Cooper S, One, Countryman, Clubman, Paceman, John Cooper Works, Cabrio',
       series: {
-        Cooper: [[2001, 0, 'Hatchback, Cabrio', '', '']],
+        Cooper: [
+          [2001, 2023, 'Hatchback, Cabrio', '', ''],
+          [2024, 0, 'Hatchback, Cabrio', '1.5', 'Favoured']
+        ],
         'Cooper S': [[2001, 0, 'Hatchback, Cabrio', '', '']],
         One: [[2001, 0, 'Hatchback, Cabrio', '', '']],
-        Countryman: [[2010, 0, 'Crossover', '', '']]
+        Countryman: [
+          [2010, 2023, 'Crossover', '', ''],
+          [2024, 0, 'Crossover', '', 'Favoured, John Cooper Works']
+        ]
       }
     },
     'Alfa Romeo': {
@@ -1263,7 +1453,9 @@
         147: [[2000, 2010, 'Hatchback', '', '']],
         156: [[1997, 2007, 'Sedan, Station Wagon', '', '']],
         159: [[2005, 2011, 'Sedan, Station Wagon', '', '']],
-        Giulietta: [[2010, 2020, 'Hatchback', '', '']],
+        Giulietta: [
+          [2010, 2020, 'Hatchback', '1.4, 1.6 JTD', 'Progression, Progression Plus, Distinctive, Super, Sprint, TI']
+        ],
         Giulia: [[2016, 0, 'Sedan', '', '']],
         Stelvio: [[2017, 0, 'SUV', '', '']],
         MiTo: [[2008, 2018, 'Hatchback', '', '']],
@@ -1275,17 +1467,30 @@
     Subaru: {
       models: 'Impreza, Forester, Outback, XV, Legacy, BRZ, Levorg',
       series: {
-        Impreza: [[1993, 0, 'Sedan, Hatchback, Station Wagon', '', '']],
+        Impreza: [
+          [1993, 1999, 'Sedan, Hatchback, Station Wagon', '', ''],
+          [2000, 2007, 'Sedan, Hatchback, Station Wagon', '1.5, 2.0, 2.5', 'Active, Comfort, WRX STI'],
+          [2008, 0, 'Sedan, Hatchback, Station Wagon', '', '']
+        ],
         Legacy: [[1989, 0, 'Sedan, Station Wagon', '', '']],
-        Forester: [[1997, 0, 'SUV', '', '']],
-        XV: [[2012, 0, 'Crossover', '', '']],
+        Forester: [
+          [1997, 2024, 'SUV', '', ''],
+          [2025, 0, 'SUV', '2.0', 'Fun, Style']
+        ],
+        XV: [[2012, 0, 'Crossover', '1.6', 'Xclusive, Xtreme']],
         Levorg: [[2015, 0, 'Station Wagon', '', '']],
         BRZ: [[2012, 0, 'Coupe', '', '']]
       }
     },
     Lexus: {
       models: 'CT, IS, ES, NX, RX, UX, LS, GS, LC',
-      series: {}
+      series: {
+        NX: [
+          [2014, 2021, 'SUV', '', ''],
+          [2022, 0, 'SUV', '2.5', '']
+        ],
+        ES: [[2018, 0, 'Sedan', '300h', 'Business Plus, Exclusive, Executive']]
+      }
     },
     Porsche: {
       models: 'Cayenne, Macan, Panamera, 911, Boxster, Cayman, Taycan',
@@ -1304,31 +1509,43 @@
       models: 'Tiggo 4, Tiggo 7 Pro, Tiggo 8 Pro, Tiggo 4 Pro, Omoda 5, Tiggo 7, Tiggo 8',
       series: {
         'Tiggo 7 Pro': [[2023, 0, 'SUV', '', '']],
-        'Omoda 5': [[2023, 0, 'SUV', '', '']],
+        'Omoda 5': [[2023, 0, 'SUV', '1.6', 'Comfort, Luxury, Excellent']],
         'Tiggo 8 Pro': [[2023, 0, 'SUV', '', '']]
       }
     },
     MG: {
       models: 'ZS, HS, MG4, MG5, Marvel R, MG3',
       series: {
-        ZS: [[2019, 0, 'SUV', '', '']],
-        HS: [[2019, 0, 'SUV', '', '']],
-        MG4: [[2023, 0, 'Hatchback', '', '']]
+        ZS: [[2019, 0, 'SUV', '1.5', 'Comfort, Luxury, Luxury Plus']],
+        HS: [[2019, 0, 'SUV', '1.5', 'Comfort, Luxury']],
+        MG4: [[2023, 0, 'Hatchback', '', 'Comfort, Luxury, XPower']]
       }
     },
     BYD: {
       models: 'Atto 3, Seal, Han, Dolphin, Tang, Seagull',
-      series: {}
+      series: {
+        'Atto 3': [[2022, 0, 'SUV', '', 'Design']],
+        Seal: [[2022, 0, 'Sedan', '', 'Excellence']],
+        Han: [[2020, 0, 'Sedan', '', 'Executive']],
+        Dolphin: [[2021, 0, 'Hatchback', '', 'Comfort, Design']],
+        Tang: [[2018, 0, 'SUV', '', 'Flagship']]
+      }
     },
     Cupra: {
       models: 'Formentor, Leon, Born, Ateca, Tavascan',
       series: {
-        Formentor: [[2021, 0, 'SUV', '', '']]
+        Formentor: [[2021, 0, 'SUV', '1.5', 'Impulse, Supreme, VZ-Line, VZ']],
+        Leon: [[2020, 0, 'Hatchback, Station Wagon', '1.5', 'Impulse, Supreme, VZ-Line, VZ']],
+        Born: [[2021, 0, 'Hatchback', '', '']]
       }
     },
     DS: {
       models: 'DS 3, DS 3 Crossback, DS 4, DS 5, DS 7 Crossback, DS 9',
-      series: {}
+      series: {
+        'DS 4': [[2021, 0, 'Hatchback', '', 'Pallas, Esprit de Voyage, Performance Line']],
+        'DS 7 Crossback': [[2018, 0, 'SUV', '1.5', 'Etoile']],
+        'DS 9': [[2021, 0, 'Sedan', '', 'Opera']]
+      }
     },
     Smart: {
       models: 'Fortwo, Forfour',

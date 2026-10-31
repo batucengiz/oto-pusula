@@ -24,12 +24,12 @@ test('katalog yapısı: her kuşağın yılı, kasası, motoru ve paketi geçerl
         for (const body of gen.bodies) assert.ok(BODY_TYPES.includes(body), `${where}: bilinmeyen kasa ${body}`);
         for (const field of ['bodies', 'engines', 'trims'])
           assert.equal(new Set(gen[field].map(core.key)).size, gen[field].length, `${where} ${field} yinelenmiş`);
-        // Motor adı hacimle başlar (ya da elektrik / Audi güç kodu / BMW ve Mercedes tip adı); paket adı motor ya da
+        // Motor adı hacimle başlar (ya da elektrik / Audi güç kodu / BMW sDrive-xDrive / Volvo B5 / BMW ve Mercedes tip adı); paket adı motor ya da
         // kasa adı değildir.
         for (const engine of gen.engines)
           assert.match(
             engine,
-            /^(\d\.\d{1,2}( |$)|\d{2} T(FSI|DI)$|Elektrik$|[1-7]\d\d[a-z]{1,2}$|[A-Z]{1,3} ?\d{2,3}( ?[A-Za-z0-9]+)*$)/,
+            /^(\d\.\d{1,2}( |$)|\d{2} T(FSI|DI)$|\d{2} e-tron$|Elektrik$|[1-7]\d\d[a-z]{1,2}$|[sx]Drive\d{2}[a-z]?$|[A-Z]{1,3} ?\d{1,3}( ?[A-Za-z0-9]+)*$)/,
             `${where}: motor sanılmayan "${engine}"`
           );
         for (const trim of gen.trims) {

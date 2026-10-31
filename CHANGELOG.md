@@ -2,6 +2,14 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.45.0 — 2026-11-01
+
+- **Katalog: paket ve motor önerisi olan model sayısı 162'den 291'e çıktı, hepsi kaynaklı.** Kaynak: arabalar.com.tr'nin Türkiye sürüm listeleri (model ve yıl sayfaları, yaklaşık 130 sayfa okundu). Eklenenler arasında Fiat Doblo, Punto, Grande Punto, 500L, 500X, Fiorino, Panda, Bravo, Stilo, Marea, Tempra, Uno; Renault Kangoo, Express, R 9, R 19, Rafale; Volkswagen T-Cross, Amarok, Bora, Transporter, Touareg, ID.4; Ford Courier, Connect, Ranger, Fusion, Ecosport, Ka, Escort, Custom, Explorer; Toyota Corolla Cross, Yaris Cross, Land Cruiser, Camry; Opel Grandland X, Tigra; Peugeot 106, 107, Bipper, 408, Traveller; BMW X1, X2, X3, X5, X6, X7, Z4, iX, 6 ve 7 Serisi; Mercedes GLA, GLB, GLC, CLS, S Serisi, Vito; Audi Q2, Q3, Q4, Q5, Q7, Q8, A7; Nissan Navara, Primera, Pulsar, Note; Kia Niro, Venga, EV6; Suzuki SX4, SX4 S-Cross, Baleno, Jimny, Splash, Alto; Mitsubishi L200, Space Star; Chevrolet Aveo, Cruze, Captiva, Lacetti, Trax, Camaro; Jeep, Land Rover, Mini, Subaru, Alfa Romeo Giulietta, Togg, Tesla Model Y, BYD, Cupra, DS, MG, Lexus NX/ES ve Chery Omoda 5.
+- **Mazda CX-5 katalogda artık var** (2012-2017: 2.0, 2.2 CDi, Power; 2017 sonrası kuşak boş, kaynak bulunamadı).
+- **Kaynak yalnızca son kuşağı gösteriyorsa kuşak ikiye ayrıldı.** Örneğin Touareg, Explorer, Camry, Land Cruiser, Range Rover gibi uzun yıl aralıklı modellerde yeni sürüm adları yalnızca yeni kuşağa yazıldı; eski yıllarda bu adlar önerilmez, o yıllar boş kalır.
+- **Hâlâ boş olanlar (~129 kuşaklı model + ~92 kuşaksız ad):** arabalar.com.tr'de sayfası olmayan modeller (ör. VW Touran/Sharan/Up, Ford Transit/S-Max, Mazda2/CX-30, Kia Soul/Optima, Hyundai i40/ix20, Alfa Romeo 147/156/159, Tofaş, Citroen'in eski modelleri, Porsche). BMW 316/520 gibi tip adları ayrı model sayılmaz, "3 Serisi" altında önerilir. Kaynaksız ad eklenmedi.
+- Test: motor adı denetimi BMW sDrive/xDrive, Audi "40 e-tron" ve Volvo "B5" yazımını da kabul eder.
+
 ## 7.44.0 — 2026-10-27
 
 - **Katalog: Volvo, Mazda ve Mitsubishi'de ilk modeller dolduruldu** (kaynak: arabalar.com.tr yıl sayfaları). Volvo S40, S60, S80, S90, V40, XC40, XC60, XC90; Mazda 626, Mazda3, Mazda6; Mitsubishi Lancer, ASX, Colt için motor ve paket adları eklendi. Sitede sayfası bulunmayan modeller (ör. Volvo V60/V50/XC70, Mazda CX-3, Mitsubishi L200/Outlander) boş kalır; ezber ad eklenmez.
