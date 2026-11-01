@@ -24,12 +24,12 @@ test('katalog yapısı: her kuşağın yılı, kasası, motoru ve paketi geçerl
         for (const body of gen.bodies) assert.ok(BODY_TYPES.includes(body), `${where}: bilinmeyen kasa ${body}`);
         for (const field of ['bodies', 'engines', 'trims'])
           assert.equal(new Set(gen[field].map(core.key)).size, gen[field].length, `${where} ${field} yinelenmiş`);
-        // Motor adı hacimle başlar (ya da elektrik / Audi güç kodu / BMW sDrive-xDrive / Volvo B5 / BMW ve Mercedes tip adı); paket adı motor ya da
+        // Motor adı hacimle başlar (ya da elektrik / Audi güç kodu / BMW sDrive-xDrive / Volvo B5 / BMW ve Mercedes tip adı, Sprinter "316 CDI"); paket adı motor ya da
         // kasa adı değildir.
         for (const engine of gen.engines)
           assert.match(
             engine,
-            /^(\d\.\d{1,2}( |$)|\d{2} T(FSI|DI)$|\d{2} e-tron$|Elektrik$|[1-7]\d\d[a-z]{1,2}$|[sx]Drive\d{2}[a-z]?$|[A-Z]{1,3} ?\d{1,3}( ?[A-Za-z0-9]+)*$)/,
+            /^(\d\.\d{1,2}( |$)|\d{2} T(FSI|DI)$|\d{2} e-tron$|Elektrik$|[1-7]\d\d([a-z]{1,2}| CDI)$|[sx]Drive\d{2}[a-z]?$|[A-Z]{1,3} ?\d{1,3}( ?[A-Za-z0-9]+)*$)/,
             `${where}: motor sanılmayan "${engine}"`
           );
         for (const trim of gen.trims) {
@@ -91,7 +91,7 @@ test('katalogda kuşağı olmayan model ya da tutmayan yıl için ezber paket/mo
   assert.deepEqual(all('trim', { brand: 'Fiat', model: 'Egea', year: 1997 }), []);
   assert.deepEqual(all('trim', { brand: 'Fiat', model: 'Tipo', year: 2020 }), []);
   // Kuşağı bilinen ama paket adı doğrulanmamış model: liste boş, kayıt varsa yalnızca kayıttan gelir.
-  assert.deepEqual(all('trim', { brand: 'Tesla', model: 'Model 3', year: 2021 }), []);
+  assert.deepEqual(all('trim', { brand: 'Tesla', model: 'Model X', year: 2021 }), []);
 });
 
 test('Fiat Tipo 1997: paket S/SX/SX A.K., kasa yalnız Hatchback; Egea paketleri ve Sedan/Pick-up önerilmez', () => {
@@ -258,4 +258,15 @@ test('formda: yıl yazılınca paket listesi o kuşağa göre değişir; kayıtt
   field('trim').dispatchEvent(new window.Event('focus'));
   const egea = [...field('trim').nextElementSibling.querySelectorAll('li')].map(li => li.textContent);
   assert.ok(egea.includes('Urban') && !egea.includes('SX'), egea.join());
+});
+
+test('7.46.0 ilan başlığı kaynaklı sürümler doğru kuşakta: Tofaş Şahin, Passat Variant, Range Rover Evoque', () => {
+  assert.deepEqual(all('trim', { brand: 'Tofaş', model: 'Şahin', year: 1995 }), ['S', '5 Vites']);
+  assert.deepEqual(all('engine', { brand: 'Tofaş', model: 'Şahin', year: 1995 }), ['1.4 i.e.', '1.6 i.e.']);
+  // Yeni kuşağın adları eski yıllarda önerilmez.
+  assert.deepEqual(all('trim', { brand: 'Volkswagen', model: 'Passat Variant', year: 2005 }), []);
+  assert.ok(all('trim', { brand: 'Volkswagen', model: 'Passat Variant', year: 2018 }).includes('Comfortline'));
+  assert.ok(!all('engine', { brand: 'Land Rover', model: 'Range Rover Evoque', year: 2013 }).includes('1.5 PHEV'));
+  assert.ok(all('engine', { brand: 'Land Rover', model: 'Range Rover Evoque', year: 2021 }).includes('1.5 PHEV'));
+  assert.ok(all('engine', { brand: 'Mercedes-Benz', model: 'Sprinter', year: 2015 }).includes('316 CDI'));
 });
