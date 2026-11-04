@@ -299,21 +299,21 @@ test('Excel: arama listesinden gelen ilanda yakıt/vites/paket/hacim/güç/çeki
   assert.doesNotMatch(full['Eksik bilgi'], /yakıt, vites/, 'doldurulan alan eksik sayılmaz');
 
   const klima = row('1344000075');
-  assert.equal(klima['Vites'], '', '"otomatik klima" vites değildir');
+  assert.equal(klima['Vites'], 'bilinmiyor', '"otomatik klima" vites değildir');
   assert.equal(klima['Paket'], '', 'açılmış ilanların paketi farklı, başlıkta yok: boş');
   assert.match(klima['Eksik bilgi'], /vites.*ilan sayfasında yazar/);
 
   const old = row('1344000076');
   assert.equal(old['Vites'], 'Manuel');
-  assert.equal(old['Motor gücü (hp)'], '', '2010 aracın yılına yakın açılmış ilan yok: güç uydurulmaz');
+  assert.equal(old['Motor gücü (hp)'], 'bilinmiyor', '2010 aracın yılına yakın açılmış ilan yok: güç uydurulmaz');
   assert.equal(old['Yakıt'], 'Dizel');
 
   const tfsi = row('1344000077');
   assert.equal(tfsi['Yakıt'], 'Benzin', 'TFSI → Benzin');
-  assert.equal(tfsi['Motor hacmi (cc)'], '', 'farklı motorlu ilanlardan alınmaz');
+  assert.equal(tfsi['Motor hacmi (cc)'], 'bilinmiyor', 'farklı motorlu ilanlardan alınmaz');
 
   const unknown = row('1344000078');
-  assert.equal(unknown['Yakıt'], '', 'kodsuz motor (1.33): yakıt boş');
+  assert.equal(unknown['Yakıt'], 'bilinmiyor', 'kodsuz motor (1.33): yakıt boş');
   assert.equal(unknown['Vites'], 'Otomatik', 'yumuşak tire ile bölünmüş OTO­MATİK');
   assert.equal(unknown['Paket'], '', '"premium temizlikte" paket değildir');
 
@@ -342,4 +342,28 @@ test('yakıt motor kodundan, vites başlıktan: belirsizse boş', () => {
   assert.equal(listing.gearboxFromTitle('OTOMATİK KLİMA, MANUEL VİTES'), 'Manuel');
   assert.equal(listing.gearboxFromTitle('OTOMATİK DEĞİL MANUEL'), '', 'çelişkili: boş');
   assert.equal(listing.gearboxFromTitle('1.5BLUEDCI OTO 150 BİN KM'), '', '"OTO" kısaltması belirsiz');
+});
+
+test('Excel: bilinmeyen araç bilgisi boş bırakılmaz, "bilinmiyor" yazılır; kasa aynı motor+paketli ikizlerden gelir', () => {
+  const base = { brand: 'Fiat', model: 'Tipo', engine: '1.4', trim: 'S', year: 2018, km: 90000, price: 500000 };
+  const make = (id, extra) =>
+    core.normalizeRecord({ ...base, id: `sh-${id}`, listingId: id, source: 'sahibinden', ...extra }, 'comparable');
+  const twin = (id, body) => make(id, { detailRead: true, body, fuel: 'Benzin (LPG)', engineSize: 1372 });
+  const table = listing.marketTable(
+    {
+      comparables: [
+        twin('1344000071', 'Hatchback 5 Kapı'),
+        twin('1344000072', 'Hatchback 5 Kapı'),
+        make('1344000073', {})
+      ]
+    },
+    new Date('2026-10-26')
+  );
+  const col = title => table.columns.findIndex(column => column.title === title);
+  const row = table.rows.find(cells => cells[col('İlan no')] === '1344000073');
+  assert.equal(row[col('Kasa tipi')], 'Hatchback 5 Kapı');
+  assert.equal(row[col('Vites')], 'bilinmiyor');
+  assert.match(row[col('Eksik bilgi')], /kasa aynı motor ve paketli 2 açılmış ilandan/);
+  const lone = listing.marketTable({ comparables: [make('1344000074', {})] }, new Date('2026-10-26'));
+  assert.equal(lone.rows[0][col('Kasa tipi')], 'bilinmiyor');
 });

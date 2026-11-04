@@ -1235,6 +1235,17 @@
     }
     if (fromTwins.length)
       notes.push(`${fromTwins.join(', ')} aynı motorlu ${peers.length} açılmış ilandan (hepsi aynı)`);
+    // Kasa aynı motorda farklı olabilir (Tipo Sedan/Hatchback), bu yüzden paketi de aynı ikizler aranır.
+    if (empty('body') && record.trim) {
+      const bodies = peers
+        .filter(other => norm(other.trim) === norm(record.trim))
+        .map(other => other.body)
+        .filter(Boolean);
+      if (bodies.length >= 2 && bodies.every(value => norm(value) === norm(bodies[0]))) {
+        filled.body = bodies[0];
+        notes.push(`kasa aynı motor ve paketli ${bodies.length} açılmış ilandan (hepsi aynı)`);
+      }
+    }
     if (empty('transmission')) {
       const gearbox = gearboxFromTitle(record.title);
       if (gearbox) {
@@ -1340,6 +1351,8 @@
           a.record.price - b.record.price
       );
     const twins = detailTwins(entries.map(entry => entry.record));
+    // Boş hücre bırakılmaz: bilinmeyen değer açıkça "bilinmiyor" yazılır (nedeni "Eksik bilgi" sütununda).
+    const known = value => (value === undefined || value === null || value === '' ? 'bilinmiyor' : value);
     const rows = entries.map(({ record, result, advice, change, deal }) => {
       const body = core.bodyReport(record);
       const { filled, notes } = record.detailRead ? { filled: {}, notes: [] } : inferSpecs(record, twins);
@@ -1353,18 +1366,18 @@
       return [
         url ? { link: url, text: 'İlana git' } : '',
         result.status === 'az veri' && result.trend ? `az veri (eğilim: ${result.trend})` : result.status || 'veri yok',
-        deal ? deal.score : '',
-        deal?.label || '',
+        deal ? deal.score : '—',
+        deal?.label || 'fırsat değil',
         record.brand,
         record.model,
         engineLabel(record),
         spec.trim,
-        spec.fuel,
-        spec.transmission,
-        record.body,
-        spec.enginePower ?? '',
-        spec.engineSize ?? '',
-        spec.drive || '',
+        known(spec.fuel),
+        known(spec.transmission),
+        known(spec.body),
+        known(spec.enginePower),
+        known(spec.engineSize),
+        known(spec.drive),
         record.color || '',
         record.year,
         record.km,
