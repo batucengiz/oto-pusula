@@ -2,6 +2,12 @@
 
 Her sürümün paketi GitHub'daki [Releases](https://github.com/batucengiz/oto-pusula/releases) sayfasındadır.
 
+## 7.47.0 — 2026-11-04
+
+- **Excel'de boş hücre kalmıyor.** Yakıt, vites, kasa tipi, motor gücü, motor hacmi ve çekiş bilinmiyorsa hücreye "bilinmiyor" yazılır (neden "Eksik bilgi" sütununda: arama listesinde yazmaz, ilan sayfası açılınca dolar). Fırsat puanı olmayan ilanda puan "—", fırsat sütunu "fırsat değil" yazar.
+- **Kasa tipi güvenli tahmin:** aynı marka, model, motor ve pakette (yıl ±1) açılmış en az 2 ilanın kasası aynıysa Excel'e yazılır, kaynağı "Eksik bilgi" sütununda belirtilir. Kayıt ve fiyat tahmini değişmez, değer uydurulmaz.
+- Geliştirici aracı: `tools/simulation.js` sentetik piyasa simülasyonu (eklenti paketine girmez).
+
 ## 7.46.0 — 2026-11-01
 
 - **Katalog: paket ve motor önerisi olan model sayısı 291'den 396'ya çıktı (105 model daha), hepsi kaynaklı.** Kaynak: arabam.com'daki ikinci el ilan başlıkları ve sürüm sayfaları ("Hyundai i40 1.7 CRDi Executive", "Alfa Romeo 147 1.6 TS Distinctive" gibi; yaklaşık 110 model arandı). Ad yalnızca ilan başlığında gerçekten geçiyorsa eklendi; yazım katalogdaki biçime çekildi (TDi → TDI, Mjet → Multijet, ie → i.e.). Eklenenler arasında Tofaş Şahin, Kartal, Doğan; VW Touran, Sharan, Up, Passat Variant, Beetle, Caravelle, Multivan, Crafter, Lupo; Ford Galaxy, S-Max, Mustang; Hyundai i40, ix20, Matrix, Ioniq, Sonata, Atos, Starex; Opel Mokka X, Crossland X, Adam, Agila, Omega, Kadett, Vivaro, Frontera; Peugeot 405, 406, 807, Expert, Boxer; Citroen DS3, Saxo, C2, Jumpy, Jumper; Alfa Romeo 147, 156, 159, MiTo, Giulia, Stelvio, Spider; Kia Optima, Soul, Carens; Mazda2, MX-5, 323; Nissan Almera, Sunny, Patrol, Murano; Mitsubishi Outlander, Pajero, Eclipse Cross, Carisma, Galant; Volvo V50, XC70, C30, C70; Land Rover Defender, Freelander, Evoque, Range Rover Sport, Velar; Mercedes CLK, SLK, Sprinter, Viano, V Serisi; Porsche Cayenne, Macan; Chery Tiggo 7 Pro / 8 Pro ve diğerleri.
